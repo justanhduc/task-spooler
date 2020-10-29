@@ -922,7 +922,7 @@ void notify_errorlevel(struct Job *p)
 {
     int i;
 
-    last_errorlevel = 0;  // broadcasted "fake news"
+    last_errorlevel = 0;  /* broadcasted "fake news" */
 
     for(i = 0; i < p->notify_errorlevel_to_size; ++i)
     {
@@ -930,7 +930,7 @@ void notify_errorlevel(struct Job *p)
         notified = get_job(p->notify_errorlevel_to[i]);
         if (notified)
         {
-            notified->dependency_errorlevel = 0;  // broadcasted "fake news"
+            notified->dependency_errorlevel = 0;  /* broadcasted "fake news" */
         }
     }
 }
