@@ -381,7 +381,7 @@ int s_newjob(int s, struct msg *m)
                         if (!parent)
                             error("jobid %i suddenly disappeared from the finished list",
                                 ljobid);
-                        p->dependency_errorlevel = 0;
+                        p->dependency_errorlevel = parent->result.errorlevel;
                     }
                     else
                         p->dependency_errorlevel = last_errorlevel;
@@ -922,7 +922,7 @@ void notify_errorlevel(struct Job *p)
 {
     int i;
 
-    last_errorlevel = p->result.errorlevel;
+    last_errorlevel = 0;
 
     for(i = 0; i < p->notify_errorlevel_to_size; ++i)
     {
@@ -930,7 +930,7 @@ void notify_errorlevel(struct Job *p)
         notified = get_job(p->notify_errorlevel_to[i]);
         if (notified)
         {
-            notified->dependency_errorlevel = p->result.errorlevel;
+            notified->dependency_errorlevel = 0;
         }
     }
 }
