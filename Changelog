@@ -1,0 +1,140 @@
+## Features to be implemented
+
+Doubtful tasks:
+ - Allow the 'only-tail' output, without any storage. The number of lines
+   or bytes should be choosable.
+   - No program should give that big amount of output, so it cannot be stored.
+ - What happens if the output disk is full? Should be decide a good behaviour
+   in that situation?
+   - It's up to the running program; ts gives the descsriptor to it.
+
+Future:
+ - Use a better system than mkstemp() for finding output files, so we can add
+   .gz to the gzipped outputs.
+v1.0:
+ - Respect TMPDIR for output files.
+v0.7.6:
+ - Add -k (send SIGTERM to process group). Replacement for "kill -- -`ts -p`".
+v0.7.4:
+ - Fixing a bug about dangling processes, in case of using "ts -r".
+v0.7.3:
+ - Add option '-N' to set the number of slots required for a job to run.
+   Proposed by Sergey Litvinov.
+v0.7.2:
+ - Add option '-E', to keep stderr apart. It goes to "`ts -o`.e".
+v0.7.1:
+ - Implement check of ownership of the socket. Security bugfix.
+v0.7.0:
+ - Implement blocking of enqueuing still allowing other queue operations.
+ - Add the -B parameter, that will not block in case of queue full
+v0.6.6:
+ - Fixed the feature TS_MAXCONN, which collided with the protocol version check.
+v0.6.5:
+ - Fixed a problem that -c and -t, if their pipe was broken, they remained.
+ - Fixed a problem (maybe some copypaste once?) on -l, that created always an error msg.
+ - Adding the possibility of limiting the amount of ts connections.
+v0.6.4:
+ - Fixed a bug breaking -c and -t.
+v0.6.3:
+ - Fixed a bug on -c and -t.
+ - Adding first support for -D (run depending on any job)
+ - Adding version control on the protocol.
+ - Making the ts server chdir to the socket directory, so it doesn't annoy on umounting.
+v0.6.2:
+ - Fixed a bug on -w
+ - Making -S return the number of slots
+ - Fixed a bug on clients dying (making the queue not usable anymore)
+ - Making an error file different for each socket ($TS_SOCKET.error)
+ - Making ts not to log on the error log file constantly.
+ - Adding information on the exit status in -i
+v0.6.1:
+ - Adding support for the TS_SLOTS env variable, to set the number of slots of
+ a starting server.
+ - Removing references to /usr for nix.
+ - Bugfixing (fixed error handling, -m)
+v0.6:
+ - Adding multi-slot running capabilities. Big changes in the job management.
+ - Bugfixing (-t, -c and -r, mostly)
+v0.5.4.1:
+ - Moving out 'debian', so the Debian packagers can use their systems
+ comfortably when packaging ts.
+v0.5.4:
+ - Bug fixing (-t, actions to last job ids, -w, ...)
+ - -c waits for the job end. Like -t, but it shows the whole output.
+v0.5.3:
+ - Fixed: Only one waiting ts process ('-w' and '-t') could be used for each
+   jobid. Now, many.
+v0.5.2:
+ - Fixed the '-r' without jobid, which should remove the last added job.
+ - Fixed some messages for '-t' without jobid (it said something about job -1).
+v0.5.1:
+ - Fixed the new '-t', which had several problems
+v0.5:
+ - Several bug fixes (related to -w, -r and -L)
+ - ts creates sessions, so "kill -- -`ts -p`" can be used
+ - New implementation for '-t', which exits when finished, similar to '-w'
+v0.4.2:
+ - Added labels with -L, in order to distingish commands better on queue list.
+ - Added per-job information, readable through -i, configurable through TS_ENV
+ - Added dependant enqueuing (-d). Conditional run based on last job result.
+v0.4.1:
+ -* Bugfix: removing a job now doesn't leave the job's ts client alive
+ -* Bugfix: killing the running job's ts client now doesn't block the
+ 	queue forever
+ -* Bugfix: now using setsid() in order to unlink ts from the bash session.
+v0.4:
+ -* Allow killing 'ts' in a nice way.
+   - It's good, because a spawner of 'ts' may want to kill it.
+ -* If the server is horribly killed (it may happen as this is software), store
+   the task queue in a file, so it can be recovered.
+ -* Store the 'times()' for the run tasks.
+v0.3.2:
+ -* Fixed the $POSIXLY_CORRECT bug finally
+ -* Slightly better makefile and man page
+ -* The server should never run out of handles - simply block the client
+ -* Added an error reporting system (in ts(1) - BUGS)
+ -* SIGPIPE is ignored in the ts processes
+v0.3.1:
+ -* Fixed a bug with $POSIXLY_CORRECT being passed to the jobs. This break the
+   gentoo emerge jobs.
+ -* Fixed a posix compatibility problem for BSD.
+ -* Fixed - the fd 3 is no more opened for the task processes.
+ -* Added a man page and fixed the makefile.
+v0.3:
+ -* Allow sending the output by mail, or passing it to a program if an
+   env var defines it.
+ -* Allow gzipping the output
+ -* Add a flag for swapping two jobs in the queue (-U id-id)
+ -* Limit the jobs in 'finished' state according to $TS_MAXFINISHED
+ -* Output the jobid in stdout.
+ -* Status check with -s. Return the state in stdout.
+ -* An env var may define the socket path.
+ -* bash is no more used for running commands. Commands are run as is.
+v0.2.3:
+ -* '-nf' doesn't leave the job in 'finished' state
+ -* Fixed a bug in -r
+ -* '-u' implemented. For altering the queue order.
+ -* '-w' returns the waited errorlevel
+ -* '-o' returns the output file of the last job
+v0.2.1:
+ -* Fixed a bug in the wait-notifications.
+ -* Improved the compilation, including almost all the proper files.
+v0.2:
+ -* Add a '-h' for help
+ -* Have a nice list output (correctly formatted)
+ -* Allow killing the running job (Allowed with -p easily)
+ -* Allow tailing any job
+ -* Allow removing a job from the queue
+ -* Allow waiting any job
+v0.1:
+ -* The clients should _always_ go into background. *
+ -* Allow to receive more parameters in the command line, and them be joined
+   with spaces for the command passed to bash.
+ -* There should be no limit on command line parameters.
+ -* There should be no limit on lines outputed by "-l".
+ -* Get the list of finished jobs, with its errorlevel.
+ -* The list of finished jobs should be clenead on demmand "-c".
+ -* Output to a file should be possible. Use mkstemp().
+ -* There should be no limit on output filename.
+v0.0.1:
+ -* add tasks, and they run one after another. Input closed. Output in stdout.

@@ -1,0 +1,18 @@
+ANSI C and POSIX
+-------------------------
+The code should compile without any warning in a system providing an ANSI C
+compiler and a Single Unix Specification rev 5 library. I tried only with glibc.
+
+If you find any inconsistency between the code and this statement, please let
+know the auther.
+
+Compilers
+-------------------------
+(Lluís) I could compile easily with gcc.
+I could also compile with tcc 0.9.23 if I change the features to
+-D_XOPEN_SOURCE -D_XOPEN_SOURCE_EXTENDED -D__STRICT_ANSI__ .
+
+HP-UX 10.2 in PA-RISC
+-------------------------
+(Lluís) I could compile ts 0.3 changing the #include for sys/select.h in
+server.c to sys/time.h. I also had to use gcc instead of the system's cc.

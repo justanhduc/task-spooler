@@ -1,0 +1,24 @@
+[ Totally outdated document ]
+
+New job
+-------------------------
+Client: Msg [ new job (commandsize,filenamesize)]
+Client: Command (+null)
+Server: Msg [ NewJob OK ]
+--- pause until the server allows running ---
+Server: Msg [ RunJOB ]
+Client: Msg [ RunJOB OK ]
+Client: (if needed) Filename (+null)
+--- pause until the client process finishes ---
+Client: Msg [ EndJOB ]
+Client: close.
+
+List
+-------------------------
+Client: Msg [ LIST ]
+Server: Msg [ List_line ]
+Server: line (+null)
+Server: Msg [ List_line ]
+Server: line (+null)
+...
+Server: close.

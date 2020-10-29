@@ -1,0 +1,532 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head>
+
+
+
+<title>Linux.com :: Queuing tasks for batch execution with Task Spooler</title>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="Generator" content="Xaraya">
+<meta name="Keywords" content="Linux, Distributions, Linux forums, Linux support, Linux software, Linux Videos, Linux news, Linux downloads">
+<meta name="Description" content="The Task Spooler project allows you to queue up tasks from the shell for batch execution. Task Spooler  is simple to use and requires no configuration. You can view and edit queued commands, and you can view the output of queued commands at any time.">
+<meta name="rating" content="General">
+
+
+
+<!-- Linking for Mozilla and related browser site tab -->
+    <link rel="alternate" type="application/rss+xml" title="RSS" href="http://web.archive.org/web/20090227001121/http://www.linux.com/feature/?theme=rss">
+
+
+    <link rel="alternate" type="text/html" title="Print" href="http://web.archive.org/web/20090227001121/http://www.linux.com/feature/143901?theme=print">
+
+
+
+<link rel="pingback" href="http://web.archive.org/web/20090227001121/http://www.linux.com/ws.php">
+<link rel="Top" type="text/html" href="http://web.archive.org/web/20090227001121/http://www.linux.com/">
+<link rel="Parent" type="text/html" href="http://web.archive.org/web/20090227001121/http://www.linux.com/">
+<link rel="author" href="http://web.archive.org/web/20090227001121/http://www.linux.com/feature/Linux.com">
+
+
+
+
+
+
+<link rel="contents" type="text/html" href="http://web.archive.org/web/20090227001121/http://www.linux.com/articles/map/">
+
+<link rel="search" type="text/html" href="http://web.archive.org/web/20090227001121/http://www.linux.com/?module=search">
+<!--  the following styles were supplied from component theme  -->
+<!--  link style  -->
+
+   <body>            
+                  <h3>Queuing tasks for batch execution with Task Spooler</h3>
+                 <div class="xar-article-details">
+                            By <a href="http://web.archive.org/web/20090227001121/http://monkeyiq.blogspot.com/">Ben Martin</a>
+on
+August 12, 2008 (9:00:00 AM)</div>
+                  <div class="xar-clearleft">
+                      <p>The <a href="http://web.archive.org/web/20090227001121/http://vicerveza.homeunix.net/%7Eviric/soft/ts/">Task Spooler</a>
+ project allows you to queue up tasks from the shell for batch 
+execution. Task Spooler  is simple to use and requires no configuration.
+ You can view and edit queued commands, and you can view the output of 
+queued commands at any time.</p>                  </div>
+            <div id="featurecontent" class="xar-align-left">
+                      <p>Task Spooler has some similarities with other delayed and batch execution projects, such as "<a href="http://web.archive.org/web/20090227001121/http://ftp.debian.org/debian/pool/main/a/at/">at</a>."
+ While both Task Spooler and at handle multiple queues and allow the 
+execution of commands at a later point, the at project handles output 
+from commands by emailing the results to the user who queued the 
+command, while Task Spooler allows you to get at the results from the 
+command line instead. Another major difference is that Task Spooler is 
+not aimed at executing commands at a specific time, but rather at simply
+ adding to and executing commands from queues.</p>
+
+<p>The main repositories for Fedora, openSUSE, and Ubuntu do not contain
+ packages for Task Spooler. There are packages for some versions of 
+Debian, Ubuntu, and openSUSE 10.x available along with the source code 
+on the project's homepage. In this article I'll use a 64-bit Fedora 9 
+machine and install version 0.6 of Task Spooler from source. Task 
+Spooler does not use autotools to build, so to install it, simply run <code>make; sudo make install</code>. This will install the main Task Spooler command <code>ts</code> and its manual page into /usr/local.</p>
+
+<p>A simple interaction with Task Spooler is shown below. First I add a 
+new job to the queue and check the status. As the command is a very 
+simple one, it is likely to have been executed immediately. Executing ts
+ by itself with no arguments shows the executing queue, including tasks 
+that have completed. I then use <code>ts -c</code> to get at the stdout of the executed command. The <code>-c</code> option uses <code>cat</code> to display the output file for a task. Using <code>ts -i</code> shows you information about the job. To clear finished jobs from the queue, use the <code>ts -C</code> command, not shown in the example.</p>
+
+<pre><div class="code">
+$ ts echo "hello world"
+6
+
+$ ts
+ID   State      Output               E-Level  Times(r/u/s)   Command [run=0/1]
+6    finished   /tmp/ts-out.QoKfo9   0        0.00/0.00/0.00 echo hello world
+
+$ ts -c 6
+hello world
+
+$ ts -i 6
+Command: echo hello world
+Enqueue time: Tue Jul 22 14:42:22 2008
+Start time: Tue Jul 22 14:42:22 2008
+End time: Tue Jul 22 14:42:22 2008
+Time run: 0.003336s
+</div></pre>
+
+<p>The <code>-t</code> option operates like <code>tail -f</code>, 
+showing you the last few lines of output and continuing to show you any 
+new output from the task. If you would like to be notified when a task 
+has completed, you can use the <code>-m</code> option to have the 
+results mailed to you, or you can queue another command to be executed 
+that just performs the notification. For example, I might add a tar 
+command and want to know when it has completed. The below commands will 
+create a tarball and use <a href="http://web.archive.org/web/20090227001121/http://www.galago-project.org/specs/notification/">libnotify</a>
+ commands to create an inobtrusive popup window on my desktop when the 
+tarball creation is complete. The popup will be dismissed automatically 
+after a timeout.</p>
+
+<pre><div class="code">
+$ ts tar czvf /tmp/mytarball.tar.gz liberror-2.1.80011
+11
+$ ts notify-send "tarball creation" "the long running tar creation process is complete."
+12
+$ ts
+ID   State      Output               E-Level  Times(r/u/s)   Command [run=0/1]
+11   finished   /tmp/ts-out.O6epsS   0        4.64/4.31/0.29 tar czvf /tmp/mytarball.tar.gz liberror-2.1.80011
+12   finished   /tmp/ts-out.4KbPSE   0        0.05/0.00/0.02 notify-send tarball creation the long... is complete.
+</div></pre>
+
+<!-- img src="gnome-notify-send.png" -->
+
+<p>Notice in the output above, toward the far right of the header information, the <code>run=0/1</code>
+ line.  This tells you that Task Spooler is executing nothing, and can 
+possibly execute one task. Task spooler allows you to execute multiple 
+tasks at once from your task queue to take advantage of multicore CPUs. 
+The <code>-S</code> option allows you to set how many tasks can be executed in parallel from the queue, as shown below.</p>
+
+<pre><div class="code">
+$ ts -S 2
+$ ts 
+ID   State      Output               E-Level  Times(r/u/s)   Command [run=0/2]
+6    finished   /tmp/ts-out.QoKfo9   0        0.00/0.00/0.00 echo hello world
+</div></pre>
+
+<p>If you have two tasks that you want to execute with Task Spooler but 
+one depends on the other having already been executed (and perhaps that 
+the previous job has succeeded too) you can handle this by having one 
+task wait for the other to complete before executing.  This becomes more
+ important on a quad core machine when you might have told Task Spooler 
+that it can execute three tasks in parallel. The commands shown below 
+create an explicit dependency, making sure that the second command is 
+executed only if the first has completed successfully, even when the 
+queue allows multiple tasks to be executed. The first command is queued 
+normally using <code>ts</code>. I use a subshell to execute the commands by having <code>ts</code> explicitly start a new bash shell. The second command uses the <code>-d</code> option, which tells <code>ts</code>
+ to execute the command only after the successful completion of the last
+ command that was appended to the queue. When I first inspect the queue I
+ can see that the first command (28) is executing. The second command is
+ queued but has not been added to the list of executing tasks because 
+Task Spooler is aware that it cannot execute until task 28 is complete. 
+The second time I view the queue, both tasks have completed.</p>
+
+<pre><div class="code">
+$ ts bash -c "sleep 10; echo hi"
+28
+$ ts -d echo there
+29
+$ ts
+ID   State      Output               E-Level  Times(r/u/s)   Command [run=1/2]
+28   running    /tmp/ts-out.hKqDva                           bash -c sleep 10; echo hi
+29   queued     (file)                                       &amp;&amp; echo there
+$ ts
+ID   State      Output               E-Level  Times(r/u/s)   Command [run=0/2]
+28   finished   /tmp/ts-out.hKqDva   0        10.01/0.00/0.01 bash -c sleep 10; echo hi
+29   finished   /tmp/ts-out.VDtVp7   0        0.00/0.00/0.00 &amp;&amp; echo there
+$ cat /tmp/ts-out.hKqDva
+hi
+$ cat /tmp/ts-out.VDtVp7
+there
+</div></pre>
+
+<p>You can also explicitly set dependencies on other tasks as shown below. Because the <code>ts</code>
+ command prints the ID of a new task to the console, the first command 
+puts that ID into a shell variable for use in the second command. The 
+second command passes the task ID of the first task to ts, telling it to
+ wait for the task with that ID to complete before returning. Because 
+this is joined with the command we wish to execute with the <code>&amp;&amp;</code> operation, the second command will execute only if the first one has finished <em>and</em> succeeded.</p>
+
+<p>The first time we view the queue you can see that both tasks are running. The first task will be in the <code>sleep</code> command that we used explicitly to slow down its execution. The second command will be executing <code>ts</code>,
+ which will be waiting for the first task to complete. One downside of 
+tracking dependencies this way is that the second command is added to 
+the running queue even though it cannot do anything until the first task
+ is complete.</p>
+
+<pre><div class="code">
+$ FIRST_TASKID=`ts bash -c "sleep 10; echo hi"`
+$ ts sh -c "ts -w $FIRST_TASKID &amp;&amp; echo there"
+25
+$ ts
+ID   State      Output               E-Level  Times(r/u/s)   Command [run=2/2]
+24   running    /tmp/ts-out.La9Gmz                           bash -c sleep 10; echo hi
+25   running    /tmp/ts-out.Zr2n5u                           sh -c ts -w 24 &amp;&amp; echo there
+$ ts
+ID   State      Output               E-Level  Times(r/u/s)   Command [run=0/2]
+24   finished   /tmp/ts-out.La9Gmz   0        10.01/0.00/0.00 bash -c sleep 10; echo hi
+25   finished   /tmp/ts-out.Zr2n5u   0        9.47/0.00/0.01 sh -c ts -w 24 &amp;&amp; echo there
+$ ts -c 24
+hi
+$ ts -c 25
+there
+</div></pre>
+
+<h4>Wrap-up</h4>
+
+<p>Task Spooler allows you to convert a shell command to a queued command by simply prepending <code>ts</code> to the command line. One major advantage of using ts over something like the <code>at</code> command is that you can effectively run <code>tail -f</code>
+ on the output of a running task and also get at the output of completed
+ tasks from the command line. The utility's ability to execute multiple 
+tasks in parallel is very handy if you are running on a multicore CPU. 
+Because you can explicitly wait for a task, you can set up very complex 
+interactions where you might have several tasks running at once and have
+ jobs that depend on multiple other tasks to complete successfully 
+before they can execute.</p>
+
+<p>Because you can make explicitly dependant tasks take up slots in the 
+actively running task queue, you can effectively delay the execution of 
+the queue until a time of your choosing. For example, if you queue up a 
+task that waits for a specific time before returning successfully and 
+have a small group of other tasks that are dependent on this first task 
+to complete, then no tasks in the queue will execute until the first 
+task completes.</p></div>
+                    <div class="xar-align-left">
+                    <p><em>Ben Martin has been working on filesystems 
+for more than 10 years. He completed his Ph.D. and now offers consulting
+ services focused on libferris, filesystems, and search solutions.</em></p></div>
+<div class="xar-align-left" style="padding-top:20px;">
+        <p>
+                <a href="http://web.archive.org/web/20090227001121/http://www.linux.com/feature/143901?theme=print" title="Printer friendly page" style="text-decoration: none;"><img src="article_linux_com_files/printer.png" alt="" style="vertical-align: middle;"> <b style="text-decoration: underline; font-size: 85%">Print</b></a> &nbsp;&nbsp;
+                        <a href="http://web.archive.org/web/20090227001121/http://www.linux.com/articles/143901#commentthis" title="Comment on this article" style="text-decoration: none;"><img src="article_linux_com_files/comments.png" alt="" style="vertical-align: middle;"> <b style="text-decoration: underline; font-size: 85%">Comments</b></a> &nbsp;&nbsp;
+</p>
+                 </div>
+
+       <div class="xar-normal related_links">
+           <h4>Related Links</h4>
+
+
+
+<p><strong>
+Other articles in category Tools &amp; Utilities:</strong>
+               </p>
+<ul style="list-style-type: square; margin-left:20px;">
+                       <li>
+                           <a href="http://web.archive.org/web/20090227001121/http://www.linux.com/feature/154908" title="Where has my disk space gone?">Where has my disk space gone?</a>
+                           &nbsp; Dec 17, 2008</li>
+                       <li>
+                           <a href="http://web.archive.org/web/20090227001121/http://www.linux.com/feature/154909" title="Tracking build status with Pulse">Tracking build status with Pulse</a>
+                           &nbsp; Dec 16, 2008</li>
+                       <li>
+                           <a href="http://web.archive.org/web/20090227001121/http://www.linux.com/feature/155693" title="Condensing with Open Text Summarizer">Condensing with Open Text Summarizer</a>
+                           &nbsp; Dec 15, 2008</li>
+                       <li>
+                           <a href="http://web.archive.org/web/20090227001121/http://www.linux.com/feature/154660" title="Manage your mbox file with Archmbox">Manage your mbox file with Archmbox</a>
+                           &nbsp; Dec 08, 2008</li>
+                       <li>
+                           <a href="http://web.archive.org/web/20090227001121/http://www.linux.com/feature/154700" title="Keeping an eye on your Web proxy usage with Squid Graph">Keeping an eye on your Web proxy usage with Squid Graph</a>
+                           &nbsp; Dec 05, 2008</li>
+</ul>
+
+<p><strong>Last 5 articles by this author:</strong></p>
+	<div class="xar-align-left;">
+       <ul style="list-style-type: square;margin-left:20px;">
+                       <li> <a href="http://web.archive.org/web/20090227001121/http://www.linux.com/feature/155202">
+Three ways to create Web-accessible calendars on your intranet</a>
+                            &nbsp; Dec 18, 2008</li>
+                       <li> <a href="http://web.archive.org/web/20090227001121/http://www.linux.com/feature/154909">
+Tracking build status with Pulse</a>
+                            &nbsp; Dec 16, 2008</li>
+                       <li> <a href="http://web.archive.org/web/20090227001121/http://www.linux.com/feature/154784">
+Programming GNOME applications with Vala</a>
+                            &nbsp; Dec 10, 2008</li>
+                       <li> <a href="http://web.archive.org/web/20090227001121/http://www.linux.com/feature/154660">
+Manage your mbox file with Archmbox</a>
+                            &nbsp; Dec 08, 2008</li>
+                       <li> <a href="http://web.archive.org/web/20090227001121/http://www.linux.com/feature/154700">
+Keeping an eye on your Web proxy usage with Squid Graph</a>
+                            &nbsp; Dec 05, 2008</li>
+</ul>
+   </div>
+<p><strong>Sponsored links:</strong></p>
+<ul style="list-style-type: square; margin-left:20px;">
+<li><a href="http://web.archive.org/web/20090227001121/http://ostg.pricegrabber.com//search.php?form_keyword=tools+&amp;+utilities">Best deals: Tools &amp; Utilities</a></li>
+               </ul>
+
+
+       </div>
+       <a name="commentthis"></a>
+<div class="xar-normal xar-clear-both" id="comments">
+               <h4>Comments</h4>
+
+ on <strong><a href="http://web.archive.org/web/20090227001121/http://www.linux.com/articles/143901">Queuing tasks for batch execution with Task Spooler</a></strong>
+               <div class="title_divide"></div>
+                    
+
+
+
+
+
+
+
+<div>
+   <p class="xar-cm-note xar-sub">
+ Note: Comments are owned by the poster. We are not responsible for their content. </p>
+</div>
+
+    <div class="xar-accent-outline xar-cm-comment">
+    <div>
+         <a name="1196530"></a>
+
+
+
+<h4>
+        Queuing tasks for batch execution with Task Spooler<!-- #$loop:item['xar_title']# -->
+               </h4>
+<!-- show changelog -->
+<!-- end changelog -->
+           <span class="xar-sub">
+Posted by:                     Anonymous
+                   [ip: 208.255.219.36]
+ on                 August 12, 2008 08:18 PM</span>
+       </div>
+       <div class="xar-accent xar-cm-comment">
+
+                 
+            
+              Very nice tip!  I was able to put it to use today on a Centos 5.2 box. 
+
+                <p>
+                    <a href="http://web.archive.org/web/20090227001121/http://www.linux.com/?module=comments&amp;func=display&amp;cid=1196530" title="Permalink" rel="bookmark">
+                       #
+                   </a>
+               </p>
+
+       </div>
+
+</div>
+
+    <div class="xar-accent-outline xar-cm-comment">
+    <div>
+         <a name="1196612"></a>
+
+
+
+<h4>
+        Queuing tasks for batch execution with Task Spooler<!-- #$loop:item['xar_title']# -->
+               </h4>
+<!-- show changelog -->
+<!-- end changelog -->
+           <span class="xar-sub">
+Posted by:                     Anonymous
+                   [ip: 130.221.224.7]
+ on                 August 13, 2008 10:39 PM</span>
+       </div>
+       <div class="xar-accent xar-cm-comment">
+
+                 
+            
+              Hey this is great and not to be too snarky, only about 30 
+years behind VMS batch queues! :D Will be using this on my OS X box for 
+sure... thanks for the tip! 
+
+                <p>
+                    <a href="http://web.archive.org/web/20090227001121/http://www.linux.com/?module=comments&amp;func=display&amp;cid=1196612" title="Permalink" rel="bookmark">
+                       #
+                   </a>
+               </p>
+
+       </div>
+
+</div>
+
+    <div class="xar-accent-outline xar-cm-comment">
+    <div>
+         <a name="1196647"></a>
+
+
+
+<h4>
+        Queuing tasks for batch execution with Task Spooler<!-- #$loop:item['xar_title']# -->
+               </h4>
+<!-- show changelog -->
+<!-- end changelog -->
+           <span class="xar-sub">
+Posted by:                     Anonymous
+                   [ip: 24.131.41.49]
+ on                 August 14, 2008 03:29 PM</span>
+       </div>
+       <div class="xar-accent xar-cm-comment">
+
+                 
+            
+              ts - rocks.  I'd been doing my batch queuing the hard way 
+for 10 years with scripts, 'cron' and 'at'!  I discovered 'ts' about a 
+month ago.  I love that you can limit the number of jobs to any number 
+(like the number of cores your system has) OR have different queues 
+based on FIFOs or environment variables OR  ... the options are nearly 
+endless.<br>
+<br>
+Or just use the default settings let 'er rip with smart defaults.<br>
+<br>
+Anyone with a PVR/MythTV box who wants to convert content from MPG2 to 
+MPG4, but not overtax their system can use 'nice' and 'ts' to get there 
+easily. 
+
+                <p>
+                    <a href="http://web.archive.org/web/20090227001121/http://www.linux.com/?module=comments&amp;func=display&amp;cid=1196647" title="Permalink" rel="bookmark">
+                       #
+                   </a>
+               </p>
+
+       </div>
+
+</div>
+
+<h4>This story has been archived. Comments can no longer be posted.</h4>
+</div>
+                        			</div>
+		</div>
+		<br style="clear: both">
+		<div style="position: relative;">
+			<div class="col2">
+							<div class="block" id="ad_pos_10">
+<div id="fad10"><!-- DoubleClick Ad Tag -->
+<script type="text/javascript">
+//<![CDATA[
+    document.write('<script type="text/javascript" src="http://web.archive.org/web/20090227001121/http://ad.doubleclick.net//adj/ostg.linux/'+thiscat+'_p10_bottom_2nd;pg='+thispage+';logged_in='+thisuser+';tile='+dfp_tile+';'+thistpc+'sz=300x250,336x280;ord='+dfp_ord+'?"><\/script>');
+    dfp_tile++;
+//]]>
+</script><script type="text/javascript" src="article_linux_com_files/feature_p10_bottom_2nd"></script>
+<!-- End DoubleClick Ad Tag -->
+</div></div>
+						</div>
+			<div class="col2">
+							<div class="block" id="ad_pos_7">
+<div id="fad7"><div><div>
+<!-- DoubleClick Ad Tag -->
+<script type="text/javascript">
+//<![CDATA[
+    document.write('<script type="text/javascript" src="http://web.archive.org/web/20090227001121/http://ad.doubleclick.net//adj/ostg.linux/'+thiscat+'_p7_bottom_1st;pg='+thispage+';logged_in='+thisuser+';tile='+dfp_tile+';'+thistpc+'sz=728x350;ord='+dfp_ord+'?"><\/script>');
+    dfp_tile++;
+//]]>
+</script><script type="text/javascript" src="article_linux_com_files/feature_p7_bottom_1st"></script>
+<!-- End DoubleClick Ad Tag -->
+</div></div></div></div>
+						</div>
+		</div>
+		<br style="clear: left">&nbsp;
+</div>
+</div>
+</div>
+</div> 
+</div> 
+</div> 
+
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+</div>
+    
+
+<div class="block" id="ad_pos_1">
+<div id="fad1"><div><div>
+<!-- DoubleClick Ad Tag -->
+<script type="text/javascript">
+ //<![CDATA[
+    document.write('<script type="text/javascript" src="http://web.archive.org/web/20090227001121/http://ad.doubleclick.net//adj/ostg.linux/'+thiscat+'_p1_leader;pg='+thispage+';logged_in='+thisuser+';tile='+dfp_tile+';'+thistpc+'sz=728x90,468x60;ptile=3;ord='+dfp_ord+'?"><\/script>');
+    dfp_tile++;
+//]]>
+</script><script type="text/javascript" src="article_linux_com_files/feature_p1_leader"></script>
+<!-- End DoubleClick Ad Tag -->
+</div></div></div></div>
+<div class="block" id="ad_pos_5">
+<div id="fad5"><div><div>
+<!-- DoubleClick Ad Tag -->
+<script type="text/javascript">
+//<![CDATA[
+    document.write('<script type="text/javascript" src="http://web.archive.org/web/20090227001121/http://ad.doubleclick.net//adj/ostg.linux/'+thiscat+'_p5_bottom_leader;pg='+thispage+';logged_in=+thisuser+;tile='+dfp_tile+';'+thistpc+'sz=728x90,468x60;ord='+dfp_ord+'?"><\/script>');
+    dfp_tile++;
+//]]>
+</script><script type="text/javascript" src="article_linux_com_files/feature_p5_bottom_leader"></script>
+<!-- End DoubleClick Ad Tag -->
+</div></div></div></div>
+<div id="ft">
+<div class="block" id="footer">
+<p style="margin-bottom: .5em">
+<small>
+© Copyright 1999-2008 - 
+<a href="http://web.archive.org/web/20090227001121/http://web.sourceforge.com/" title="Network which provides and promotes Open Source software downloads, development, discussion and news.">SourceForge</a>, Inc., All Rights Reserved
+<br>
+About 
+<a href="http://web.archive.org/web/20090227001121/http://www.linux.com/about/" title="Learn more about Linux.com">Linux.com</a>
+&nbsp;-&nbsp; 
+<a href="http://web.archive.org/web/20090227001121/http://web.sourceforge.com/privacy.php" title="Privacy">Privacy Statement</a>
+&nbsp;-&nbsp; 
+<a href="http://web.archive.org/web/20090227001121/http://web.sourceforge.com/terms.php" title="Terms">Terms of Use</a>
+&nbsp;-&nbsp; 
+<a href="http://web.archive.org/web/20090227001121/http://web.sourceforge.com/media_kit.php" title="Advertise on our network">Advertise</a>
+&nbsp;-&nbsp; 
+<a href="http://web.archive.org/web/20090227001121/http://web.sourceforge.com/trademark.php" title="Legal Trademark information">Trademark</a>
+&nbsp;-&nbsp; 
+<a href="http://web.archive.org/web/20090227001121/http://www.linux.com/forums" title="Ask Linux Questions">Ask Linux Questions</a>
+&nbsp;-&nbsp; 
+<a href="http://web.archive.org/web/20090227001121/http://www.linux.com/writeforus/" title="Write for us">Write for Us</a>
+&nbsp;-&nbsp;
+<a href="http://web.archive.org/web/20090227001121/http://www.linux.com/feature?theme=rss" title="Add our feed to your site">RSS Feed</a>
+<br>
+<a href="http://web.archive.org/web/20090227001121/http://www.thinkgeek.com/?cpg=tb" title="Stuff for Smart Masses">ThinkGeek</a>
+&nbsp;-&nbsp; 
+<a href="http://web.archive.org/web/20090227001121/http://slashdot.org/" title="News for Nerds">Slashdot</a>
+&nbsp;-&nbsp; 
+<a href="http://web.archive.org/web/20090227001121/http://sourceforge.net/" title="The world's largest development and download repository of Open Source code and applications">SourceForge.net</a>
+&nbsp;-&nbsp; 
+<a href="http://web.archive.org/web/20090227001121/http://freshmeat.net/" title="Web's largest index of Unix and cross-platform software and themes">freshmeat</a>
+&nbsp;-&nbsp; 
+<a href="http://web.archive.org/web/20090227001121/http://www.techsay.com/default.php?page=join.php&amp;p=ostg&amp;CID=LINUXCOM" title="Help us make our network better">Surveys</a>
+&nbsp;-&nbsp; 
+<a href="http://web.archive.org/web/20090227001121/http://jobs.linux.com/" title="Jobs">Jobs</a>
+</small>
+</p>
+<!-- <script type="text/javascript" src="http://cetrk.com/pages/scripts/0006/7810.js"> </script> -->
+
+</div>
+</body></html>
+<!--
+     FILE ARCHIVED ON 0:11:21 feb. 27, 2009 AND RETRIEVED FROM THE
+     INTERNET ARCHIVE ON 9:20:22 nov. 19, 2011.
+     JAVASCRIPT APPENDED BY WAYBACK MACHINE, COPYRIGHT INTERNET ARCHIVE.
+
+     ALL OTHER CONTENT MAY ALSO BE PROTECTED BY COPYRIGHT (17 U.S.C.
+     SECTION 108(a)(3)).
+-->
