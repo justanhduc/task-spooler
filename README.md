@@ -104,7 +104,8 @@ Options adding jobs:
   -g       gzip the stored output (if not -n).
   -f       don't fork into background.
   -m       send the output by e-mail (uses sendmail).
-  -d       the job will be run only if the job before ends well
+  -d       the job will be run after the last job ends.
+  -D [id]  the job will be run after the job with id ends.
   -L <lab> name this task with a label, to be distinguished on listing.
 ```
 
