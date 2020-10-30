@@ -7,8 +7,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 
 #include <stdio.h>
+#include <sys/time.h>
 
 #include "main.h"
 
