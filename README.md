@@ -1,14 +1,20 @@
 # Task Spooler
 
-**Note**: This is a modified version of task spooler. Specifically, I modified the behavior of the flag `-D` and `-d`. 
-Otherwise, everything is copied and pasted from the authors' [homepage](https://vicerveza.homeunix.net/~viric/soft/ts/).
-For more details, see below.
+**Note**: I am not the original author of the package.
+However, from now on, I will maintain this modified version and add more features 
+to this wonderful app. 
+If you find this app helpful and have any idea to improve it, feel free to
+send a PR.
+
+## Introduction 
 
 As in freshmeat.net:
 
-    task spooler is a Unix batch system where the tasks spooled run one after the other. The amount of jobs to run at once can be set at any time. Each user in each system has his own job queue. The tasks are run in the correct context (that of enqueue) from any shell/process, and its output/results can be easily watched. It is very useful when you know that your commands depend on a lot of RAM, a lot of disk use, give a lot of output, or for whatever reason it's better not to run them all at the same time, while you want to keep your resources busy for maximum benfit. Its interface allows using it easily in scripts. 
+> task spooler is a Unix batch system where the tasks spooled run one after the other. The amount of jobs to run at once can be set at any time. Each user in each system has his own job queue. The tasks are run in the correct context (that of enqueue) from any shell/process, and its output/results can be easily watched. It is very useful when you know that your commands depend on a lot of RAM, a lot of disk use, give a lot of output, or for whatever reason it's better not to run them all at the same time, while you want to keep your resources busy for maximum benfit. Its interface allows using it easily in scripts. 
 
-For your first contact, you can read an article at linux.com, which I like as overview, guide and examples (original url). On more advanced usage, don't neglect the TRICKS file in the package.
+For your first contact, you can read an article at linux.com, 
+which I like as overview, guide and examples (original url). 
+On more advanced usage, don't neglect the TRICKS file in the package.
 
 ## Features
 
@@ -93,6 +99,7 @@ Actions:
   -p [id]  show the pid of the job. Last run if not specified.
   -o [id]  show the output file. Of last job run, if not specified.
   -i [id]  show job information. Of last job run, if not specified.
+  -a [id]  show job label. Of last job run, if not specified.
   -s [id]  show the job state. Of the last added, if not specified.
   -r [id]  remove a job. The last added, if not specified.
   -w [id]  wait for a job. The last added, if not specified.
@@ -112,13 +119,13 @@ Options adding jobs:
 
 ## Thanks
 
-    To Raúl Salinas, for his inspiring ideas
-    To Alessandro Öhler, the first non-acquaintance user, who proposed and created the mailing list.
-    Андрею Пантюхину, who created the BSD port.
-    To the useful, although sometimes uncomfortable, UNIX interface.
-    To Alexander V. Inyukhin, for the debian packages.
-    To Pascal Bleser, for the SuSE packages.
-    To Sergio Ballestrero, who sent code and motivated the development of a multislot version of ts.
-    To GNU, an ugly but working and helpful ol' UNIX implementation. 
+**Author**: Lluís Batlle i Rossell, <lluis@vicerveza.homeunix.net>
 
-Author: Lluís Batlle i Rossell, viric_at_viric_dot_name
+* To Raúl Salinas, for his inspiring ideas
+* To Alessandro Öhler, the first non-acquaintance user, who proposed and created the mailing list.
+* Андрею Пантюхину, who created the BSD port.
+* To the useful, although sometimes uncomfortable, UNIX interface.
+* To Alexander V. Inyukhin, for the debian packages.
+* To Pascal Bleser, for the SuSE packages.
+* To Sergio Ballestrero, who sent code and motivated the development of a multislot version of ts.
+* To GNU, an ugly but working and helpful ol' UNIX implementation. 
