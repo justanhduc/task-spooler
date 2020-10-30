@@ -84,7 +84,7 @@ void parse_opts(int argc, char **argv)
 
     /* Parse options */
     while(1) {
-        c = getopt(argc, argv, ":RVhKgClnfmBEr:t:c:o:p:w:k:u:s:U:i:N:L:dS:D:");
+        c = getopt(argc, argv, ":RVhKgClnfmBEr:a:t:c:o:p:w:k:u:s:U:i:N:L:dS:D:");
 
         if (c == -1)
             break;
@@ -148,6 +148,10 @@ void parse_opts(int argc, char **argv)
                 break;
             case 'i':
                 command_line.request = c_INFO;
+                command_line.jobid = atoi(optarg);
+                break;
+            case 'a':
+                command_line.request = c_GET_LABEL;
                 command_line.jobid = atoi(optarg);
                 break;
             case 'N':
@@ -260,6 +264,10 @@ void parse_opts(int argc, char **argv)
                     case 'S':
                         command_line.request = c_GET_MAX_SLOTS;
                         break;
+                    case 'a':
+                        command_line.request = c_GET_LABEL;
+                        command_line.jobid = -1;
+                        break;
                     default:
                         fprintf(stderr, "Option %c missing argument.\n",
                                 optopt);
@@ -361,6 +369,7 @@ static void print_help(const char *cmd)
     printf("  -o [id]  show the output file. Of last job run, if not specified.\n");
     printf("  -i [id]  show job information. Of last job run, if not specified.\n");
     printf("  -s [id]  show the job state. Of the last added, if not specified.\n");
+    printf("  -a [id]  show the job label. Of the last added, if not specified.\n");
     printf("  -r [id]  remove a job. The last added, if not specified.\n");
     printf("  -w [id]  wait for a job. The last added, if not specified.\n");
     printf("  -k [id]  send SIGTERM to the job process group. The last run, if not specified.\n");
@@ -427,7 +436,7 @@ int main(int argc, char **argv)
     switch(command_line.request)
     {
     case c_SHOW_VERSION:
-        print_version(argv[0]);
+        print_version();
         break;
     case c_SHOW_HELP:
         print_help(argv[0]);
@@ -501,6 +510,11 @@ int main(int argc, char **argv)
         if (!command_line.need_server)
             error("The command %i needs the server", command_line.request);
         c_show_info();
+        break;
+    case c_GET_LABEL:
+        if (!command_line.need_server)
+            error("The command %i needs the server", command_line.request);
+        c_show_label();
         break;
     case c_REMOVEJOB:
         if (!command_line.need_server)

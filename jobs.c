@@ -178,7 +178,7 @@ void s_count_running_jobs(int s)
     struct Job *p;
     struct msg m;
 
-    /* Show Queued or Running jobs */
+    /* Count running jobs */
     p = firstjob;
     while(p != 0)
     {
@@ -192,6 +192,48 @@ void s_count_running_jobs(int s)
     m.type = COUNT_RUNNING;
     m.u.count_running = count;
     send_msg(s, &m);
+}
+
+void s_get_label(int s, int jobid)
+{
+    struct Job *p = 0;
+    char *label;
+
+    if (jobid == -1)
+    {
+        /* Find the last job added */
+        p = firstjob;
+
+        if (p != 0)
+            while (p->next != 0)
+                p = p->next;
+
+        /* Look in finished jobs if needed */
+        if (p == 0)
+        {
+            p = first_finished_job;
+            if (p != 0)
+                while (p->next != 0)
+                    p = p->next;
+        }
+
+    }
+    else
+    {
+        p = get_job(jobid);
+    }
+
+    if (p == 0)
+    {
+        char tmp[50];
+        sprintf(tmp, "Job %i not finished or not running.\n", jobid);
+        send_list_line(s, tmp);
+        return;
+    }
+
+    label = (char *) malloc(strlen(p->label) + 1);
+    sprintf(label, "%s\n", p->label);
+    send_list_line(s, label);
 }
 
 void s_mark_job_running(int jobid)

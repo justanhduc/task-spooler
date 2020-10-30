@@ -698,3 +698,37 @@ void c_get_count_running() {
     /* This will never be reached */
     return;
 }
+
+void c_show_label()
+{
+    struct msg m;
+    int res;
+    char *string = 0;
+
+    /* Send the request */
+    m.type = GET_LABEL;
+    m.u.jobid = command_line.jobid;
+    send_msg(server_socket, &m);
+
+    /* Receive the answer */
+    res = recv_msg(server_socket, &m);
+    if(res != sizeof(m))
+        error("Error in get_label");
+
+    switch(m.type)
+    {
+        case LIST_LINE:
+            string = (char *) malloc(m.u.size);
+            res = recv_bytes(server_socket, string, m.u.size);
+            if(res != m.u.size)
+                error("Error in get_label - line size");
+
+            printf("%s", string);
+            return;
+        default:
+            warning("Wrong internal message in get_label");
+    }
+
+    /* This will never be reached */
+    return;
+}

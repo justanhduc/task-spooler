@@ -421,6 +421,9 @@ static enum Break
             close(s);
             remove_connection(index);
             break;
+        case GET_LABEL:
+            s_get_label(s, m.u.jobid);
+            break;
         case ENDJOB:
             job_finished(&m.u.result, client_cs[index].jobid);
             /* For the dependencies */

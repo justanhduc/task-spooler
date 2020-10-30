@@ -42,7 +42,8 @@ enum msg_types
     GET_VERSION,
     VERSION,
     NEWJOB_NOK,
-    COUNT_RUNNING
+    COUNT_RUNNING,
+    GET_LABEL
 };
 
 enum Request
@@ -66,7 +67,8 @@ enum Request
     c_SET_MAX_SLOTS,
     c_GET_MAX_SLOTS,
     c_KILL_JOB,
-    c_COUNT_RUNNING
+    c_COUNT_RUNNING,
+    c_GET_LABEL
 };
 
 struct Command_line {
@@ -156,6 +158,7 @@ struct msg
         int max_slots;
         int version;
         int count_running;
+        char *label;
     } u;
 };
 
@@ -225,6 +228,7 @@ void c_send_max_slots(int max_slots);
 void c_get_max_slots();
 void c_check_version();
 void c_get_count_running();
+void c_show_label();
 
 /* jobs.c */
 void s_list(int s);
@@ -256,6 +260,7 @@ void s_get_max_slots(int s);
 int job_is_running(int jobid);
 int job_is_holding_client(int jobid);
 int wake_hold_client();
+void s_get_label(int s, int jobid);
 
 /* server.c */
 void server_main(int notify_fd, char *_path);
