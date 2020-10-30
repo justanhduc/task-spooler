@@ -41,7 +41,8 @@ enum msg_types
     GET_MAX_SLOTS_OK,
     GET_VERSION,
     VERSION,
-    NEWJOB_NOK
+    NEWJOB_NOK,
+    COUNT_RUNNING
 };
 
 enum Request
@@ -64,7 +65,8 @@ enum Request
     c_INFO,
     c_SET_MAX_SLOTS,
     c_GET_MAX_SLOTS,
-    c_KILL_JOB
+    c_KILL_JOB,
+    c_COUNT_RUNNING
 };
 
 struct Command_line {
@@ -153,6 +155,7 @@ struct msg
         int last_errorlevel;
         int max_slots;
         int version;
+        int count_running;
     } u;
 };
 
@@ -221,6 +224,7 @@ char *build_command_string();
 void c_send_max_slots(int max_slots);
 void c_get_max_slots();
 void c_check_version();
+void c_get_count_running();
 
 /* jobs.c */
 void s_list(int s);
@@ -240,6 +244,7 @@ void s_wait_running_job(int s, int jobid);
 void s_move_urgent(int s, int jobid);
 void s_send_state(int s, int jobid);
 void s_swap_jobs(int s, int jobid1, int jobid2);
+void s_count_running_jobs(int s);
 void dump_jobs_struct(FILE *out);
 void dump_notifies_struct(FILE *out);
 void joblist_dump(int fd);

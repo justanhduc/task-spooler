@@ -7,10 +7,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
 
 #include <stdio.h>
-#include <sys/time.h>
 
 #include "main.h"
 
@@ -84,7 +82,7 @@ void parse_opts(int argc, char **argv)
 
     /* Parse options */
     while(1) {
-        c = getopt(argc, argv, ":VhKgClnfmBEr:t:c:o:p:w:k:u:s:U:i:N:L:dS:D:");
+        c = getopt(argc, argv, ":RVhKgClnfmBEr:t:c:o:p:w:k:u:s:U:i:N:L:dS:D:");
 
         if (c == -1)
             break;
@@ -206,6 +204,9 @@ void parse_opts(int argc, char **argv)
                 break;
             case 'E':
                 command_line.stderr_apart = 1;
+                break;
+            case 'R':
+                command_line.request = c_COUNT_RUNNING;
                 break;
             case ':':
                 switch(optopt)
@@ -350,6 +351,7 @@ static void print_help(const char *cmd)
     printf("  -K       kill the task spooler server\n");
     printf("  -C       clear the list of finished jobs\n");
     printf("  -l       show the job list (default action)\n");
+    printf("  -R       number of running jobs\n");
     printf("  -S [num] get/set the number of max simultaneous jobs of the server.\n");
     printf("  -t [id]  \"tail -n 10 -f\" the output of the job. Last run if not specified.\n");
     printf("  -c [id]  like -t, but shows all the lines. Last run if not specified.\n");
@@ -523,6 +525,11 @@ int main(int argc, char **argv)
         if (!command_line.need_server)
             error("The command %i needs the server", command_line.request);
         c_swap_jobs();
+        break;
+    case c_COUNT_RUNNING:
+        if (!command_line.need_server)
+            error("The command %i needs the server", command_line.request);
+        c_get_count_running();
         break;
     case c_GET_STATE:
         if (!command_line.need_server)

@@ -672,3 +672,29 @@ void c_swap_jobs()
     /* This will never be reached */
     return;
 }
+
+void c_get_count_running() {
+    struct msg m;
+    int res;
+
+    /* Send the request */
+    m.type = COUNT_RUNNING;
+    send_msg(server_socket, &m);
+
+    /* Receive the answer */
+    res = recv_msg(server_socket, &m);
+    if (res != sizeof(m))
+        error("Error in get_state - line size");
+
+    switch(m.type)
+    {
+        case COUNT_RUNNING:
+            printf("%i\n", m.u.count_running);
+            return;
+        default:
+            warning("Wrong internal message in count_running");
+    }
+
+    /* This will never be reached */
+    return;
+}

@@ -467,6 +467,9 @@ static enum Break
         case WAIT_RUNNING_JOB:
             s_wait_running_job(s, m.u.jobid);
             break;
+        case COUNT_RUNNING:
+            s_count_running_jobs(s);
+            break;
         case URGENT:
             s_move_urgent(s, m.u.jobid);
             break;

@@ -172,6 +172,28 @@ static void add_notify_errorlevel_to(struct Job *job, int jobid)
     job->notify_errorlevel_to[job->notify_errorlevel_to_size - 1] = jobid;
 }
 
+void s_count_running_jobs(int s)
+{
+    int count = 0;
+    struct Job *p;
+    struct msg m;
+
+    /* Show Queued or Running jobs */
+    p = firstjob;
+    while(p != 0)
+    {
+        if (p->state == RUNNING)
+            ++count;
+
+        p = p->next;
+    }
+
+    /* Message */
+    m.type = COUNT_RUNNING;
+    m.u.count_running = count;
+    send_msg(s, &m);
+}
+
 void s_mark_job_running(int jobid)
 {
     struct Job *p;
