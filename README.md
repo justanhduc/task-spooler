@@ -83,9 +83,10 @@ Env vars:
   TS_SAVELIST  filename which will store the list, if the server dies.
   TS_SLOTS   amount of jobs which can run at once, read on server start.
 Actions:
-  -K       kill the task spooler server
-  -C       clear the list of finished jobs
-  -l       show the job list (default action)
+  -K       kill the task spooler server.
+  -C       clear the list of finished jobs.
+  -l       show the job list (default action).
+  -R       number of running jobs.
   -S [num] set the number of max simultanious jobs of the server.
   -t [id]  tail -f the output of the job. Last run if not specified.
   -c [id]  cat the output of the job. Last run if not specified.
