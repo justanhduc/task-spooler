@@ -684,7 +684,7 @@ void c_get_count_running() {
     /* Receive the answer */
     res = recv_msg(server_socket, &m);
     if (res != sizeof(m))
-        error("Error in get_state - line size");
+        error("Error in count_running - line size");
 
     switch(m.type)
     {
