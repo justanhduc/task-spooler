@@ -35,7 +35,7 @@ char * joblist_headers()
     char * line;
 
     line = malloc(100);
-    snprintf(line, 100, "%-4s %-10s %-20s %-8s %-14s %s [run=%i/%i]\n",
+    snprintf(line, 100, "%-4s %-10s %-20s %-8s %-25s %s [run=%i/%i]\n",
             "ID",
             "State",
             "Output",
@@ -114,7 +114,7 @@ static char * print_noresult(const struct Job *p)
         error("Malloc for %i failed.\n", maxlen);
 
     if (p->label)
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %14s %s[%s]%s\n",
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %25s %s[%s]%s\n",
                 p->jobid,
                 jobstate,
                 output_filename,
@@ -124,7 +124,7 @@ static char * print_noresult(const struct Job *p)
                 p->label,
                 p->command);
     else
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %14s %s%s\n",
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %25s %s%s\n",
                 p->jobid,
                 jobstate,
                 output_filename,
@@ -144,12 +144,16 @@ static char * print_result(const struct Job *p)
     const char * output_filename;
     /* 18 chars should suffice for a string like "[int]&& " */
     char dependstr[18] = "";
+    float real_ms = p->result.real_ms;
+    float user_ms = p->result.user_ms;
+    float system_ms = p->result.system_ms;
+    char *unit = "s";
 
     jobstate = jstate2string(p->state);
     output_filename = ofilename_shown(p);
 
     maxlen = 4 + 1 + 10 + 1 + max(20, strlen(output_filename)) + 1 + 8 + 1
-        + 14 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
+        + 25 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
 
     if (p->label)
         maxlen += 3 + strlen(p->label);
@@ -166,28 +170,53 @@ static char * print_result(const struct Job *p)
     if (line == NULL)
         error("Malloc for %i failed.\n", maxlen);
 
+    if (real_ms > 60) {
+        real_ms /= 60;
+        user_ms /= 60;
+        system_ms /= 60;
+        unit = "m";
+    }
+    if (real_ms > 60) {
+        real_ms /= 60;
+        user_ms /= 60;
+        system_ms /= 60;
+        unit = "h";
+    }
+    if (real_ms > 24) {
+        real_ms /= 24;
+        user_ms /= 24;
+        system_ms /= 24;
+        unit = "d";
+    }
+
     if (p->label)
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %0.2f/%0.2f/%0.2f %s[%s]"
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %0.2f%s/%0.2f%s/%0.2f%s %s[%s]"
                 "%s\n",
                 p->jobid,
                 jobstate,
                 output_filename,
                 p->result.errorlevel,
-                p->result.real_ms,
-                p->result.user_ms,
-                p->result.system_ms,
+                real_ms,
+                unit,
+                user_ms,
+                unit,
+                system_ms,
+                unit,
                 dependstr,
                 p->label,
                 p->command);
     else
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %0.2f/%0.2f/%0.2f %s%s\n",
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %0.2f%s/%0.2f%s/%0.2f%s %s%s\n",
                 p->jobid,
                 jobstate,
                 output_filename,
                 p->result.errorlevel,
-                p->result.real_ms,
-                p->result.user_ms,
-                p->result.system_ms,
+                real_ms,
+                unit,
+                user_ms,
+                unit,
+                system_ms,
+                unit,
                 dependstr,
                 p->command);
 
