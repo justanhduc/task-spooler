@@ -59,3 +59,7 @@ install: ts
 	$(INSTALL) ts $(PREFIX)/bin
 	$(INSTALL) -d $(PREFIX)/share/man/man1
 	$(INSTALL) -m 644 ts.1 $(PREFIX)/share/man/man1
+
+uninstall:
+	rm -f $(PREFIX)/bin/ts
+	rm -f $(PREFIX)/share/man/man1/ts.1
