@@ -268,13 +268,13 @@ void dump_conns_struct(FILE *out);
 
 /* server_start.c */
 int try_connect(int s);
-void wait_server_up();
+void wait_server_up(int fd);
 int ensure_server_up();
 void notify_parent(int fd);
 void create_socket_path(char **path);
 
 /* execute.c */
-int run_job();
+int run_job(struct Result *res);
 
 /* client_run.c */
 void c_run_tail(const char *filename);

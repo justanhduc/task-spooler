@@ -25,15 +25,15 @@ all: ts
 tsretry: tsretry.c
 
 ts: $(OBJECTS)
-	$(CC) $(LDFLAGS) -o ts $^
+	$(CC) $(LDFLAGS) -o ts $^ -std=c11
 
 # Test our 'tail' implementation.
 ttail: tail.o ttail.o
-	$(CC) $(LDFLAGS) -o ttail $^
+	$(CC) $(LDFLAGS) -o ttail $^ -std=c11
 
 
 .c.o:
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -std=c11
 
 # Dependencies
 main.o: main.c main.h
