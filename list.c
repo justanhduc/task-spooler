@@ -96,7 +96,7 @@ static char * print_noresult(const struct Job *p)
     output_filename = ofilename_shown(p);
 
     maxlen = 4 + 1 + 10 + 1 + max(20, strlen(output_filename)) + 1 + 8 + 1
-        + 14 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
+        + 25 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
 
     if (p->label)
         maxlen += 3 + strlen(p->label);
@@ -190,7 +190,7 @@ static char * print_result(const struct Job *p)
     }
 
     if (p->label)
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %0.2f%s/%0.2f%s/%0.2f%s %s[%s]"
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s/%5.2f%s/%5.2f%-6s %s[%s]"
                 "%s\n",
                 p->jobid,
                 jobstate,
@@ -206,7 +206,7 @@ static char * print_result(const struct Job *p)
                 p->label,
                 p->command);
     else
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %0.2f%s/%0.2f%s/%0.2f%s %s%s\n",
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s/%5.2f%s/%5.2f%-6s %s%s\n",
                 p->jobid,
                 jobstate,
                 output_filename,
