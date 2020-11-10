@@ -911,6 +911,14 @@ void s_job_info(int s, int jobid)
     }
 }
 
+void s_send_last_id(int s) {
+    struct msg m;
+
+    m.type = LAST_ID;
+    m.u.jobid = jobids - 1;
+    send_msg(s, &m);
+}
+
 void s_send_output(int s, int jobid)
 {
     struct Job *p = 0;

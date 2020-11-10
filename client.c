@@ -263,6 +263,26 @@ void c_show_info()
     }
 }
 
+void c_show_last_id() {
+    struct msg m;
+    int res;
+
+    m.type = LAST_ID;
+    send_msg(server_socket, &m);
+
+    /* Receive the answer */
+    res = recv_msg(server_socket, &m);
+    if(res != sizeof(m))
+        error("Error in get_output_file");
+
+    switch(m.type) {
+        case LAST_ID:
+            printf("%d\n", m.u.jobid);
+        default:
+            warning("Wrong internal message in get_output_file line size");
+    }
+}
+
 void c_send_runjob_ok(const char *ofname, int pid)
 {
     struct msg m;

@@ -84,7 +84,7 @@ void parse_opts(int argc, char **argv)
 
     /* Parse options */
     while(1) {
-        c = getopt(argc, argv, ":RVhKgClnfmBEr:a:t:c:o:p:w:k:u:s:U:i:N:L:dS:D:");
+        c = getopt(argc, argv, ":RVhKgClnfmBEr:a:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:");
 
         if (c == -1)
             break;
@@ -149,6 +149,9 @@ void parse_opts(int argc, char **argv)
             case 'i':
                 command_line.request = c_INFO;
                 command_line.jobid = atoi(optarg);
+                break;
+            case 'q':
+                command_line.request = c_LAST_ID;
                 break;
             case 'a':
                 command_line.request = c_GET_LABEL;
@@ -370,6 +373,7 @@ static void print_help(const char *cmd)
     printf("  -i [id]  show job information. Of last job run, if not specified.\n");
     printf("  -s [id]  show the job state. Of the last added, if not specified.\n");
     printf("  -a [id]  show the job label. Of the last added, if not specified.\n");
+    printf("  -q       show the job ID of the last added.\n");
     printf("  -r [id]  remove a job. The last added, if not specified.\n");
     printf("  -w [id]  wait for a job. The last added, if not specified.\n");
     printf("  -k [id]  send SIGTERM to the job process group. The last run, if not specified.\n");
@@ -510,6 +514,11 @@ int main(int argc, char **argv)
         if (!command_line.need_server)
             error("The command %i needs the server", command_line.request);
         c_show_info();
+        break;
+    case c_LAST_ID:
+        if (!command_line.need_server)
+            error("The command %i needs the server", command_line.request);
+        c_show_last_id();
         break;
     case c_GET_LABEL:
         if (!command_line.need_server)

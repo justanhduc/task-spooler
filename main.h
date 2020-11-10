@@ -43,7 +43,8 @@ enum msg_types
     VERSION,
     NEWJOB_NOK,
     COUNT_RUNNING,
-    GET_LABEL
+    GET_LABEL,
+    LAST_ID
 };
 
 enum Request
@@ -68,7 +69,8 @@ enum Request
     c_GET_MAX_SLOTS,
     c_KILL_JOB,
     c_COUNT_RUNNING,
-    c_GET_LABEL
+    c_GET_LABEL,
+    c_LAST_ID
 };
 
 struct Command_line {
@@ -223,6 +225,7 @@ int c_wait_newjob_ok();
 void c_get_state();
 void c_swap_jobs();
 void c_show_info();
+void c_show_last_id();
 char *build_command_string();
 void c_send_max_slots(int max_slots);
 void c_get_max_slots();
@@ -254,6 +257,7 @@ void dump_notifies_struct(FILE *out);
 void joblist_dump(int fd);
 const char * jstate2string(enum Jobstate s);
 void s_job_info(int s, int jobid);
+void s_send_last_id(int s);
 void s_send_runjob(int s, int jobid);
 void s_set_max_slots(int new_max_slots);
 void s_get_max_slots(int s);

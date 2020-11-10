@@ -421,6 +421,9 @@ static enum Break
             close(s);
             remove_connection(index);
             break;
+        case LAST_ID:
+            s_send_last_id(s);
+            break;
         case GET_LABEL:
             s_get_label(s, m.u.jobid);
             break;
