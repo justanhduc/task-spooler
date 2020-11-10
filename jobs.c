@@ -231,8 +231,11 @@ void s_get_label(int s, int jobid)
         return;
     }
 
-    label = (char *) malloc(strlen(p->label) + 1);
-    sprintf(label, "%s\n", p->label);
+    if (p->label) {
+        label = (char *) malloc(strlen(p->label) + 1);
+        sprintf(label, "%s\n", p->label);
+    } else
+        label = "";
     send_list_line(s, label);
 }
 
