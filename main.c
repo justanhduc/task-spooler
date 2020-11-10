@@ -45,6 +45,7 @@ static void default_command_line()
     command_line.wait_enqueuing = 1;
     command_line.stderr_apart = 0;
     command_line.num_slots = 1;
+    command_line.gpus = 0;
 }
 
 void get_command(int index, int argc, char **argv)
@@ -84,7 +85,7 @@ void parse_opts(int argc, char **argv)
 
     /* Parse options */
     while(1) {
-        c = getopt(argc, argv, ":RVhKgClnfmBEr:a:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:");
+        c = getopt(argc, argv, ":RVhKgClnfmBEr:G:a:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:");
 
         if (c == -1)
             break;
@@ -137,6 +138,9 @@ void parse_opts(int argc, char **argv)
                 break;
             case 'm':
                 command_line.send_output_by_mail = 1;
+                break;
+            case 'G':
+                command_line.gpus = atoi(optarg);
                 break;
             case 't':
                 command_line.request = c_TAIL;
@@ -392,6 +396,7 @@ static void print_help(const char *cmd)
     printf("  -D <id>  the job will be run after the job of given id ends.\n");
     printf("  -L <lab> name this task with a label, to be distinguished on listing.\n");
     printf("  -N <num> number of slots required by the job (1 default).\n");
+    printf("  -G <num> number of GPUs required by the job (0 default).\n");
 }
 
 static void print_version()

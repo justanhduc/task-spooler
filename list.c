@@ -35,12 +35,13 @@ char * joblist_headers()
     char * line;
 
     line = malloc(100);
-    snprintf(line, 100, "%-4s %-10s %-20s %-8s %-25s %s [run=%i/%i]\n",
+    snprintf(line, 100, "%-4s %-10s %-20s %-8s %-25s %-5s %s [run=%i/%i]\n",
             "ID",
             "State",
             "Output",
             "E-Level",
             "Times(r/u/s)",
+            "GPUs",
             "Command",
             busy_slots,
             max_slots);
@@ -96,7 +97,7 @@ static char * print_noresult(const struct Job *p)
     output_filename = ofilename_shown(p);
 
     maxlen = 4 + 1 + 10 + 1 + max(20, strlen(output_filename)) + 1 + 8 + 1
-        + 25 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
+        + 25 + 1 + 5 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
 
     if (p->label)
         maxlen += 3 + strlen(p->label);
@@ -114,22 +115,24 @@ static char * print_noresult(const struct Job *p)
         error("Malloc for %i failed.\n", maxlen);
 
     if (p->label)
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %25s %s[%s]%s\n",
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %25s %-5d %s[%s]%s\n",
                 p->jobid,
                 jobstate,
                 output_filename,
                 "",
                 "",
+		        p->gpus,
 		        dependstr,
                 p->label,
                 p->command);
     else
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %25s %s%s\n",
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %25s %-5d %s%s\n",
                 p->jobid,
                 jobstate,
                 output_filename,
                 "",
                 "",
+                p->gpus,
 		        dependstr,
                 p->command);
 
@@ -153,7 +156,7 @@ static char * print_result(const struct Job *p)
     output_filename = ofilename_shown(p);
 
     maxlen = 4 + 1 + 10 + 1 + max(20, strlen(output_filename)) + 1 + 8 + 1
-        + 25 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
+        + 25 + 1 + 5 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
 
     if (p->label)
         maxlen += 3 + strlen(p->label);
@@ -190,7 +193,7 @@ static char * print_result(const struct Job *p)
     }
 
     if (p->label)
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s/%5.2f%s/%5.2f%-6s %s[%s]"
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s/%5.2f%s/%5.2f%-6s %-5d %s[%s]"
                 "%s\n",
                 p->jobid,
                 jobstate,
@@ -202,11 +205,12 @@ static char * print_result(const struct Job *p)
                 unit,
                 system_ms,
                 unit,
+                p->gpus,
                 dependstr,
                 p->label,
                 p->command);
     else
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s/%5.2f%s/%5.2f%-6s %s%s\n",
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s/%5.2f%s/%5.2f%-6s %-5d %s%s\n",
                 p->jobid,
                 jobstate,
                 output_filename,
@@ -217,6 +221,7 @@ static char * print_result(const struct Job *p)
                 unit,
                 system_ms,
                 unit,
+                p->gpus,
                 dependstr,
                 p->command);
 

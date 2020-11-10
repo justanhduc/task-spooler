@@ -393,6 +393,7 @@ int s_newjob(int s, struct msg *m)
         p->state = QUEUED;
     else
         p->state = HOLDING_CLIENT;
+    p->gpus = m->u.newjob.gpus;
     p->num_slots = m->u.newjob.num_slots;
     p->store_output = m->u.newjob.store_output;
     p->should_keep_finished = m->u.newjob.should_keep_finished;
@@ -592,6 +593,17 @@ int next_run_job()
     {
         if (p->state == QUEUED)
         {
+            if (p->gpus) {
+                int numFree;
+                /* get number of free GPUs at the moment */
+                getFreeGpuList(&numFree);
+                if (numFree < p->gpus) {
+                    /* if fewer GPUs than required then next */
+                    p = p->next;
+                    continue;
+                }
+            }
+
             if (p->depend_on >= 0)
             {
                 struct Job *do_depend_job = get_job(p->depend_on);

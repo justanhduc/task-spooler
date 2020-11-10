@@ -95,6 +95,7 @@ struct Command_line {
     } command;
     char *label;
     int num_slots; /* Slots for the job to use. Default 1 */
+    int gpus;
 };
 
 enum Process_type {
@@ -134,6 +135,7 @@ struct msg
             int depend_on; /* -1 means depend on previous */
             int wait_enqueuing;
             int num_slots;
+            int gpus;
         } newjob;
         struct {
             int ofilename_size;
@@ -193,6 +195,7 @@ struct Job
     char *label;
     struct Procinfo info;
     int num_slots;
+    int gpus;
 };
 
 enum ExitCodes
@@ -340,3 +343,6 @@ char * get_environment();
 
 /* tail.c */
 int tail_file(const char *fname, int last_lines);
+
+/* gpu.c */
+int * getFreeGpuList(int *numFree);

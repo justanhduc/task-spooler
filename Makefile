@@ -1,7 +1,7 @@
 PREFIX?=/usr/local
 GLIBCFLAGS=-D_XOPEN_SOURCE=500 -D__STRICT_ANSI__
 CPPFLAGS+=$(GLIBCFLAGS)
-CFLAGS?=-pedantic -ansi -Wall -g -O0
+CFLAGS?=-pedantic -ansi -Wall -g -O0 -std=c11
 OBJECTS=main.o \
 	server.o \
 	server_start.o \
@@ -17,7 +17,8 @@ OBJECTS=main.o \
 	print.o \
 	info.o \
 	env.o \
-	tail.o
+	tail.o\
+	gpu.o
 INSTALL=install -c
 
 all: ts
@@ -25,15 +26,15 @@ all: ts
 tsretry: tsretry.c
 
 ts: $(OBJECTS)
-	$(CC) $(LDFLAGS) -o ts $^ -std=c11
+	$(CC) $(LDFLAGS) -o ts $^ -L$(CUDA_HOME)/lib64 -I$(CUDA_HOME)/include -lpthread -lcudart -lcublas -fopenmp
 
 # Test our 'tail' implementation.
 ttail: tail.o ttail.o
-	$(CC) $(LDFLAGS) -o ttail $^ -std=c11
+	$(CC) $(LDFLAGS) -o ttail $^
 
 
 .c.o:
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -std=c11
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
 
 # Dependencies
 main.o: main.c main.h
@@ -50,6 +51,8 @@ signals.o: signals.c main.h
 list.o: list.c main.h
 tail.o: tail.c main.h
 ttail.o: ttail.c main.h
+gpu.o: gpu.c main.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) -L$(CUDA_HOME)/lib64 -I$(CUDA_HOME)/include -lpthread -lcudart -lcublas -fopenmp -c -std=c11 gpu.c
 
 clean:
 	rm -f *.o ts

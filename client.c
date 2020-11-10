@@ -83,6 +83,7 @@ void c_new_job()
     m.u.newjob.command_size = strlen(new_command) + 1; /* add null */
     m.u.newjob.wait_enqueuing = command_line.wait_enqueuing;
     m.u.newjob.num_slots = command_line.num_slots;
+    m.u.newjob.gpus = command_line.gpus;
 
     /* Send the message */
     send_msg(server_socket, &m);
@@ -148,8 +149,24 @@ int c_wait_server_commands()
                 res.skipped = 1;
                 c_send_runjob_ok(0, -1);
             }
-            else
+            else {
+                if (command_line.gpus) {
+                    int numFree;
+                    int * freeList = getFreeGpuList(&numFree);
+                    char tmp[50];
+                    strcpy(tmp, "CUDA_VISIBLE_DEVICES=");
+                    for (int i = 0; i < command_line.gpus; i++) {
+                        char tmp2[5];
+                        sprintf(tmp2, "%d", freeList[i]);
+                        strcat(tmp, tmp2);
+                        if (i < command_line.gpus - 1)
+                            strcat(tmp, ",");
+                    }
+                    putenv(tmp);
+                }
+
                 run_job(&res);
+            }
             c_end_of_job(&res);
             return res.errorlevel;
         }
