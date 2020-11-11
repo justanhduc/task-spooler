@@ -65,7 +65,7 @@ static const char * ofilename_shown(const struct Job *p)
         output_filename = "(no output)";
     } else if (p->store_output)
     {
-        if (p->state == QUEUED)
+        if (p->state == QUEUED || p->state == ALLOCATING)
         {
             output_filename = "(file)";
         } else

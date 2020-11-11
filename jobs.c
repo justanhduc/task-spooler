@@ -194,6 +194,23 @@ void s_count_running_jobs(int s)
     send_msg(s, &m);
 }
 
+int s_count_allocating_jobs()
+{
+    int count = 0;
+    struct Job *p;
+
+    /* Count running jobs */
+    p = firstjob;
+    while(p != 0)
+    {
+        if (p->state == ALLOCATING)
+            ++count;
+
+        p = p->next;
+    }
+    return count;
+}
+
 void s_get_label(int s, int jobid)
 {
     struct Job *p = 0;
@@ -255,7 +272,7 @@ int wake_hold_client()
     p = findjob_holding_client();
     if (p)
     {
-        p->state = QUEUED;
+        p->state = (p->gpus) ? ALLOCATING : QUEUED;
         return p->jobid;
     }
     return -1;
@@ -268,6 +285,9 @@ const char * jstate2string(enum Jobstate s)
     {
         case QUEUED:
             jobstate = "queued";
+            break;
+        case ALLOCATING:
+            jobstate = "allocating";
             break;
         case RUNNING:
             jobstate = "running";
@@ -389,11 +409,11 @@ int s_newjob(int s, struct msg *m)
     p = newjobptr();
 
     p->jobid = jobids++;
+    p->gpus = m->u.newjob.gpus;
     if (count_not_finished_jobs() < max_jobs)
-        p->state = QUEUED;
+        p->state = (p->gpus) ? ALLOCATING : QUEUED;
     else
         p->state = HOLDING_CLIENT;
-    p->gpus = m->u.newjob.gpus;
     p->num_slots = m->u.newjob.num_slots;
     p->store_output = m->u.newjob.store_output;
     p->should_keep_finished = m->u.newjob.should_keep_finished;
@@ -591,12 +611,24 @@ int next_run_job()
     p = firstjob;
     while(p != 0)
     {
-        if (p->state == QUEUED)
+        if (p->state == QUEUED || p->state == ALLOCATING)
         {
             if (p->gpus) {
                 int numFree;
                 /* get number of free GPUs at the moment */
                 getFreeGpuList(&numFree);
+
+                if (numFree > 0) {
+                    /* GPU mem takes some time to be allocated
+                     * if there are many processes in queue,
+                     * they can use the same GPU
+                     * TODO: this is ugly */
+                    sleep(60);
+                } else {
+                    p = p->next;
+                    continue;
+                }
+
                 if (numFree < p->gpus) {
                     /* if fewer GPUs than required then next */
                     p = p->next;
@@ -610,7 +642,8 @@ int next_run_job()
                 /* We won't try to run any job do_depending on an unfinished
                  * job */
                 if (do_depend_job != NULL &&
-                    (do_depend_job->state == QUEUED || do_depend_job->state == RUNNING))
+                    (do_depend_job->state == QUEUED || do_depend_job->state == RUNNING ||
+                    do_depend_job->state == ALLOCATING))
                 {
                     /* Next try */
                     p = p->next;

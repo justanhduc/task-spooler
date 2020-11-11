@@ -113,6 +113,7 @@ struct msg;
 enum Jobstate
 {
     QUEUED,
+    ALLOCATING,
     RUNNING,
     FINISHED,
     SKIPPED,
