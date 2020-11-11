@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
-
+#include <getopt.h>
 #include <stdio.h>
 #include <sys/time.h>
 
@@ -26,11 +26,10 @@ static char getopt_env[] = "POSIXLY_CORRECT=YES";
 static char *old_getopt_env;
 
 static char version[] = "Task Spooler v1.0 - a task queue system for the unix user.\n"
-"Copyright (C) 2007-2016  Lluis Batlle i Rossell";
+                        "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell";
 
 
-static void default_command_line()
-{
+static void default_command_line() {
     command_line.request = c_LIST;
     command_line.need_server = 0;
     command_line.store_output = 1;
@@ -47,22 +46,20 @@ static void default_command_line()
     command_line.num_slots = 1;
 }
 
-void get_command(int index, int argc, char **argv)
-{
+void get_command(int index, int argc, char **argv) {
     command_line.command.array = &(argv[index]);
     command_line.command.num = argc - index;
 }
 
-static int get_two_jobs(const char *str, int *j1, int *j2)
-{
+static int get_two_jobs(const char *str, int *j1, int *j2) {
     char tmp[50];
     char *tmp2;
 
-    if(strlen(str) >= 50)
+    if (strlen(str) >= 50)
         return 0;
     strcpy(tmp, str);
 
-    tmp2 = strchr(tmp , '-');
+    tmp2 = strchr(tmp, '-');
     if (tmp2 == NULL)
         return 0;
 
@@ -77,20 +74,27 @@ static int get_two_jobs(const char *str, int *j1, int *j2)
     return 1;
 }
 
-void parse_opts(int argc, char **argv)
-{
+static struct option longOptions[] = {
+        {"get_label",     no_argument, NULL, 'a'},
+        {"count_running", no_argument, NULL, 'R'},
+        {"last_queue_id", no_argument, NULL, 'q'},
+        {NULL, 0,                      NULL, 0}
+};
+
+void parse_opts(int argc, char **argv) {
     int c;
     int res;
+    int optionIdx = 0;
 
     /* Parse options */
-    while(1) {
-        c = getopt(argc, argv, ":RTVhKgClnfmBEr:a:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:");
+    while (1) {
+        c = getopt_long(argc, argv, ":RTVhKgClnfmBEr:a:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:",
+                        longOptions, &optionIdx);
 
         if (c == -1)
             break;
 
-        switch(c)
-        {
+        switch (c) {
             case 'K':
                 command_line.request = c_KILL_SERVER;
                 command_line.should_go_background = 0;
@@ -184,8 +188,7 @@ void parse_opts(int argc, char **argv)
             case 'S':
                 command_line.request = c_SET_MAX_SLOTS;
                 command_line.max_slots = atoi(optarg);
-                if (command_line.max_slots < 1)
-                {
+                if (command_line.max_slots < 1) {
                     fprintf(stderr, "You should set at minimum 1 slot.\n");
                     exit(-1);
                 }
@@ -197,16 +200,14 @@ void parse_opts(int argc, char **argv)
             case 'U':
                 command_line.request = c_SWAP_JOBS;
                 res = get_two_jobs(optarg, &command_line.jobid,
-                        &command_line.jobid2);
-                if (!res)
-                {
+                                   &command_line.jobid2);
+                if (!res) {
                     fprintf(stderr, "Wrong <id-id> for -U.\n");
                     exit(-1);
                 }
-                if (command_line.jobid == command_line.jobid2)
-                {
+                if (command_line.jobid == command_line.jobid2) {
                     fprintf(stderr, "Wrong <id-id> for -U. "
-                            "Use different ids.\n");
+                                    "Use different ids.\n");
                     exit(-1);
                 }
                 break;
@@ -221,8 +222,7 @@ void parse_opts(int argc, char **argv)
                 command_line.request = c_COUNT_RUNNING;
                 break;
             case ':':
-                switch(optopt)
-                {
+                switch (optopt) {
                     case 't':
                         command_line.request = c_TAIL;
                         command_line.jobid = -1; /* This means the 'last' job */
@@ -290,30 +290,27 @@ void parse_opts(int argc, char **argv)
 
     /* if the request is still the default option... 
      * (the default values should be centralized) */
-    if (optind < argc && command_line.request == c_LIST)
-    {
+    if (optind < argc && command_line.request == c_LIST) {
         command_line.request = c_QUEUE;
         get_command(optind, argc, argv);
     }
 
     if (command_line.request != c_SHOW_HELP &&
-            command_line.request != c_SHOW_VERSION)
+        command_line.request != c_SHOW_VERSION)
         command_line.need_server = 1;
 
-    if ( ! command_line.store_output && ! command_line.should_go_background )
+    if (!command_line.store_output && !command_line.should_go_background)
         command_line.should_keep_finished = 0;
 
-    if ( command_line.send_output_by_mail && ((! command_line.store_output) ||
-                command_line.gzip) )
-    {
+    if (command_line.send_output_by_mail && ((!command_line.store_output) ||
+                                             command_line.gzip)) {
         fprintf(stderr,
                 "For e-mail, you should store the output (not through gzip)\n");
         exit(-1);
     }
 }
 
-static void fill_first_3_handles()
-{
+static void fill_first_3_handles() {
     int tmp_pipe1[2];
     int tmp_pipe2[2];
     /* This will fill handles 0 and 1 */
@@ -324,13 +321,11 @@ static void fill_first_3_handles()
     close(tmp_pipe2[1]);
 }
 
-static void go_background()
-{
+static void go_background() {
     int pid;
     pid = fork();
 
-    switch(pid)
-    {
+    switch (pid) {
         case -1:
             error("fork failed");
             break;
@@ -350,8 +345,7 @@ static void go_background()
     }
 }
 
-static void print_help(const char *cmd)
-{
+static void print_help(const char *cmd) {
     printf("usage: %s [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]\n", cmd);
     printf("Env vars:\n");
     printf("  TS_SOCKET  the path to the unix socket used by the ts command.\n");
@@ -398,30 +392,24 @@ static void print_help(const char *cmd)
     printf("  -N <num> number of slots required by the job (1 default).\n");
 }
 
-static void print_version()
-{
+static void print_version() {
     puts(version);
 }
 
-static void set_getopt_env()
-{
+static void set_getopt_env() {
     old_getopt_env = getenv("POSIXLY_CORRECT");
     putenv(getopt_env);
 }
 
-static void unset_getopt_env()
-{
-    if (old_getopt_env == NULL)
-    {
+static void unset_getopt_env() {
+    if (old_getopt_env == NULL) {
         /* Wipe the string from the environment */
         putenv("POSIXLY_CORRECT");
-    }
-    else
+    } else
         sprintf(getopt_env, "POSIXLY_CORRECT=%s", old_getopt_env);
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     int errorlevel = 0;
 
     process_type = CLIENT;
@@ -435,148 +423,142 @@ int main(int argc, char **argv)
     /* This will be inherited by the server, if it's run */
     ignore_sigpipe();
 
-    if (command_line.need_server)
-    {
+    if (command_line.need_server) {
         ensure_server_up();
         c_check_version();
     }
 
-    switch(command_line.request)
-    {
-    case c_SHOW_VERSION:
-        print_version();
-        break;
-    case c_SHOW_HELP:
-        print_help(argv[0]);
-        break;
-    case c_QUEUE:
-        if (command_line.command.num <= 0)
-            error("Tried to queue a void command. parameters: %i",
-                    command_line.command.num);
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        c_new_job();
-        command_line.jobid = c_wait_newjob_ok();
-        if (command_line.store_output)
-        {
-            printf("%i\n", command_line.jobid);
-            fflush(stdout);
-        }
-        if (command_line.should_go_background)
-        {
-            go_background();
-            c_wait_server_commands();
-        } else
-        {
-            errorlevel = c_wait_server_commands();
-        }
-        break;
-    case c_LIST:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        c_list_jobs();
-        c_wait_server_lines();
-        break;
-    case c_KILL_SERVER:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        /* terminate all jobs first */
-        c_kill_all_jobs();
-        c_shutdown_server();
-        break;
-    case c_CLEAR_FINISHED:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        c_clear_finished();
-        break;
-    case c_TAIL:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        errorlevel = c_tail();
-        /* This will not return! */
-        break;
-    case c_CAT:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        errorlevel = c_cat();
-        /* This will not return! */
-        break;
-    case c_SHOW_OUTPUT_FILE:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        c_show_output_file();
-        break;
-    case c_SHOW_PID:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        c_show_pid();
-        break;
-    case c_KILL_ALL:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        c_kill_all_jobs();
-        break;
-    case c_KILL_JOB:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        c_kill_job();
-        break;
-    case c_INFO:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        c_show_info();
-        break;
-    case c_LAST_ID:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        c_show_last_id();
-        break;
-    case c_GET_LABEL:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        c_show_label();
-        break;
-    case c_REMOVEJOB:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        c_remove_job();
-        break;
-    case c_WAITJOB:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        errorlevel = c_wait_job();
-        break;
-    case c_URGENT:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        c_move_urgent();
-        break;
-    case c_SET_MAX_SLOTS:
-        c_send_max_slots(command_line.max_slots);
-        break;
-    case c_GET_MAX_SLOTS:
-        c_get_max_slots();
-        break;
-    case c_SWAP_JOBS:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        c_swap_jobs();
-        break;
-    case c_COUNT_RUNNING:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        c_get_count_running();
-        break;
-    case c_GET_STATE:
-        if (!command_line.need_server)
-            error("The command %i needs the server", command_line.request);
-        /* This will also print the state into stdout */
-        c_get_state();
-        break;
+    switch (command_line.request) {
+        case c_SHOW_VERSION:
+            print_version();
+            break;
+        case c_SHOW_HELP:
+            print_help(argv[0]);
+            break;
+        case c_QUEUE:
+            if (command_line.command.num <= 0)
+                error("Tried to queue a void command. parameters: %i",
+                      command_line.command.num);
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_new_job();
+            command_line.jobid = c_wait_newjob_ok();
+            if (command_line.store_output) {
+                printf("%i\n", command_line.jobid);
+                fflush(stdout);
+            }
+            if (command_line.should_go_background) {
+                go_background();
+                c_wait_server_commands();
+            } else {
+                errorlevel = c_wait_server_commands();
+            }
+            break;
+        case c_LIST:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_list_jobs();
+            c_wait_server_lines();
+            break;
+        case c_KILL_SERVER:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            /* terminate all jobs first */
+            c_kill_all_jobs();
+            c_shutdown_server();
+            break;
+        case c_CLEAR_FINISHED:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_clear_finished();
+            break;
+        case c_TAIL:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            errorlevel = c_tail();
+            /* This will not return! */
+            break;
+        case c_CAT:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            errorlevel = c_cat();
+            /* This will not return! */
+            break;
+        case c_SHOW_OUTPUT_FILE:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_show_output_file();
+            break;
+        case c_SHOW_PID:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_show_pid();
+            break;
+        case c_KILL_ALL:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_kill_all_jobs();
+            break;
+        case c_KILL_JOB:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_kill_job();
+            break;
+        case c_INFO:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_show_info();
+            break;
+        case c_LAST_ID:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_show_last_id();
+            break;
+        case c_GET_LABEL:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_show_label();
+            break;
+        case c_REMOVEJOB:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_remove_job();
+            break;
+        case c_WAITJOB:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            errorlevel = c_wait_job();
+            break;
+        case c_URGENT:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_move_urgent();
+            break;
+        case c_SET_MAX_SLOTS:
+            c_send_max_slots(command_line.max_slots);
+            break;
+        case c_GET_MAX_SLOTS:
+            c_get_max_slots();
+            break;
+        case c_SWAP_JOBS:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_swap_jobs();
+            break;
+        case c_COUNT_RUNNING:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_get_count_running();
+            break;
+        case c_GET_STATE:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            /* This will also print the state into stdout */
+            c_get_state();
+            break;
     }
 
-    if (command_line.need_server)
-    {
+    if (command_line.need_server) {
         close(server_socket);
     }
 
