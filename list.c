@@ -178,18 +178,20 @@ static char * print_result(const struct Job *p)
         user_ms /= 60;
         system_ms /= 60;
         unit = "m";
-    }
-    if (real_ms > 60) {
-        real_ms /= 60;
-        user_ms /= 60;
-        system_ms /= 60;
-        unit = "h";
-    }
-    if (real_ms > 24) {
-        real_ms /= 24;
-        user_ms /= 24;
-        system_ms /= 24;
-        unit = "d";
+
+        if (real_ms > 60) {
+            real_ms /= 60;
+            user_ms /= 60;
+            system_ms /= 60;
+            unit = "h";
+
+            if (real_ms > 24) {
+                real_ms /= 24;
+                user_ms /= 24;
+                system_ms /= 24;
+                unit = "d";
+            }
+        }
     }
 
     if (p->label)
