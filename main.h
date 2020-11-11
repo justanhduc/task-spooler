@@ -44,7 +44,8 @@ enum msg_types
     NEWJOB_NOK,
     COUNT_RUNNING,
     GET_LABEL,
-    LAST_ID
+    LAST_ID,
+    KILL_ALL
 };
 
 enum Request
@@ -70,7 +71,8 @@ enum Request
     c_KILL_JOB,
     c_COUNT_RUNNING,
     c_GET_LABEL,
-    c_LAST_ID
+    c_LAST_ID,
+    c_KILL_ALL
 };
 
 struct Command_line {
@@ -236,6 +238,7 @@ void c_get_max_slots();
 void c_check_version();
 void c_get_count_running();
 void c_show_label();
+void c_kill_all_jobs();
 
 /* jobs.c */
 void s_list(int s);
@@ -269,6 +272,7 @@ int job_is_running(int jobid);
 int job_is_holding_client(int jobid);
 int wake_hold_client();
 void s_get_label(int s, int jobid);
+void s_kill_all_jobs(int s);
 
 /* server.c */
 void server_main(int notify_fd, char *_path);
