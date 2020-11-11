@@ -23,5 +23,6 @@ int * getFreeGpuList(int *numFree) {
         }
     }
     *numFree = count;
+    free(gpuList);
     return gpuList;
 }
