@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
-
+#include <getopt.h>
 #include <stdio.h>
 #include <sys/time.h>
 
@@ -78,20 +78,40 @@ static int get_two_jobs(const char *str, int *j1, int *j2)
     return 1;
 }
 
+static struct option longOptions[] = {
+        {"set_gpu_wait", required_argument, NULL, 0},
+        {"get_gpu_wait", no_argument, NULL, 0},
+        {NULL, 0, NULL, 0}
+};
+
 void parse_opts(int argc, char **argv)
 {
     int c;
     int res;
+    int optionIdx = 0;
 
     /* Parse options */
     while(1) {
-        c = getopt(argc, argv, ":RTVhKgClnfmBEr:G:a:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:");
+        c = getopt_long(argc, argv, ":RTVhKgClnfmBEr:G:a:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:",
+                        longOptions, &optionIdx);
 
         if (c == -1)
             break;
 
         switch(c)
         {
+            case 0:
+                if (strcmp(longOptions[optionIdx].name, "set_gpu_wait") == 0) {
+                    command_line.request = c_SET_GPU_WAIT_TIME;
+                    command_line.gpu_wait_time = atoi(optarg);
+                    if (command_line.gpu_wait_time < 0)
+                        error("Cannot set negative value for gpu_wait_time");
+                    break;
+                } else if (strcmp(longOptions[optionIdx].name, "get_gpu_wait") == 0) {
+                    command_line.request = c_GET_GPU_WAIT_TIME;
+                    break;
+                }
+                break;
             case 'K':
                 command_line.request = c_KILL_SERVER;
                 command_line.should_go_background = 0;
@@ -367,6 +387,9 @@ static void print_help(const char *cmd)
     printf("  TS_SAVELIST  filename which will store the list, if the server dies.\n");
     printf("  TS_SLOTS   amount of jobs which can run at once, read on server start.\n");
     printf("  TMPDIR     directory where to place the output files and the default socket.\n");
+    printf("Long option actions:\n");
+    printf("  --set_gpu_wait <sec> set time to wait before running the next GPU job (30 seconds by default).\n");
+    printf("  --get_gpu_wait       get time to wait before running the next GPU job.\n");
     printf("Actions:\n");
     printf("  -K       kill the task spooler server\n");
     printf("  -C       clear the list of finished jobs\n");
@@ -577,6 +600,16 @@ int main(int argc, char **argv)
             error("The command %i needs the server", command_line.request);
         /* This will also print the state into stdout */
         c_get_state();
+        break;
+    case c_SET_GPU_WAIT_TIME:
+        if (!command_line.need_server)
+            error("The command %i needs the server", command_line.request);
+        c_set_gpu_wait_time();
+        break;
+    case c_GET_GPU_WAIT_TIME:
+        if (!command_line.need_server)
+            error("The command %i needs the server", command_line.request);
+        c_get_gpu_wait_time();
         break;
     }
 

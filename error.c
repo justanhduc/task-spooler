@@ -126,7 +126,7 @@ static void problem(enum Etype type, const char *str, va_list ap)
     fclose(out);
 }
 
-static void problem_msg(enum Etype type, const struct msg *m, const char *str, va_list ap)
+static void problem_msg(enum Etype type, const struct Msg *m, const char *str, va_list ap)
 {
     FILE *out;
 
@@ -161,7 +161,7 @@ void error(const char *str, ...)
     exit(-1);
 }
 
-void error_msg(const struct msg *m, const char *str, ...)
+void error_msg(const struct Msg *m, const char *str, ...)
 {
     va_list ap;
 
@@ -184,7 +184,7 @@ void warning(const char *str, ...)
     problem(WARNING, str, ap);
 }
 
-void warning_msg(const struct msg *m, const char *str, ...)
+void warning_msg(const struct Msg *m, const char *str, ...)
 {
     va_list ap;
 

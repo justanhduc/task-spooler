@@ -45,7 +45,9 @@ enum msg_types
     COUNT_RUNNING,
     GET_LABEL,
     LAST_ID,
-    KILL_ALL
+    KILL_ALL,
+    SET_GPU_WAIT_TIME,
+    GET_GPU_WAIT_TIME
 };
 
 enum Request
@@ -72,7 +74,9 @@ enum Request
     c_COUNT_RUNNING,
     c_GET_LABEL,
     c_LAST_ID,
-    c_KILL_ALL
+    c_KILL_ALL,
+    c_SET_GPU_WAIT_TIME,
+    c_GET_GPU_WAIT_TIME
 };
 
 struct Command_line {
@@ -98,6 +102,7 @@ struct Command_line {
     char *label;
     int num_slots; /* Slots for the job to use. Default 1 */
     int gpus;
+    int gpu_wait_time;
 };
 
 enum Process_type {
@@ -110,7 +115,7 @@ extern int server_socket;
 extern enum Process_type process_type;
 extern int server_socket; /* Used in the client */
 
-struct msg;
+struct Msg;
 
 enum Jobstate
 {
@@ -122,7 +127,7 @@ enum Jobstate
     HOLDING_CLIENT
 };
 
-struct msg
+struct Msg
 {
     enum msg_types type;
 
@@ -166,6 +171,7 @@ struct msg
         int version;
         int count_running;
         char *label;
+        int gpu_wait_time;
     } u;
 };
 
@@ -239,10 +245,12 @@ void c_check_version();
 void c_get_count_running();
 void c_show_label();
 void c_kill_all_jobs();
+void c_set_gpu_wait_time();
+void c_get_gpu_wait_time();
 
 /* jobs.c */
 void s_list(int s);
-int s_newjob(int s, struct msg *m);
+int s_newjob(int s, struct Msg *m);
 void s_removejob(int jobid);
 void job_finished(const struct Result *result, int jobid);
 int next_run_job();
@@ -273,6 +281,8 @@ int job_is_holding_client(int jobid);
 int wake_hold_client();
 void s_get_label(int s, int jobid);
 void s_kill_all_jobs(int s);
+void s_set_time_between_gpu_runs(int seconds);
+void s_send_time_between_gpu_runs(int s);
 
 /* server.c */
 void server_main(int notify_fd, char *_path);
@@ -311,15 +321,15 @@ void unblock_sigint_and_install_handler();
 /* msg.c */
 void send_bytes(const int fd, const char *data, int bytes);
 int recv_bytes(const int fd, char *data, int bytes);
-void send_msg(const int fd, const struct msg *m);
-int recv_msg(const int fd, struct msg *m);
+void send_msg(const int fd, const struct Msg *m);
+int recv_msg(const int fd, struct Msg *m);
 
 /* msgdump.c */
-void msgdump(FILE *, const struct msg *m);
+void msgdump(FILE *, const struct Msg *m);
 
 /* error.c */
-void error_msg(const struct msg *m, const char *str, ...);
-void warning_msg(const struct msg *m, const char *str, ...);
+void error_msg(const struct Msg *m, const char *str, ...);
+void warning_msg(const struct Msg *m, const char *str, ...);
 
 /* list.c */
 char * joblist_headers();

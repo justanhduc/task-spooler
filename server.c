@@ -20,7 +20,7 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <libgen.h>
-
+#include <sys/wait.h>
 #include <stdio.h>
 
 #include "main.h"
@@ -65,7 +65,7 @@ extern int max_jobs;
 
 static void s_send_version(int s)
 {
-    struct msg m;
+    struct Msg m;
 
     m.type = VERSION;
     m.u.version = PROTOCOL_VERSION;
@@ -255,22 +255,21 @@ static void server_loop(int ls)
             client_cs[nconnections].socket = cs;
             ++nconnections;
         }
-        for(i=0; i< nconnections; ++i)
-            if (FD_ISSET(client_cs[i].socket, &readset))
-            {
+        for(i=0; i< nconnections; ++i) {
+            if (FD_ISSET(client_cs[i].socket, &readset)) {
                 enum Break b;
                 b = client_read(i);
                 /* Check if we should break */
-                if (b == CLOSE)
-                {
+                if (b == CLOSE) {
                     warning("Closing");
                     /* On unknown message, we close the client,
                        or it may hang waiting for an answer */
                     clean_after_client_disappeared(client_cs[i].socket, i);
-                }
-                else if (b == BREAK)
+                } else if (b == BREAK)
                     keep_loop = 0;
             }
+        }
+
         /* This will return firstjob->jobid or -1 */
         newjob = next_run_job();
         if (newjob != -1)
@@ -357,7 +356,7 @@ clean_after_client_disappeared(int socket, int index)
 static enum Break
     client_read(int index)
 {
-    struct msg m;
+    struct Msg m;
     int s;
     int res;
 
@@ -495,6 +494,12 @@ static enum Break
         case GET_STATE:
             s_send_state(s, m.u.jobid);
             break;
+        case SET_GPU_WAIT_TIME:
+            s_set_time_between_gpu_runs(m.u.gpu_wait_time);
+            break;
+        case GET_GPU_WAIT_TIME:
+            s_send_time_between_gpu_runs(s);
+            break;
         case GET_VERSION:
             s_send_version(s);
             break;
@@ -524,7 +529,7 @@ static void s_runjob(int jobid, int index)
 static void s_newjob_ok(int index)
 {
     int s;
-    struct msg m;
+    struct Msg m;
     
     if (!client_cs[index].hasjob)
         error("Run job of the client %i which doesn't have any job", index);
@@ -540,7 +545,7 @@ static void s_newjob_ok(int index)
 static void s_newjob_nok(int index)
 {
     int s;
-    struct msg m;
+    struct Msg m;
     
     if (!client_cs[index].hasjob)
         error("Run job of the client %i which doesn't have any job", index);
