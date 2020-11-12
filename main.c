@@ -25,7 +25,7 @@ int server_socket;
 static char getopt_env[] = "POSIXLY_CORRECT=YES";
 static char *old_getopt_env;
 
-static char version[] = "Task Spooler v1.0 - a task queue system for the unix user.\n"
+static char version[] = "Task Spooler v1.1 - a task queue system for the unix user.\n"
                         "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell";
 
 
