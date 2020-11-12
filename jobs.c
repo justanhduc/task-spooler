@@ -884,16 +884,7 @@ void s_send_runjob(int s, int jobid)
     if (p == 0) 
         error("Job %i was expected to run", jobid);
 
-
     m.type = RUNJOB;
-
-    /* TODO
-     * We should make the dependencies update the jobids they're do_depending on.
-     * Then, on finish, these could set the errorlevel to send to its dependency childs.
-     * We cannot consider that the jobs will leave traces in the finished job list (-nf?) . */
-
-    m.u.last_errorlevel = p->dependency_errorlevel;
-
     send_msg(s, &m);
 }
 
@@ -1058,7 +1049,7 @@ void notify_errorlevel(struct Job *p)
 {
     int i;
 
-    last_errorlevel = 0;  /* broadcasted "fake news" */
+    last_errorlevel = p->result.errorlevel;
 
     for(i = 0; i < p->notify_errorlevel_to_size; ++i)
     {
@@ -1066,7 +1057,7 @@ void notify_errorlevel(struct Job *p)
         notified = get_job(p->notify_errorlevel_to[i]);
         if (notified)
         {
-            notified->dependency_errorlevel = 0;  /* broadcasted "fake news" */
+            notified->dependency_errorlevel = p->result.errorlevel;
         }
     }
 }

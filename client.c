@@ -137,38 +137,25 @@ int c_wait_server_commands()
             error("Error in wait_server_commands");
         if (m.type == RUNJOB)
         {
-            struct Result res;
-            res.skipped = 0;
-            /* These will send RUNJOB_OK */
-            if (command_line.do_depend && m.u.last_errorlevel != 0)
-            {
-                res.errorlevel = -1;
-                res.user_ms = 0.;
-                res.system_ms = 0.;
-                res.real_ms = 0.;
-                res.skipped = 1;
-                c_send_runjob_ok(0, -1);
-            }
-            else {
-                if (command_line.gpus) {
-                    int numFree;
-                    int * freeList = getFreeGpuList(&numFree);
-                    char tmp[50];
-                    strcpy(tmp, "CUDA_VISIBLE_DEVICES=");
-                    for (int i = 0; i < command_line.gpus; i++) {
-                        char tmp2[5];
-                        sprintf(tmp2, "%d", freeList[i]);
-                        strcat(tmp, tmp2);
-                        if (i < command_line.gpus - 1)
-                            strcat(tmp, ",");
-                    }
-                    putenv(tmp);
+            struct Result result;
+            if (command_line.gpus) {
+                int numFree;
+                int * freeList = getFreeGpuList(&numFree);
+                char tmp[50];
+                strcpy(tmp, "CUDA_VISIBLE_DEVICES=");
+                for (int i = 0; i < command_line.gpus; i++) {
+                    char tmp2[5];
+                    sprintf(tmp2, "%d", freeList[i]);
+                    strcat(tmp, tmp2);
+                    if (i < command_line.gpus - 1)
+                        strcat(tmp, ",");
                 }
-
-                run_job(&res);
+                putenv(tmp);
             }
-            c_end_of_job(&res);
-            return res.errorlevel;
+
+            run_job(&result);
+            c_end_of_job(&result);
+            return result.errorlevel;
         }
     }
     return -1;
