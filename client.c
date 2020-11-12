@@ -136,22 +136,10 @@ int c_wait_server_commands()
             error("Error in wait_server_commands");
         if (m.type == RUNJOB)
         {
-            struct Result res;
-            res.skipped = 0;
-            /* These will send RUNJOB_OK */
-            if (command_line.do_depend && m.u.last_errorlevel != 0)
-            {
-                res.errorlevel = -1;
-                res.user_ms = 0.;
-                res.system_ms = 0.;
-                res.real_ms = 0.;
-                res.skipped = 1;
-                c_send_runjob_ok(0, -1);
-            }
-            else
-                run_job(&res);
-            c_end_of_job(&res);
-            return res.errorlevel;
+            struct Result result;
+            run_job(&result);
+            c_end_of_job(&result);
+            return result.errorlevel;
         }
     }
     return -1;
