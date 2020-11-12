@@ -16,6 +16,19 @@ For your first contact, you can read an article at linux.com,
 which I like as overview, guide and examples (original url). 
 On more advanced usage, don't neglect the TRICKS file in the package.
 
+### Changelog
+**Major update (Nov 11, 2020)**
+
+- Added GPU support. A GPU job can run or not depending on the number of available GPUs as well as 
+free slots.
+- Various functionality updates
+        
+    - Dependent jobs will run no matter what the error codes of their parents are.
+    - Adding more query information about a job.
+    - Added long options.
+    
+- Replaced Makefile by CMake.
+
 ## Features
 
 I wrote Task Spooler because I didn't have any comfortable way of running batch jobs in my linux computer. I wanted to:
@@ -38,6 +51,24 @@ At the end, after some time using and developing ts, it can do something more:
 * Optional separation of stdout and stderr. 
 
 You can look at an old (but representative) screenshot of ts-0.2.1 if you want.
+
+## Setup
+
+### Install Task Spooler
+
+To setup Task Spooler with GPU support, one needs to set a `CUDA_HOME` environment variable.
+Then, simple run the provided script
+
+```
+./install
+```
+
+### Uinstall Task Spooler
+
+```
+./uninstall
+```
+Why would you want to do that anyway?
 
 ## Mailing list
 
@@ -76,45 +107,58 @@ Eric Keller wrote a nodejs web server showing the status of the task spooler que
 
 ## Manual
 
-Look at its manpage (v0.6.1). Here you also have a copy of the help for the same version:
+**NOTE**: `man ts` is not updated (yet).
 
 ```
-usage: ./ts [action] [-ngfmd] [-L <lab>] [cmd...]
+usage: ts [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]
 Env vars:
   TS_SOCKET  the path to the unix socket used by the ts command.
   TS_MAILTO  where to mail the result (on -m). Local user by default.
   TS_MAXFINISHED  maximum finished jobs in the queue.
+  TS_MAXCONN  maximum number of ts connections at once.
   TS_ONFINISH  binary called on job end (passes jobid, error, outfile, command).
   TS_ENV  command called on enqueue. Its output determines the job information.
   TS_SAVELIST  filename which will store the list, if the server dies.
   TS_SLOTS   amount of jobs which can run at once, read on server start.
+  TMPDIR     directory where to place the output files and the default socket.
+Long option actions:
+  --set_gpu_wait   <sec>        set time to wait before running the next GPU job (30 seconds by default).
+  --get_gpu_wait                get time to wait before running the next GPU job.
+  --get_label      || -a [id]   show the job label. Of the last added, if not specified.
+  --count_running  || -R        return the number of running jobs
+  --last_queue_id  || -q        show the job ID of the last added.
+Long option adding jobs:
+  --gpus           || -G [num]  number of GPUs required by the job (1 default).
 Actions:
-  -K       kill the task spooler server.
-  -C       clear the list of finished jobs.
-  -l       show the job list (default action).
-  -R       number of running jobs.
-  -S [num] set the number of max simultanious jobs of the server.
-  -t [id]  tail -f the output of the job. Last run if not specified.
-  -c [id]  cat the output of the job. Last run if not specified.
+  -K       kill the task spooler server
+  -C       clear the list of finished jobs
+  -l       show the job list (default action)
+  -S [num] get/set the number of max simultaneous jobs of the server.
+  -t [id]  \"tail -n 10 -f\" the output of the job. Last run if not specified.
+  -c [id]  like -t, but shows all the lines. Last run if not specified.
   -p [id]  show the pid of the job. Last run if not specified.
   -o [id]  show the output file. Of last job run, if not specified.
   -i [id]  show job information. Of last job run, if not specified.
-  -a [id]  show job label. Of last job run, if not specified.
   -s [id]  show the job state. Of the last added, if not specified.
   -r [id]  remove a job. The last added, if not specified.
   -w [id]  wait for a job. The last added, if not specified.
+  -k [id]  send SIGTERM to the job process group. The last run, if not specified.
+  -T       send SIGTERM to all running job groups.
   -u [id]  put that job first. The last added, if not specified.
   -U <id-id>  swap two jobs in the queue.
+  -B       in case of full queue on the server, quit (2) instead of waiting.
   -h       show this help
   -V       show the program version
 Options adding jobs:
   -n       don't store the output of the command.
+  -E       Keep stderr apart, in a name like the output file, but adding '.e'.
   -g       gzip the stored output (if not -n).
   -f       don't fork into background.
   -m       send the output by e-mail (uses sendmail).
   -d       the job will be run after the last job ends.
-  -D [id]  the job will be run after the job with id ends.
+  -D <id>  the job will be run after the job of given id ends.
   -L <lab> name this task with a label, to be distinguished on listing.
+  -N <num> number of slots required by the job (1 default).
 ```
 
 ## Thanks
