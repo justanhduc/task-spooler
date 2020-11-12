@@ -79,7 +79,7 @@ static struct option longOptions[] = {
         {"get_label",     no_argument,       NULL, 'a'},
         {"count_running", no_argument,       NULL, 'R'},
         {"last_queue_id", no_argument,       NULL, 'q'},
-        {"gpus",          optional_argument, NULL, 'G'},
+        {"gpus",          required_argument, NULL, 'G'},
         {"set_gpu_wait",  required_argument, NULL, 0},
         {"get_gpu_wait",  no_argument,       NULL, 0},
         {NULL, 0,                            NULL, 0}
@@ -92,7 +92,7 @@ void parse_opts(int argc, char **argv) {
 
     /* Parse options */
     while (1) {
-        c = getopt_long(argc, argv, ":RTVhKgClnfmBEr:a:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:G::",
+        c = getopt_long(argc, argv, ":RTVhKgClnfmBEr:a:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:G:",
                         longOptions, &optionIdx);
 
         if (c == -1)
