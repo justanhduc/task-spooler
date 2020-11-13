@@ -14,8 +14,6 @@
 #include <signal.h>
 #include "main.h"
 
-float gpuFreeThres = .9;
-
 static void c_end_of_job(const struct Result *res);
 static void c_wait_job_send();
 static void c_wait_running_job_send();
@@ -142,18 +140,12 @@ int c_wait_server_commands()
             struct Result result;
             if (command_line.gpus) {
                 int numFree;
-                int * freeList = getFreeGpuList(&numFree, gpuFreeThres);
+                int * freeList = getFreeGpuList(&numFree);
                 char tmp[50];
                 strcpy(tmp, "CUDA_VISIBLE_DEVICES=");
                 for (int i = 0; i < command_line.gpus; i++) {
                     char tmp2[5];
-                    int gpu = freeList[i];
-                    if (gpu == -1) {
-                        error("Wrong GPU ID");
-                        exit(-1);
-                    }
-
-                    sprintf(tmp2, "%d", gpu);
+                    sprintf(tmp2, "%d", freeList[i]);
                     strcat(tmp, tmp2);
                     if (i < command_line.gpus - 1)
                         strcat(tmp, ",");

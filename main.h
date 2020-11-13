@@ -4,8 +4,6 @@
 
     Please find the license in the provided COPYING file.
 */
-#include <sys/time.h>
-
 enum
 {
     CMD_LEN=500,
@@ -116,7 +114,6 @@ extern struct Command_line command_line;
 extern int server_socket;
 extern enum Process_type process_type;
 extern int server_socket; /* Used in the client */
-extern float gpuFreeThres;
 
 struct Msg;
 
@@ -363,4 +360,4 @@ char * get_environment();
 int tail_file(const char *fname, int last_lines);
 
 /* gpu.c */
-int * getFreeGpuList(int *numFree, float thres);
+int * getFreeGpuList(int *numFree);
