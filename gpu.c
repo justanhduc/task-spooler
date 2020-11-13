@@ -8,7 +8,7 @@
 int * getFreeGpuList(int *numFree) {
     int * gpuList;
     int nDevices;
-    int i, count = 0;
+    int i, j = 0, count = 0;
 
     cudaGetDeviceCount(&nDevices);
     gpuList = (int *) malloc(nDevices * sizeof(int));
@@ -18,11 +18,11 @@ int * getFreeGpuList(int *numFree) {
         size_t totalMem;
         cudaMemGetInfo(&freeMem, &totalMem);
         if (freeMem > .9 * totalMem) {
-            gpuList[i] = i;
+            gpuList[j] = i;
             count++;
+            j++;
         }
     }
     *numFree = count;
-    free(gpuList);
     return gpuList;
 }
