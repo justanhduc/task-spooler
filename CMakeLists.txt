@@ -3,10 +3,6 @@ project(Task-Spooler C)
 
 set(CMAKE_C_STANDARD 11)
 
-set(CMAKE_CUDA_COMPILER $ENV{CUDA_HOME}/bin/nvcc)
-find_package(CUDA REQUIRED)
-include_directories($ENV{CUDA_HOME}/include)
-
 add_executable(
         ts
         client.c
@@ -28,8 +24,6 @@ add_executable(
         tail.c
 )
 
-target_link_libraries(ts ${CUDA_LIBRARIES})
-
 set(
         TS_PERMISSIONS
         OWNER_WRITE OWNER_READ OWNER_EXECUTE
@@ -37,4 +31,4 @@ set(
         WORLD_READ WORLD_EXECUTE
 )
 
-install(TARGETS ts DESTINATION /usr/local/bin)
+install(TARGETS ts DESTINATION /usr/local/bin PERMISSIONS ${TS_PERMISSIONS})
