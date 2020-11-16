@@ -151,6 +151,7 @@ int c_wait_server_commands()
                         strcat(tmp, ",");
                 }
                 putenv(tmp);
+                free(freeList);
             }
 
             run_job(&result);

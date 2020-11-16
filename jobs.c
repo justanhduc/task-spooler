@@ -637,7 +637,8 @@ int next_run_job()
             if (p->gpus) {
                 int numFree;
                 /* get number of free GPUs at the moment */
-                getFreeGpuList(&numFree);
+                int * list = getFreeGpuList(&numFree);
+                free(list);
 
                 /* GPU mem takes some time to be allocated
                  * if there are many processes in queue,

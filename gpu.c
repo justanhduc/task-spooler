@@ -22,6 +22,7 @@ int * getFreeGpuList(int *numFree) {
             count++;
             j++;
         }
+        cudaDeviceReset();
     }
     *numFree = count;
     return gpuList;
