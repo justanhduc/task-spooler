@@ -573,19 +573,28 @@ int next_run_job() {
     while (p != 0) {
         if (p->state == QUEUED || p->state == ALLOCATING) {
             if (p->gpus) {
+                /* GPU mem takes some time to be allocated,
+                 * so two consecutive jobs can use the same GPU,
+                 * so we need to spare some time between two GPU jobs.
+                 * this is ugly. if a job finishes faster
+                 * than time_between_gpu_runs the next job may not
+                 * be executed as `select` blocks. fortunately, GPU jobs
+                 * usually last much longer (hours) than
+                 * time_between_gpu_runs (tens of seconds).
+                 * TODO: fix this*/
+                if ((time(NULL) - last_gpu_run_time) < time_between_gpu_runs) {
+                    /* there was one GPU task just run, next */
+                    p = p->next;
+                    continue;
+                }
+
                 int numFree;
                 /* get number of free GPUs at the moment */
                 int *list = getFreeGpuList(&numFree);
                 free(list);
 
-                /* GPU mem takes some time to be allocated
-                 * if there are many processes in queue,
-                 * they can use the same GPU
-                 * TODO: this is ugly */
-                if (numFree < p->gpus || (time(NULL) - last_gpu_run_time) < time_between_gpu_runs) {
-                    /* if fewer GPUs than required
-                     * or there was one GPU task just run
-                     * then next */
+                if (numFree < p->gpus) {
+                    /* if fewer GPUs than required then next */
                     p = p->next;
                     continue;
                 }
