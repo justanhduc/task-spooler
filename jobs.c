@@ -645,7 +645,9 @@ int next_run_job()
                  * they can use the same GPU
                  * TODO: this is ugly */
                 if (numFree < p->gpus || (time(NULL) - last_gpu_run_time) < time_between_gpu_runs) {
-                    /* if fewer GPUs than required then next */
+                    /* if fewer GPUs than required
+                     * or there was one GPU task just run
+                     * then next */
                     p = p->next;
                     continue;
                 }

@@ -138,19 +138,29 @@ int c_wait_server_commands()
         if (m.type == RUNJOB)
         {
             struct Result result;
+            result.skipped = 0;
             if (command_line.gpus) {
                 int numFree;
                 int * freeList = getFreeGpuList(&numFree);
-                char tmp[50];
-                strcpy(tmp, "CUDA_VISIBLE_DEVICES=");
-                for (int i = 0; i < command_line.gpus; i++) {
-                    char tmp2[5];
-                    sprintf(tmp2, "%d", freeList[i]);
-                    strcat(tmp, tmp2);
-                    if (i < command_line.gpus - 1)
-                        strcat(tmp, ",");
+                if (command_line.gpus > numFree) {
+                    result.errorlevel = -1;
+                    result.user_ms = 0.;
+                    result.system_ms = 0.;
+                    result.real_ms = 0.;
+                    result.skipped = 1;
+                    c_send_runjob_ok(0, -1);
+                } else {
+                    char tmp[50];
+                    strcpy(tmp, "CUDA_VISIBLE_DEVICES=");
+                    for (int i = 0; i < command_line.gpus; i++) {
+                        char tmp2[5];
+                        sprintf(tmp2, "%d", freeList[i]);
+                        strcat(tmp, tmp2);
+                        if (i < command_line.gpus - 1)
+                            strcat(tmp, ",");
+                    }
+                    putenv(tmp);
                 }
-                putenv(tmp);
                 free(freeList);
             }
 
