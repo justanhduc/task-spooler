@@ -25,16 +25,14 @@ static int should_check_owner = 0;
 
 static int fork_server();
 
-void create_socket_path(char **path)
-{
+void create_socket_path(char **path) {
     char *tmpdir;
     char userid[20];
     int size;
 
     /* As a priority, TS_SOCKET mandates over the path creation */
     *path = getenv("TS_SOCKET");
-    if (*path != 0)
-    {
+    if (*path != 0) {
         /* We need this in our memory, for forks and future 'free'. */
         size = strlen(*path) + 1;
         *path = (char *) malloc(size);
@@ -66,8 +64,7 @@ void create_socket_path(char **path)
     should_check_owner = 1;
 }
 
-int try_connect(int s)
-{
+int try_connect(int s) {
     struct sockaddr_un addr;
     int res;
 
@@ -80,8 +77,7 @@ int try_connect(int s)
 }
 
 static void
-try_check_ownership()
-{
+try_check_ownership() {
     int res;
     struct stat socketstat;
 
@@ -97,8 +93,7 @@ try_check_ownership()
         error("The uid %i does not own the socket %s.", getuid(), socket_path);
 }
 
-void wait_server_up(int fd)
-{
+void wait_server_up(int fd) {
     char a;
 
     read(fd, &a, 1);
@@ -106,8 +101,7 @@ void wait_server_up(int fd)
 }
 
 /* Returns the fd where to wait for the parent notification */
-static int fork_server()
-{
+static int fork_server() {
     int pid;
     int p[2];
 
@@ -115,8 +109,7 @@ static int fork_server()
     pipe(p);
 
     pid = fork();
-    switch (pid)
-    {
+    switch (pid) {
         case 0: /* Child */
             close(p[0]);
             close(server_socket);
@@ -137,15 +130,13 @@ static int fork_server()
     return p[0];
 }
 
-void notify_parent(int fd)
-{
+void notify_parent(int fd) {
     char a = 'a';
     write(fd, &a, 1);
     close(fd);
 }
 
-int ensure_server_up()
-{
+int ensure_server_up() {
     int res;
     int notify_fd;
 
@@ -158,8 +149,7 @@ int ensure_server_up()
     res = try_connect(server_socket);
 
     /* Good connection */
-    if (res == 0)
-    {
+    if (res == 0) {
         try_check_ownership();
         return 1;
     }
@@ -177,8 +167,7 @@ int ensure_server_up()
     res = try_connect(server_socket);
 
     /* The second time didn't work. Abort. */
-    if (res == -1)
-    {
+    if (res == -1) {
         fprintf(stderr, "The server didn't come up.\n");
         exit(-1);
     }

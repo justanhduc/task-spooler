@@ -7,9 +7,13 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/select.h>
+
 #ifdef linux
-  #include <sys/time.h>
+
+#include <sys/time.h>
+
 #endif
+
 #include <sys/resource.h>
 #include <sys/un.h>
 #include <errno.h>
@@ -25,13 +29,11 @@
 
 #include "main.h"
 
-enum
-{
-    MAXCONN=1000
+enum {
+    MAXCONN = 1000
 };
 
-enum Break
-{
+enum Break {
     BREAK,
     NOBREAK,
     CLOSE
@@ -39,16 +41,21 @@ enum Break
 
 /* Prototypes */
 static void server_loop(int ls);
+
 static enum Break
-    client_read(int index);
+client_read(int index);
+
 static void end_server(int ls);
+
 static void s_newjob_ok(int index);
+
 static void s_newjob_nok(int index);
+
 static void s_runjob(int jobid, int index);
+
 static void clean_after_client_disappeared(int socket, int index);
 
-struct Client_conn
-{
+struct Client_conn {
     int socket;
     int hasjob;
     int jobid;
@@ -63,8 +70,7 @@ static int max_descriptors;
 /* in jobs.c */
 extern int max_jobs;
 
-static void s_send_version(int s)
-{
+static void s_send_version(int s) {
     struct Msg m;
 
     m.type = VERSION;
@@ -73,18 +79,15 @@ static void s_send_version(int s)
     send_msg(s, &m);
 }
 
-static void sigterm_handler(int n)
-{
+static void sigterm_handler(int n) {
     const char *dumpfilename;
     int fd;
 
     /* Dump the job list if we should to */
     dumpfilename = getenv("TS_SAVELIST");
-    if (dumpfilename != NULL)
-    {
+    if (dumpfilename != NULL) {
         fd = open(dumpfilename, O_WRONLY | O_APPEND | O_CREAT, 0600);
-        if (fd != -1)
-        {
+        if (fd != -1) {
             joblist_dump(fd);
             close(fd);
         } else
@@ -97,33 +100,29 @@ static void sigterm_handler(int n)
     exit(1);
 }
 
-static void set_default_maxslots()
-{
+static void set_default_maxslots() {
     char *str;
 
     str = getenv("TS_SLOTS");
-    if (str != NULL)
-    {
+    if (str != NULL) {
         int slots;
         slots = abs(atoi(str));
         s_set_max_slots(slots);
     }
 }
 
-static void install_sigterm_handler()
-{
-  struct sigaction act;
+static void install_sigterm_handler() {
+    struct sigaction act;
 
-  act.sa_handler = sigterm_handler;
-  /* Reset the mask */
-  memset(&act.sa_mask,0,sizeof(act.sa_mask));
-  act.sa_flags = 0;
+    act.sa_handler = sigterm_handler;
+    /* Reset the mask */
+    memset(&act.sa_mask, 0, sizeof(act.sa_mask));
+    act.sa_flags = 0;
 
-  sigaction(SIGTERM, &act, NULL);
+    sigaction(SIGTERM, &act, NULL);
 }
 
-static int get_max_descriptors()
-{
+static int get_max_descriptors() {
     const int MARGIN = 5; /* stdin, stderr, listen socket, and whatever */
     int max;
     struct rlimit rlim;
@@ -133,8 +132,7 @@ static int get_max_descriptors()
     max = MAXCONN;
 
     str = getenv("TS_MAXCONN");
-    if (str != NULL)
-    {
+    if (str != NULL) {
         int user_maxconn;
         user_maxconn = abs(atoi(str));
         if (max > user_maxconn)
@@ -150,8 +148,7 @@ static int get_max_descriptors()
     res = getrlimit(RLIMIT_NOFILE, &rlim);
     if (res != 0)
         warning("getrlimit for open files");
-    else
-    {
+    else {
         if (max > rlim.rlim_cur)
             max = rlim.rlim_cur - MARGIN;
     }
@@ -162,8 +159,7 @@ static int get_max_descriptors()
     return max;
 }
 
-void server_main(int notify_fd, char *_path)
-{
+void server_main(int notify_fd, char *_path) {
     int ls;
     struct sockaddr_un addr;
     int res;
@@ -179,7 +175,7 @@ void server_main(int notify_fd, char *_path)
     path = _path;
 
     /* Move the server to the socket directory */
-    dirpath = malloc(strlen(path)+1);
+    dirpath = malloc(strlen(path) + 1);
     strcpy(dirpath, path);
     chdir(dirname(dirpath));
     free(dirpath);
@@ -187,7 +183,7 @@ void server_main(int notify_fd, char *_path)
     nconnections = 0;
 
     ls = socket(AF_UNIX, SOCK_STREAM, 0);
-    if(ls == -1)
+    if (ls == -1)
         error("cannot create the listen socket in the server");
 
     addr.sun_family = AF_UNIX;
@@ -210,43 +206,37 @@ void server_main(int notify_fd, char *_path)
     server_loop(ls);
 }
 
-static int get_conn_of_jobid(int jobid)
-{
+static int get_conn_of_jobid(int jobid) {
     int i;
-    for(i=0; i< nconnections; ++i)
+    for (i = 0; i < nconnections; ++i)
         if (client_cs[i].hasjob && client_cs[i].jobid == jobid)
             return i;
     return -1;
 }
 
-static void server_loop(int ls)
-{
+static void server_loop(int ls) {
     fd_set readset;
     int i;
     int maxfd;
     int keep_loop = 1;
     int newjob;
 
-    while (keep_loop)
-    {
+    while (keep_loop) {
         FD_ZERO(&readset);
         maxfd = 0;
         /* If we can accept more connections, go on.
          * Otherwise, the system block them (no accept will be done). */
-        if (nconnections < max_descriptors)
-        {
-            FD_SET(ls,&readset);
+        if (nconnections < max_descriptors) {
+            FD_SET(ls, &readset);
             maxfd = ls;
         }
-        for(i=0; i< nconnections; ++i)
-        {
+        for (i = 0; i < nconnections; ++i) {
             FD_SET(client_cs[i].socket, &readset);
             if (client_cs[i].socket > maxfd)
                 maxfd = client_cs[i].socket;
         }
         select(maxfd + 1, &readset, NULL, NULL, NULL);
-        if (FD_ISSET(ls,&readset))
-        {
+        if (FD_ISSET(ls, &readset)) {
             int cs;
             cs = accept(ls, NULL, NULL);
             if (cs == -1)
@@ -255,7 +245,7 @@ static void server_loop(int ls)
             client_cs[nconnections].socket = cs;
             ++nconnections;
         }
-        for(i=0; i< nconnections; ++i) {
+        for (i = 0; i < nconnections; ++i) {
             if (FD_ISSET(client_cs[i].socket, &readset)) {
                 enum Break b;
                 b = client_read(i);
@@ -272,16 +262,14 @@ static void server_loop(int ls)
 
         /* This will return firstjob->jobid or -1 */
         newjob = next_run_job();
-        if (newjob != -1)
-        {
+        if (newjob != -1) {
             int conn, awaken_job;
             conn = get_conn_of_jobid(newjob);
             /* This next marks the firstjob state to RUNNING */
             s_mark_job_running(newjob);
             s_runjob(newjob, conn);
 
-            while ((awaken_job = wake_hold_client()) != -1)
-            {
+            while ((awaken_job = wake_hold_client()) != -1) {
                 int wake_conn = get_conn_of_jobid(awaken_job);
                 if (wake_conn == -1)
                     error("The job awaken does not have a connection open");
@@ -293,38 +281,32 @@ static void server_loop(int ls)
     end_server(ls);
 }
 
-static void end_server(int ls)
-{
+static void end_server(int ls) {
     close(ls);
     unlink(path);
     /* This comes from the parent, in the fork after server_main.
      * This is the last use of path in this process.*/
-    free(path); 
+    free(path);
 }
 
-static void remove_connection(int index)
-{
+static void remove_connection(int index) {
     int i;
 
-    if(client_cs[index].hasjob)
-    {
+    if (client_cs[index].hasjob) {
         s_removejob(client_cs[index].jobid);
     }
 
-    for(i=index; i<(nconnections-1); ++i)
-    {
-        memcpy(&client_cs[i], &client_cs[i+1], sizeof(client_cs[0]));
+    for (i = index; i < (nconnections - 1); ++i) {
+        memcpy(&client_cs[i], &client_cs[i + 1], sizeof(client_cs[0]));
     }
     nconnections--;
 }
 
 static void
-clean_after_client_disappeared(int socket, int index)
-{
+clean_after_client_disappeared(int socket, int index) {
     /* Act as if the job ended. */
     int jobid = client_cs[index].jobid;
-    if (client_cs[index].hasjob)
-    {
+    if (client_cs[index].hasjob) {
         struct Result r;
 
         r.errorlevel = -1;
@@ -343,8 +325,7 @@ clean_after_client_disappeared(int socket, int index)
          * more related to the jobid, secially on remove_connection
          * when we receive the EOC. */
         client_cs[index].hasjob = 0;
-    }
-    else
+    } else
         /* If it doesn't have a running job,
          * it may well be a notification */
         s_remove_notification(socket);
@@ -354,8 +335,7 @@ clean_after_client_disappeared(int socket, int index)
 }
 
 static enum Break
-    client_read(int index)
-{
+client_read(int index) {
     struct Msg m;
     int s;
     int res;
@@ -364,21 +344,17 @@ static enum Break
 
     /* Read the message */
     res = recv_msg(s, &m);
-    if (res == -1)
-    {
+    if (res == -1) {
         warning("client recv failed");
         clean_after_client_disappeared(s, index);
         return NOBREAK;
-    }
-    else if (res == 0)
-    {
+    } else if (res == 0) {
         clean_after_client_disappeared(s, index);
         return NOBREAK;
     }
 
     /* Process message */
-    switch(m.type)
-    {
+    switch (m.type) {
         case KILL_SERVER:
             return BREAK; /* break in the parent*/
             break;
@@ -387,27 +363,24 @@ static enum Break
             client_cs[index].hasjob = 1;
             if (!job_is_holding_client(client_cs[index].jobid))
                 s_newjob_ok(index);
-            else if (!m.u.newjob.wait_enqueuing)
-            {
+            else if (!m.u.newjob.wait_enqueuing) {
                 s_newjob_nok(index);
                 clean_after_client_disappeared(s, index);
             }
             break;
-        case RUNJOB_OK:
-            {
-                char *buffer = 0;
-                if (m.u.output.store_output)
-                {
-                    /* Receive the output filename */
-                    buffer = (char *) malloc(m.u.output.ofilename_size);
-                    res = recv_bytes(s, buffer,
-                        m.u.output.ofilename_size);
-                    if (res != m.u.output.ofilename_size)
-                        error("Reading the ofilename");
-                }
-                s_process_runjob_ok(client_cs[index].jobid, buffer,
-                        m.u.output.pid);
+        case RUNJOB_OK: {
+            char *buffer = 0;
+            if (m.u.output.store_output) {
+                /* Receive the output filename */
+                buffer = (char *) malloc(m.u.output.ofilename_size);
+                res = recv_bytes(s, buffer,
+                                 m.u.output.ofilename_size);
+                if (res != m.u.output.ofilename_size)
+                    error("Reading the ofilename");
             }
+            s_process_runjob_ok(client_cs[index].jobid, buffer,
+                                m.u.output.pid);
+        }
             break;
         case KILL_ALL:
             s_kill_all_jobs(s);
@@ -444,30 +417,26 @@ static enum Break
         case ASK_OUTPUT:
             s_send_output(s, m.u.jobid);
             break;
-        case REMOVEJOB:
-            {
-                int went_ok;
-                /* Will update the jobid. If it's -1, will set the jobid found */
-                went_ok = s_remove_job(s, &m.u.jobid);
-                if (went_ok)
-                {
-                    int i;
-                    for(i = 0; i < nconnections; ++i)
-                    {
-                        if (client_cs[i].hasjob && client_cs[i].jobid == m.u.jobid)
-                        {
-                            close(client_cs[i].socket);
+        case REMOVEJOB: {
+            int went_ok;
+            /* Will update the jobid. If it's -1, will set the jobid found */
+            went_ok = s_remove_job(s, &m.u.jobid);
+            if (went_ok) {
+                int i;
+                for (i = 0; i < nconnections; ++i) {
+                    if (client_cs[i].hasjob && client_cs[i].jobid == m.u.jobid) {
+                        close(client_cs[i].socket);
 
-                            /* So remove_connection doesn't call s_removejob again */
-                            client_cs[i].hasjob = 0;
+                        /* So remove_connection doesn't call s_removejob again */
+                        client_cs[i].hasjob = 0;
 
-                            /* We don't try to remove any notification related to
-                             * 'i', because it will be for sure a ts client for a job */
-                            remove_connection(i);
-                        }
+                        /* We don't try to remove any notification related to
+                         * 'i', because it will be for sure a ts client for a job */
+                        remove_connection(i);
                     }
                 }
             }
+        }
             break;
         case WAITJOB:
             s_wait_job(s, m.u.jobid);
@@ -489,7 +458,7 @@ static enum Break
             break;
         case SWAP_JOBS:
             s_swap_jobs(s, m.u.swap.jobid1,
-                    m.u.swap.jobid2);
+                        m.u.swap.jobid2);
             break;
         case GET_STATE:
             s_send_state(s, m.u.jobid);
@@ -514,10 +483,9 @@ static enum Break
     return NOBREAK; /* normal */
 }
 
-static void s_runjob(int jobid, int index)
-{
+static void s_runjob(int jobid, int index) {
     int s;
-    
+
     if (!client_cs[index].hasjob)
         error("Run job of the client %i which doesn't have any job", index);
 
@@ -526,11 +494,10 @@ static void s_runjob(int jobid, int index)
     s_send_runjob(s, jobid);
 }
 
-static void s_newjob_ok(int index)
-{
+static void s_newjob_ok(int index) {
     int s;
     struct Msg m;
-    
+
     if (!client_cs[index].hasjob)
         error("Run job of the client %i which doesn't have any job", index);
 
@@ -542,11 +509,10 @@ static void s_newjob_ok(int index)
     send_msg(s, &m);
 }
 
-static void s_newjob_nok(int index)
-{
+static void s_newjob_nok(int index) {
     int s;
     struct Msg m;
-    
+
     if (!client_cs[index].hasjob)
         error("Run job of the client %i which doesn't have any job", index);
 
@@ -557,22 +523,19 @@ static void s_newjob_nok(int index)
     send_msg(s, &m);
 }
 
-static void dump_conn_struct(FILE *out, const struct Client_conn *p)
-{
+static void dump_conn_struct(FILE *out, const struct Client_conn *p) {
     fprintf(out, "  new_conn\n");
     fprintf(out, "    socket %i\n", p->socket);
     fprintf(out, "    hasjob \"%i\"\n", p->hasjob);
     fprintf(out, "    jobid %i\n", p->jobid);
 }
 
-void dump_conns_struct(FILE *out)
-{
+void dump_conns_struct(FILE *out) {
     int i;
 
     fprintf(out, "New_conns");
 
-    for(i=0; i < nconnections; ++i)
-    {
+    for (i = 0; i < nconnections; ++i) {
         dump_conn_struct(out, &client_cs[i]);
     }
 }

@@ -4,14 +4,12 @@
 
     Please find the license in the provided COPYING file.
 */
-enum
-{
-    CMD_LEN=500,
-    PROTOCOL_VERSION=730
+enum {
+    CMD_LEN = 500,
+    PROTOCOL_VERSION = 730
 };
 
-enum msg_types
-{
+enum msg_types {
     KILL_SERVER,
     NEWJOB,
     NEWJOB_OK,
@@ -50,8 +48,7 @@ enum msg_types
     GET_GPU_WAIT_TIME
 };
 
-enum Request
-{
+enum Request {
     c_QUEUE,
     c_TAIL,
     c_KILL_SERVER,
@@ -79,7 +76,7 @@ enum Request
     c_GET_GPU_WAIT_TIME
 };
 
-struct Command_line {
+struct CommandLine {
     enum Request request;
     int need_server;
     int store_output;
@@ -110,15 +107,14 @@ enum Process_type {
     SERVER
 };
 
-extern struct Command_line command_line;
+extern struct CommandLine command_line;
 extern int server_socket;
 extern enum Process_type process_type;
 extern int server_socket; /* Used in the client */
 
 struct Msg;
 
-enum Jobstate
-{
+enum Jobstate {
     QUEUED,
     ALLOCATING,
     RUNNING,
@@ -127,12 +123,10 @@ enum Jobstate
     HOLDING_CLIENT
 };
 
-struct Msg
-{
+struct Msg {
     enum msg_types type;
 
-    union
-    {
+    union {
         struct {
             int command_size;
             int store_output;
@@ -175,8 +169,7 @@ struct Msg
     } u;
 };
 
-struct Procinfo
-{
+struct Procinfo {
     char *ptr;
     int nchars;
     int allocchars;
@@ -185,8 +178,7 @@ struct Procinfo
     struct timeval end_time;
 };
 
-struct Job
-{
+struct Job {
     struct Job *next;
     int jobid;
     char *command;
@@ -207,92 +199,159 @@ struct Job
     int gpus;
 };
 
-enum ExitCodes
-{
-    EXITCODE_OK            =  0,
+enum ExitCodes {
+    EXITCODE_OK = 0,
     EXITCODE_UNKNOWN_ERROR = -1,
-    EXITCODE_QUEUE_FULL    = 2
+    EXITCODE_QUEUE_FULL = 2
 };
 
 
 /* client.c */
 void c_new_job();
+
 void c_list_jobs();
+
 void c_shutdown_server();
+
 void c_wait_server_lines();
+
 void c_clear_finished();
+
 int c_wait_server_commands();
+
 void c_send_runjob_ok(const char *ofname, int pid);
+
 int c_tail();
+
 int c_cat();
+
 void c_show_output_file();
+
 void c_remove_job();
+
 void c_show_pid();
+
 void c_kill_job();
+
 int c_wait_job();
+
 int c_wait_running_job();
+
 int c_wait_job_recv();
+
 void c_move_urgent();
+
 int c_wait_newjob_ok();
+
 void c_get_state();
+
 void c_swap_jobs();
+
 void c_show_info();
+
 void c_show_last_id();
+
 char *build_command_string();
+
 void c_send_max_slots(int max_slots);
+
 void c_get_max_slots();
+
 void c_check_version();
+
 void c_get_count_running();
+
 void c_show_label();
+
 void c_kill_all_jobs();
+
 void c_set_gpu_wait_time();
+
 void c_get_gpu_wait_time();
 
 /* jobs.c */
 void s_list(int s);
+
 int s_newjob(int s, struct Msg *m);
+
 void s_removejob(int jobid);
+
 void job_finished(const struct Result *result, int jobid);
+
 int next_run_job();
+
 void s_mark_job_running(int jobid);
+
 void s_clear_finished();
+
 void s_process_runjob_ok(int jobid, char *oname, int pid);
+
 void s_send_output(int socket, int jobid);
+
 int s_remove_job(int s, int *jobid);
+
 void s_remove_notification(int s);
+
 void check_notify_list(int jobid);
+
 void s_wait_job(int s, int jobid);
+
 void s_wait_running_job(int s, int jobid);
+
 void s_move_urgent(int s, int jobid);
+
 void s_send_state(int s, int jobid);
+
 void s_swap_jobs(int s, int jobid1, int jobid2);
+
 void s_count_running_jobs(int s);
+
 void dump_jobs_struct(FILE *out);
+
 void dump_notifies_struct(FILE *out);
+
 void joblist_dump(int fd);
-const char * jstate2string(enum Jobstate s);
+
+const char *jstate2string(enum Jobstate s);
+
 void s_job_info(int s, int jobid);
+
 void s_send_last_id(int s);
+
 void s_send_runjob(int s, int jobid);
+
 void s_set_max_slots(int new_max_slots);
+
 void s_get_max_slots(int s);
+
 int job_is_running(int jobid);
+
 int job_is_holding_client(int jobid);
+
 int wake_hold_client();
+
 void s_get_label(int s, int jobid);
+
 void s_kill_all_jobs(int s);
+
 void s_set_time_between_gpu_runs(int seconds);
+
 void s_send_time_between_gpu_runs(int s);
 
 /* server.c */
 void server_main(int notify_fd, char *_path);
+
 void dump_conns_struct(FILE *out);
 
 /* server_start.c */
 int try_connect(int s);
+
 void wait_server_up(int fd);
+
 int ensure_server_up();
+
 void notify_parent(int fd);
+
 void create_socket_path(char **path);
 
 /* execute.c */
@@ -300,28 +359,37 @@ int run_job(struct Result *res);
 
 /* client_run.c */
 void c_run_tail(const char *filename);
+
 void c_run_cat(const char *filename);
 
 /* mail.c */
 void send_mail(int jobid, int errorlevel, const char *ofname,
-    const char *command);
+               const char *command);
+
 void hook_on_finish(int jobid, int errorlevel, const char *ofname,
-    const char *command);
+                    const char *command);
 
 /* error.c */
 void error(const char *str, ...);
+
 void warning(const char *str, ...);
 
 /* signals.c */
 void ignore_sigpipe();
+
 void restore_sigmask();
+
 void block_sigint();
+
 void unblock_sigint_and_install_handler();
 
 /* msg.c */
 void send_bytes(const int fd, const char *data, int bytes);
+
 int recv_bytes(const int fd, char *data, int bytes);
+
 void send_msg(const int fd, const struct Msg *m);
+
 int recv_msg(const int fd, struct Msg *m);
 
 /* msgdump.c */
@@ -329,13 +397,17 @@ void msgdump(FILE *, const struct Msg *m);
 
 /* error.c */
 void error_msg(const struct Msg *m, const char *str, ...);
+
 void warning_msg(const struct Msg *m, const char *str, ...);
 
 /* list.c */
-char * joblist_headers();
-char * joblist_line(const struct Job *p);
-char * joblistdump_torun(const struct Job *p);
-char * joblistdump_headers();
+char *joblist_headers();
+
+char *joblist_line(const struct Job *p);
+
+char *joblistdump_torun(const struct Job *p);
+
+char *joblistdump_headers();
 
 /* print.c */
 int fd_nprintf(int fd, int maxsize, const char *fmt, ...);
@@ -343,21 +415,30 @@ int fd_nprintf(int fd, int maxsize, const char *fmt, ...);
 /* info.c */
 
 void pinfo_dump(const struct Procinfo *p, int fd);
+
 void pinfo_addinfo(struct Procinfo *p, int maxsize, const char *line, ...);
+
 void pinfo_free(struct Procinfo *p);
+
 int pinfo_size(const struct Procinfo *p);
+
 void pinfo_set_enqueue_time(struct Procinfo *p);
+
 void pinfo_set_start_time(struct Procinfo *p);
+
 void pinfo_set_end_time(struct Procinfo *p);
+
 float pinfo_time_until_now(const struct Procinfo *p);
+
 float pinfo_time_run(const struct Procinfo *p);
+
 void pinfo_init(struct Procinfo *p);
 
 /* env.c */
-char * get_environment();
+char *get_environment();
 
 /* tail.c */
 int tail_file(const char *fname, int last_lines);
 
 /* gpu.c */
-int * getFreeGpuList(int *numFree);
+int *getFreeGpuList(int *numFree);

@@ -18,7 +18,7 @@ extern char *optarg;
 extern int optind, opterr, optopt;
 
 /* Globals */
-struct Command_line command_line;
+struct CommandLine command_line;
 int server_socket;
 
 /* Globals for the environment of getopt */
@@ -368,8 +368,7 @@ static void go_background() {
     }
 }
 
-static void print_help(const char *cmd)
-{
+static void print_help(const char *cmd) {
     printf("usage: %s [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]\n", cmd);
     printf("Env vars:\n");
     printf("  TS_SOCKET  the path to the unix socket used by the ts command.\n");
