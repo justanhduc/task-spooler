@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <signal.h>
+
 #include "main.h"
 
 static void c_end_of_job(const struct Result *res);
@@ -160,6 +161,9 @@ int c_wait_server_commands() {
             run_job(&result);
             c_end_of_job(&result);
             return result.errorlevel;
+        } else if (m.type == REMINDER) {
+            sleep(m.u.gpu_wait_time);
+            c_send_reminder();
         }
     }
     return -1;
@@ -765,5 +769,11 @@ void c_set_gpu_wait_time() {
 
     m.type = SET_GPU_WAIT_TIME;
     m.u.gpu_wait_time = command_line.gpu_wait_time;
+    send_msg(server_socket, &m);
+}
+
+void c_send_reminder() {
+    struct Msg m;
+    m.type = REMINDER;
     send_msg(server_socket, &m);
 }

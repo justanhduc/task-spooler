@@ -469,6 +469,8 @@ client_read(int index) {
         case GET_GPU_WAIT_TIME:
             s_send_time_between_gpu_runs(s);
             break;
+        case REMINDER:
+            break;
         case GET_VERSION:
             s_send_version(s);
             break;
@@ -521,6 +523,18 @@ static void s_newjob_nok(int index) {
     m.type = NEWJOB_NOK;
 
     send_msg(s, &m);
+}
+
+void s_request_reminder_after(int time, int jobid) {
+    struct Msg m;
+    int idx;
+
+    m.type = REMINDER;
+    m.u.gpu_wait_time = time;
+    idx = get_conn_of_jobid(jobid);
+    if (idx == -1)
+        error("Cannot find the client holding job %d", jobid);
+    send_msg(client_cs[idx].socket, &m);
 }
 
 static void dump_conn_struct(FILE *out, const struct Client_conn *p) {

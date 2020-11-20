@@ -581,9 +581,11 @@ int next_run_job() {
                  * be executed as `select` blocks. fortunately, GPU jobs
                  * usually last much longer (hours) than
                  * time_between_gpu_runs (tens of seconds).
-                 * TODO: fix this*/
+                 * So each time like that, the server asks the client to
+                 * send a reminder after the waiting time */
                 if ((time(NULL) - last_gpu_run_time) < time_between_gpu_runs) {
                     /* there was one GPU task just run, next */
+                    s_request_reminder_after(time_between_gpu_runs, p->jobid);
                     p = p->next;
                     continue;
                 }

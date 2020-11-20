@@ -45,7 +45,8 @@ enum msg_types {
     LAST_ID,
     KILL_ALL,
     SET_GPU_WAIT_TIME,
-    GET_GPU_WAIT_TIME
+    GET_GPU_WAIT_TIME,
+    REMINDER
 };
 
 enum Request {
@@ -269,6 +270,8 @@ void c_set_gpu_wait_time();
 
 void c_get_gpu_wait_time();
 
+void c_send_reminder();
+
 /* jobs.c */
 void s_list(int s);
 
@@ -342,6 +345,8 @@ void s_send_time_between_gpu_runs(int s);
 void server_main(int notify_fd, char *_path);
 
 void dump_conns_struct(FILE *out);
+
+void s_request_reminder_after(int time, int jobid);
 
 /* server_start.c */
 int try_connect(int s);
