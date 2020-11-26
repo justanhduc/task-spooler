@@ -62,6 +62,18 @@ Then, simple run the provided script
 ```
 ./install
 ```
+to use CMake, or 
+```
+./reinstall
+```
+to use Makefile.
+
+Common problems
+* Cannot find CUDA: Did you set a `CUDA_HOME` flag?
+* `/usr/bin/ld: cannot find -lnvidia-ml`: This lib lies in `$CUDA_HOME/lib64/stubs`. 
+Please append this path to `LD_LIBRARY_PATH`.
+Sometimes, this problem persists even after adding the lib path.
+Then one can add `-L$(CUDA_HOME)/lib64/stubs` to [this line](https://github.com/justanhduc/task-spooler/blob/820035ee225529ea0a5346308575a10622ca23a3/Makefile#L29) in the Makefile.
 
 ### Uinstall Task Spooler
 
