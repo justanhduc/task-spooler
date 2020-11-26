@@ -4,6 +4,8 @@
 
     Please find the license in the provided COPYING file.
 */
+#include <stdio.h>
+
 enum {
     CMD_LEN = 500,
     PROTOCOL_VERSION = 730
