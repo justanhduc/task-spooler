@@ -5,6 +5,7 @@
     Please find the license in the provided COPYING file.
 */
 #include <stdio.h>
+#include <sys/time.h>
 
 enum {
     CMD_LEN = 500,
