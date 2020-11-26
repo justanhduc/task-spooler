@@ -50,7 +50,7 @@ At the end, after some time using and developing ts, it can do something more:
 * Transparent if used as a subprogram with -nf.
 * Optional separation of stdout and stderr. 
 
-You can look at an old (but representative) screenshot of ts-0.2.1 if you want.
+![ts-sample](assets/sample.png)
 
 ## Setup
 

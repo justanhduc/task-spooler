@@ -76,8 +76,7 @@ static void copy_output(int write_fd, const char *ofname) {
         warning("Cannot read the output file %s from %i", ofname, file_fd);
 }
 
-void hook_on_finish(int jobid, int errorlevel, const char *ofname,
-                    const char *command) {
+void hook_on_finish(int jobid, int errorlevel, const char *ofname, const char *command) {
     char *onfinish;
     int pid;
     char sjobid[20];
