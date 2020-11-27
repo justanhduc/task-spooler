@@ -78,6 +78,7 @@ static struct option longOptions[] = {
         {"get_label",     no_argument, NULL, 'a'},
         {"count_running", no_argument, NULL, 'R'},
         {"last_queue_id", no_argument, NULL, 'q'},
+        {"full_cmd",      optional_argument, NULL, 'F'},
         {NULL, 0,                      NULL, 0}
 };
 
@@ -88,7 +89,7 @@ void parse_opts(int argc, char **argv) {
 
     /* Parse options */
     while (1) {
-        c = getopt_long(argc, argv, ":RTVhKgClnfmBEr:a:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:",
+        c = getopt_long(argc, argv, ":RTVhKgClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:",
                         longOptions, &optionIdx);
 
         if (c == -1)
@@ -365,11 +366,15 @@ static void print_help(const char *cmd) {
     printf("  TS_SAVELIST  filename which will store the list, if the server dies.\n");
     printf("  TS_SLOTS   amount of jobs which can run at once, read on server start.\n");
     printf("  TMPDIR     directory where to place the output files and the default socket.\n");
+    printf("Long option actions:\n");
+    printf("  --get_label      || -a [id]   show the job label. Of the last added, if not specified.\n");
+    printf("  --full_cmd       || -F [id]   show full command. Of the last added, if not specified.\n");
+    printf("  --count_running  || -R        return the number of running jobs\n");
+    printf("  --last_queue_id  || -q        show the job ID of the last added.\n");
     printf("Actions:\n");
     printf("  -K       kill the task spooler server\n");
     printf("  -C       clear the list of finished jobs\n");
     printf("  -l       show the job list (default action)\n");
-    printf("  -R       number of running jobs\n");
     printf("  -S [num] get/set the number of max simultaneous jobs of the server.\n");
     printf("  -t [id]  \"tail -n 10 -f\" the output of the job. Last run if not specified.\n");
     printf("  -c [id]  like -t, but shows all the lines. Last run if not specified.\n");
@@ -377,8 +382,6 @@ static void print_help(const char *cmd) {
     printf("  -o [id]  show the output file. Of last job run, if not specified.\n");
     printf("  -i [id]  show job information. Of last job run, if not specified.\n");
     printf("  -s [id]  show the job state. Of the last added, if not specified.\n");
-    printf("  -a [id]  show the job label. Of the last added, if not specified.\n");
-    printf("  -q       show the job ID of the last added.\n");
     printf("  -r [id]  remove a job. The last added, if not specified.\n");
     printf("  -w [id]  wait for a job. The last added, if not specified.\n");
     printf("  -k [id]  send SIGTERM to the job process group. The last run, if not specified.\n");
