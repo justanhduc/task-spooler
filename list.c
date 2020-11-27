@@ -33,12 +33,12 @@ char *joblist_headers() {
     char *line;
 
     line = malloc(100);
-    snprintf(line, 100, "%-4s %-10s %-20s %-8s %-25s %s [run=%i/%i]\n",
+    snprintf(line, 100, "%-4s %-10s %-20s %-8s %-6s %s [run=%i/%i]\n",
              "ID",
              "State",
              "Output",
              "E-Level",
-             "Times(r/u/s)",
+             "Time",
              "Command",
              busy_slots,
              max_slots);
@@ -71,8 +71,19 @@ static const char *ofilename_shown(const struct Job *p) {
     } else
         output_filename = "stdout";
 
-
     return output_filename;
+}
+
+static char *shorten(char *line, int len) {
+    if (strlen(line) <= len)
+        return line;
+    else {
+        char *newline = (char *) malloc((len + 1) * sizeof(char));
+        char ellipsis[] = "...";
+        strncpy(newline, line, len - 3);
+        strcat(newline, ellipsis);
+        return newline;
+    }
 }
 
 static char *print_noresult(const struct Job *p) {
@@ -104,24 +115,24 @@ static char *print_noresult(const struct Job *p) {
         error("Malloc for %i failed.\n", maxlen);
 
     if (p->label)
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %25s %s[%s]%s\n",
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %s[%s]%s\n",
                  p->jobid,
                  jobstate,
                  output_filename,
                  "",
                  "",
                  dependstr,
-                 p->label,
-                 p->command);
+                 shorten(p->label, 10),
+                 shorten(p->command, 20));
     else
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %25s %s%s\n",
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %s%s\n",
                  p->jobid,
                  jobstate,
                  output_filename,
                  "",
                  "",
                  dependstr,
-                 p->command);
+                 shorten(p->command, 20));
 
     return line;
 }
@@ -160,55 +171,40 @@ static char *print_result(const struct Job *p) {
 
     if (real_ms > 60) {
         real_ms /= 60;
-        user_ms /= 60;
-        system_ms /= 60;
         unit = "m";
 
         if (real_ms > 60) {
             real_ms /= 60;
-            user_ms /= 60;
-            system_ms /= 60;
             unit = "h";
 
             if (real_ms > 24) {
                 real_ms /= 24;
-                user_ms /= 24;
-                system_ms /= 24;
                 unit = "d";
             }
         }
     }
 
     if (p->label)
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s/%5.2f%s/%5.2f%-6s %s[%s]"
-                               "%s\n",
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %s[%s]%s\n",
                  p->jobid,
                  jobstate,
                  output_filename,
                  p->result.errorlevel,
                  real_ms,
                  unit,
-                 user_ms,
-                 unit,
-                 system_ms,
-                 unit,
                  dependstr,
-                 p->label,
-                 p->command);
+                 shorten(p->label, 10),
+                 shorten(p->command, 20));
     else
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s/%5.2f%s/%5.2f%-6s %s%s\n",
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %s%s\n",
                  p->jobid,
                  jobstate,
                  output_filename,
                  p->result.errorlevel,
                  real_ms,
                  unit,
-                 user_ms,
-                 unit,
-                 system_ms,
-                 unit,
                  dependstr,
-                 p->command);
+                 shorten(p->command, 20));
 
     return line;
 }
