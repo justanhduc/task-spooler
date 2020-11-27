@@ -393,6 +393,7 @@ static void print_help(const char *cmd) {
     printf("  --set_gpu_wait   <sec>        set time to wait before running the next GPU job (30 seconds by default).\n");
     printf("  --get_gpu_wait                get time to wait before running the next GPU job.\n");
     printf("  --get_label      || -a [id]   show the job label. Of the last added, if not specified.\n");
+    printf("  --full_cmd       || -F [id]   show full command. Of the last added, if not specified.\n");
     printf("  --count_running  || -R        return the number of running jobs\n");
     printf("  --last_queue_id  || -q        show the job ID of the last added.\n");
     printf("Long option adding jobs:\n");
