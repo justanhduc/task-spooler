@@ -164,6 +164,10 @@ void parse_opts(int argc, char **argv) {
                 command_line.request = c_GET_LABEL;
                 command_line.jobid = atoi(optarg);
                 break;
+            case 'F':
+                command_line.request = c_SHOW_CMD;
+                command_line.jobid = atoi(optarg);
+                break;
             case 'N':
                 command_line.num_slots = atoi(optarg);
                 if (command_line.num_slots < 0)
@@ -272,6 +276,10 @@ void parse_opts(int argc, char **argv) {
                         break;
                     case 'a':
                         command_line.request = c_GET_LABEL;
+                        command_line.jobid = -1;
+                        break;
+                    case 'F':
+                        command_line.request = c_SHOW_CMD;
                         command_line.jobid = -1;
                         break;
                     default:
@@ -518,6 +526,11 @@ int main(int argc, char **argv) {
             if (!command_line.need_server)
                 error("The command %i needs the server", command_line.request);
             c_show_label();
+            break;
+        case c_SHOW_CMD:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_show_cmd();
             break;
         case c_REMOVEJOB:
             if (!command_line.need_server)

@@ -398,6 +398,9 @@ client_read(int index) {
         case GET_LABEL:
             s_get_label(s, m.u.jobid);
             break;
+        case GET_CMD:
+            s_send_cmd(s, m.u.jobid);
+            break;
         case ENDJOB:
             job_finished(&m.u.result, client_cs[index].jobid);
             /* For the dependencies */
