@@ -33,12 +33,12 @@ char *joblist_headers() {
     char *line;
 
     line = malloc(100);
-    snprintf(line, 100, "%-4s %-10s %-20s %-8s %-25s %-5s %s [run=%i/%i]\n",
+    snprintf(line, 100, "%-4s %-10s %-20s %-8s %-6s %-5s %s [run=%i/%i]\n",
              "ID",
              "State",
              "Output",
              "E-Level",
-             "Times(r/u/s)",
+             "Time",
              "GPUs",
              "Command",
              busy_slots,
@@ -72,8 +72,19 @@ static const char *ofilename_shown(const struct Job *p) {
     } else
         output_filename = "stdout";
 
-
     return output_filename;
+}
+
+static char *shorten(char *line, int len) {
+    if (strlen(line) <= len)
+        return line;
+    else {
+        char *newline = (char *) malloc((len + 1) * sizeof(char));
+        char ellipsis[] = "...";
+        strncpy(newline, line, len - 3);
+        strcat(newline, ellipsis);
+        return newline;
+    }
 }
 
 static char *print_noresult(const struct Job *p) {
@@ -105,7 +116,7 @@ static char *print_noresult(const struct Job *p) {
         error("Malloc for %i failed.\n", maxlen);
 
     if (p->label)
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %25s %-5d %s[%s]%s\n",
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %-5d %s[%s]%s\n",
                  p->jobid,
                  jobstate,
                  output_filename,
@@ -113,10 +124,10 @@ static char *print_noresult(const struct Job *p) {
                  "",
                  p->gpus,
                  dependstr,
-                 p->label,
-                 p->command);
+                 shorten(p->label, 10),
+                 shorten(p->command, 20));
     else
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %25s %-5d %s%s\n",
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %-5d %s%s\n",
                  p->jobid,
                  jobstate,
                  output_filename,
@@ -124,7 +135,7 @@ static char *print_noresult(const struct Job *p) {
                  "",
                  p->gpus,
                  dependstr,
-                 p->command);
+                 shorten(p->command, 20));
 
     return line;
 }
@@ -152,9 +163,9 @@ static char *print_result(const struct Job *p) {
     if (p->do_depend) {
         maxlen += sizeof(dependstr);
         if (p->depend_on == -1)
-            snprintf(dependstr, sizeof(dependstr), "&& ");
+            snprintf(dependstr, sizeof(dependstr), "&&");
         else
-            snprintf(dependstr, sizeof(dependstr), "[%i]&& ", p->depend_on);
+            snprintf(dependstr, sizeof(dependstr), "[%i]&&", p->depend_on);
     }
 
     line = (char *) malloc(maxlen);
@@ -163,57 +174,42 @@ static char *print_result(const struct Job *p) {
 
     if (real_ms > 60) {
         real_ms /= 60;
-        user_ms /= 60;
-        system_ms /= 60;
         unit = "m";
 
         if (real_ms > 60) {
             real_ms /= 60;
-            user_ms /= 60;
-            system_ms /= 60;
             unit = "h";
 
             if (real_ms > 24) {
                 real_ms /= 24;
-                user_ms /= 24;
-                system_ms /= 24;
                 unit = "d";
             }
         }
     }
 
     if (p->label)
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s/%5.2f%s/%5.2f%-6s %-5d %s[%s]"
-                               "%s\n",
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %-5d %s[%s]%s\n",
                  p->jobid,
                  jobstate,
                  output_filename,
                  p->result.errorlevel,
                  real_ms,
                  unit,
-                 user_ms,
-                 unit,
-                 system_ms,
-                 unit,
                  p->gpus,
                  dependstr,
-                 p->label,
-                 p->command);
+                 shorten(p->label, 10),
+                 shorten(p->command, 20));
     else
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s/%5.2f%s/%5.2f%-6s %-5d %s%s\n",
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %-5d %s%s\n",
                  p->jobid,
                  jobstate,
                  output_filename,
                  p->result.errorlevel,
                  real_ms,
                  unit,
-                 user_ms,
-                 unit,
-                 system_ms,
-                 unit,
                  p->gpus,
                  dependstr,
-                 p->command);
+                 shorten(p->command, 20));
 
     return line;
 }
