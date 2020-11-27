@@ -340,7 +340,7 @@ int job_is_holding_client(int jobid);
 
 int wake_hold_client();
 
-void s_get_label(int s, int jobid);
+void s_send_label(int s, int jobid);
 
 void s_kill_all_jobs(int s);
 

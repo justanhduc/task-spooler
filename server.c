@@ -400,7 +400,7 @@ client_read(int index) {
             s_send_last_id(s);
             break;
         case GET_LABEL:
-            s_get_label(s, m.u.jobid);
+            s_send_label(s, m.u.jobid);
             break;
         case GET_CMD:
             s_send_cmd(s, m.u.jobid);

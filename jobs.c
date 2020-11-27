@@ -213,7 +213,7 @@ int s_count_allocating_jobs() {
     return count;
 }
 
-void s_get_label(int s, int jobid) {
+void s_send_label(int s, int jobid) {
     struct Job *p = 0;
     char *label;
 
@@ -250,6 +250,8 @@ void s_get_label(int s, int jobid) {
     } else
         label = "";
     send_list_line(s, label);
+    if (p->label)
+        free(label);
 }
 
 void s_send_cmd(int s, int jobid) {
