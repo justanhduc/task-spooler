@@ -49,6 +49,17 @@ void msgdump(FILE *f, const struct Msg *m) {
             fprintf(f, " Outputsize: %i\n", m->u.output.ofilename_size);
             fprintf(f, " PID: %i\n", m->u.output.pid);
             break;
+        case GET_GPU_WAIT_TIME:
+            fprintf(f, "GET_GPU_WAIT_TIME\n");
+            fprintf(f, "Time: %d\n", m->u.gpu_wait_time);
+            break;
+        case SET_GPU_WAIT_TIME:
+            fprintf(f, "SET_GPU_WAIT_TIME\n");
+            fprintf(f, "Time: %d\n", m->u.gpu_wait_time);
+            break;
+        case GET_LABEL:
+            fprintf(f, "GET_LABEL\n");
+            fprintf(f, " Jobid: %i\n", m->u.jobid);
         default:
             fprintf(f, " Unknown message: %i\n", m->type);
     }
