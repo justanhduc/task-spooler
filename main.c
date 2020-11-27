@@ -76,12 +76,13 @@ static int get_two_jobs(const char *str, int *j1, int *j2) {
 }
 
 static struct option longOptions[] = {
-        {"get_label",     no_argument,       NULL, 'a'},
+        {"get_label",     optional_argument, NULL, 'a'},
         {"count_running", no_argument,       NULL, 'R'},
         {"last_queue_id", no_argument,       NULL, 'q'},
         {"gpus",          required_argument, NULL, 'G'},
         {"set_gpu_wait",  required_argument, NULL, 0},
         {"get_gpu_wait",  no_argument,       NULL, 0},
+        {"full_cmd",      optional_argument, NULL, 'F'},
         {NULL, 0,                            NULL, 0}
 };
 
@@ -92,7 +93,7 @@ void parse_opts(int argc, char **argv) {
 
     /* Parse options */
     while (1) {
-        c = getopt_long(argc, argv, ":RTVhKgClnfmBEr:a:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:G:",
+        c = getopt_long(argc, argv, ":RTVhKgClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:G:",
                         longOptions, &optionIdx);
 
         if (c == -1)
@@ -185,6 +186,10 @@ void parse_opts(int argc, char **argv) {
                 break;
             case 'a':
                 command_line.request = c_GET_LABEL;
+                command_line.jobid = atoi(optarg);
+                break;
+            case 'F':
+                command_line.request = c_SHOW_CMD;
                 command_line.jobid = atoi(optarg);
                 break;
             case 'N':
@@ -295,6 +300,10 @@ void parse_opts(int argc, char **argv) {
                         break;
                     case 'a':
                         command_line.request = c_GET_LABEL;
+                        command_line.jobid = -1;
+                        break;
+                    case 'F':
+                        command_line.request = c_SHOW_CMD;
                         command_line.jobid = -1;
                         break;
                     default:
@@ -546,6 +555,11 @@ int main(int argc, char **argv) {
             if (!command_line.need_server)
                 error("The command %i needs the server", command_line.request);
             c_show_label();
+            break;
+        case c_SHOW_CMD:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_show_cmd();
             break;
         case c_REMOVEJOB:
             if (!command_line.need_server)

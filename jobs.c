@@ -252,6 +252,42 @@ void s_get_label(int s, int jobid) {
     send_list_line(s, label);
 }
 
+void s_send_cmd(int s, int jobid) {
+    struct Job *p = 0;
+    char *cmd;
+
+    if (jobid == -1) {
+        /* Find the last job added */
+        p = firstjob;
+
+        if (p != 0)
+            while (p->next != 0)
+                p = p->next;
+
+        /* Look in finished jobs if needed */
+        if (p == 0) {
+            p = first_finished_job;
+            if (p != 0)
+                while (p->next != 0)
+                    p = p->next;
+        }
+
+    } else {
+        p = get_job(jobid);
+    }
+
+    if (p == 0) {
+        char tmp[50];
+        sprintf(tmp, "Job %i not finished or not running.\n", jobid);
+        send_list_line(s, tmp);
+        return;
+    }
+    cmd = (char *) malloc(strlen(p->command) + 1);
+    sprintf(cmd, "%s\n", p->command);
+    send_list_line(s, cmd);
+    free(cmd);
+}
+
 void s_mark_job_running(int jobid) {
     struct Job *p;
     p = findjob(jobid);

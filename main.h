@@ -49,7 +49,8 @@ enum msg_types {
     KILL_ALL,
     SET_GPU_WAIT_TIME,
     GET_GPU_WAIT_TIME,
-    REMINDER
+    REMINDER,
+    GET_CMD
 };
 
 enum Request {
@@ -77,7 +78,8 @@ enum Request {
     c_LAST_ID,
     c_KILL_ALL,
     c_SET_GPU_WAIT_TIME,
-    c_GET_GPU_WAIT_TIME
+    c_GET_GPU_WAIT_TIME,
+    c_SHOW_CMD
 };
 
 struct CommandLine {
@@ -275,6 +277,8 @@ void c_get_gpu_wait_time();
 
 void c_send_reminder();
 
+void c_show_cmd();
+
 /* jobs.c */
 void s_list(int s);
 
@@ -350,6 +354,8 @@ void server_main(int notify_fd, char *_path);
 void dump_conns_struct(FILE *out);
 
 void s_request_reminder_after(int time, int jobid);
+
+void s_send_cmd(int s, int jobid);
 
 /* server_start.c */
 int try_connect(int s);
