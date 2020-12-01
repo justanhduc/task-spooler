@@ -80,9 +80,8 @@ static char *shorten(char *line, int len) {
         return line;
     else {
         char *newline = (char *) malloc((len + 1) * sizeof(char));
-        char ellipsis[] = "...";
-        strncpy(newline, line, len - 3);
-        strcat(newline, ellipsis);
+        snprintf(newline, len - 4, "%s", line);
+        sprintf(newline, "%s...", newline);
         return newline;
     }
 }
@@ -148,8 +147,6 @@ static char *print_result(const struct Job *p) {
     /* 18 chars should suffice for a string like "[int]&& " */
     char dependstr[18] = "";
     float real_ms = p->result.real_ms;
-    float user_ms = p->result.user_ms;
-    float system_ms = p->result.system_ms;
     char *unit = "s";
 
     jobstate = jstate2string(p->state);
