@@ -79,9 +79,8 @@ static char *shorten(char *line, int len) {
         return line;
     else {
         char *newline = (char *) malloc((len + 1) * sizeof(char));
-        char ellipsis[] = "...";
-        strncpy(newline, line, len - 3);
-        strcat(newline, ellipsis);
+        snprintf(newline, len - 4, "%s", line);
+        sprintf(newline, "%s...", newline);
         return newline;
     }
 }
