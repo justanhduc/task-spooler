@@ -21,6 +21,8 @@ static void c_wait_job_send();
 
 static void c_wait_running_job_send();
 
+static void shuffle(int *array, size_t n);
+
 char *build_command_string() {
     int size;
     int i;
@@ -146,6 +148,7 @@ int c_wait_server_commands() {
                 } else {
                     char tmp[50];
                     strcpy(tmp, "CUDA_VISIBLE_DEVICES=");
+                    shuffle(freeList, numFree);
                     for (int i = 0; i < command_line.gpus; i++) {
                         char tmp2[5];
                         sprintf(tmp2, "%d", freeList[i]);
@@ -812,5 +815,17 @@ void c_show_cmd() {
             return;
         default:
             warning("Wrong internal message in show_cmd");
+    }
+}
+
+static void shuffle(int *array, size_t n) {
+    if (n > 1) {
+        size_t i;
+        for (i = 0; i < n - 1; i++) {
+            size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
+            int t = array[j];
+            array[j] = array[i];
+            array[i] = t;
+        }
     }
 }
