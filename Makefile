@@ -26,7 +26,7 @@ all: ts
 tsretry: tsretry.c
 
 ts: $(OBJECTS)
-	$(CC) $(LDFLAGS) -o ts $^ -L$(CUDA_HOME)/lib64 -I$(CUDA_HOME)/include -lpthread -lcudart -lcublas -fopenmp -lnvidia-ml
+	$(CC) $(LDFLAGS) -o ts $^ -L$(CUDA_HOME)/lib64 -L$(CUDA_HOME)/lib64/stubs -I$(CUDA_HOME)/include -lpthread -lcudart -lcublas -fopenmp -lnvidia-ml
 
 # Test our 'tail' implementation.
 ttail: tail.o ttail.o
