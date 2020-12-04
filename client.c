@@ -12,6 +12,7 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <signal.h>
+#include <time.h>
 
 #include "main.h"
 
@@ -821,6 +822,7 @@ void c_show_cmd() {
 static void shuffle(int *array, size_t n) {
     if (n > 1) {
         size_t i;
+        srand(time(NULL));
         for (i = 0; i < n - 1; i++) {
             size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
             int t = array[j];
