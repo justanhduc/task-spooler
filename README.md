@@ -175,8 +175,11 @@ Options adding jobs:
 
 ## Thanks
 
-**Author**: Lluís Batlle i Rossell, <lluis@vicerveza.homeunix.net>
+**Author**
+  - Lluís Batlle i Rossell, <lluis@vicerveza.homeunix.net>
+  - Duc Nguyen, <adnguyen@yonsei.ac.kr>
 
+**Acknowledgement**
 * To Raúl Salinas, for his inspiring ideas
 * To Alessandro Öhler, the first non-acquaintance user, who proposed and created the mailing list.
 * Андрею Пантюхину, who created the BSD port.
