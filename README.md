@@ -1,10 +1,6 @@
 # Task Spooler
 
-**Note**: I am not the original author of the package.
-However, from now on, I will maintain this modified version and add more features 
-to this wonderful app. 
-If you find this app helpful and have any idea to improve it, feel free to
-send a PR.
+Originally, [Task Spooler by Lluís Batlle i Rossell](https://vicerveza.homeunix.net/~viric/soft/ts/).
 
 ## Introduction 
 
@@ -28,6 +24,7 @@ free slots.
     - Added long options.
     
 - Replaced Makefile by CMake.
+- For a CPU-only version, please checkout the [CPU-only branch](https://github.com/justanhduc/task-spooler/tree/cpu-only).
 
 ## Features
 
@@ -56,7 +53,19 @@ At the end, after some time using and developing ts, it can do something more:
 
 ### Install Task Spooler
 
+First, clone the repository
+
+```
+git clone https://github.com/justanhduc/task-spooler
+```
+
 To setup Task Spooler with GPU support, one needs to set a `CUDA_HOME` environment variable.
+Otherwise, if you need only the CPU version, perform a checkout first
+
+```
+git checkout cpu-only
+```
+
 Then, simple run the provided script
 
 ```
