@@ -131,6 +131,7 @@ int c_wait_server_commands() {
             error("Error in wait_server_commands");
         if (m.type == RUNJOB) {
             struct Result result;
+            result.skipped = 0;
             run_job(&result);
             c_end_of_job(&result);
             return result.errorlevel;
