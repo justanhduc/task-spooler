@@ -18,7 +18,7 @@ extern char *optarg;
 extern int optind, opterr, optopt;
 
 /* Globals */
-struct Command_line command_line;
+struct CommandLine command_line;
 int server_socket;
 
 /* Globals for the environment of getopt */

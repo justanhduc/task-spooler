@@ -53,7 +53,7 @@ int recv_bytes(const int fd, char *data, int bytes)
     return res;
 }
 
-void send_msg(const int fd, const struct msg *m)
+void send_msg(const int fd, const struct Msg *m)
 {
     int res;
 
@@ -66,7 +66,7 @@ void send_msg(const int fd, const struct msg *m)
                 res, sizeof(*m));
 }
 
-int recv_msg(const int fd, struct msg *m)
+int recv_msg(const int fd, struct Msg *m)
 {
     int res;
 

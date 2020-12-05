@@ -45,7 +45,7 @@ void notify_errorlevel(struct Job *p);
 
 static void send_list_line(int s, const char * str)
 {
-    struct msg m;
+    struct Msg m;
 
     /* Message */
     m.type = LIST_LINE;
@@ -59,7 +59,7 @@ static void send_list_line(int s, const char * str)
 
 static void send_urgent_ok(int s)
 {
-    struct msg m;
+    struct Msg m;
 
     /* Message */
     m.type = URGENT_OK;
@@ -69,7 +69,7 @@ static void send_urgent_ok(int s)
 
 static void send_swap_jobs_ok(int s)
 {
-    struct msg m;
+    struct Msg m;
 
     /* Message */
     m.type = SWAP_JOBS_OK;
@@ -193,7 +193,7 @@ void s_count_running_jobs(int s)
 {
     int count = 0;
     struct Job *p;
-    struct msg m;
+    struct Msg m;
 
     /* Count running jobs */
     p = firstjob;
@@ -398,7 +398,7 @@ static int find_last_stored_jobid_finished()
 }
 
 /* Returns job id or -1 on error */
-int s_newjob(int s, struct msg *m)
+int s_newjob(int s, struct Msg *m)
 {
     struct Job *p;
     int res;
@@ -833,7 +833,7 @@ void s_process_runjob_ok(int jobid, char *oname, int pid)
 
 void s_send_runjob(int s, int jobid)
 {
-    struct msg m;
+    struct Msg m;
     struct Job *p;
 
     p = findjob(jobid);
@@ -847,7 +847,7 @@ void s_send_runjob(int s, int jobid)
 void s_job_info(int s, int jobid)
 {
     struct Job *p = 0;
-    struct msg m;
+    struct Msg m;
 
     if (jobid == -1)
     {
@@ -923,7 +923,7 @@ void s_job_info(int s, int jobid)
 }
 
 void s_send_last_id(int s) {
-    struct msg m;
+    struct Msg m;
 
     m.type = LAST_ID;
     m.u.jobid = jobids - 1;
@@ -933,7 +933,7 @@ void s_send_last_id(int s) {
 void s_send_output(int s, int jobid)
 {
     struct Job *p = 0;
-    struct msg m;
+    struct Msg m;
 
     if (jobid == -1)
     {
@@ -1023,7 +1023,7 @@ void notify_errorlevel(struct Job *p)
 int s_remove_job(int s, int *jobid)
 {
     struct Job *p = 0;
-    struct msg m;
+    struct Msg m;
     struct Job *before_p = 0;
 
     if (*jobid == -1)
@@ -1146,7 +1146,7 @@ static void add_to_notify_list(int s, int jobid)
 
 static void send_waitjob_ok(int s, int errorlevel)
 {
-    struct msg m;
+    struct Msg m;
 
     m.type = WAITJOB_OK;
     m.u.result.errorlevel = errorlevel;
@@ -1389,7 +1389,7 @@ void s_set_max_slots(int new_max_slots)
 
 void s_get_max_slots(int s)
 {
-    struct msg m;
+    struct Msg m;
 
     /* Message */
     m.type = GET_MAX_SLOTS_OK;
@@ -1471,7 +1471,7 @@ void s_swap_jobs(int s, int jobid1, int jobid2)
 
 static void send_state(int s, enum Jobstate state)
 {
-    struct msg m;
+    struct Msg m;
 
     m.type = ANSWER_STATE;
     m.u.state = state;

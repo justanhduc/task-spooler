@@ -10,7 +10,7 @@ enum
     PROTOCOL_VERSION=730
 };
 
-enum msg_types
+enum MsgTypes
 {
     KILL_SERVER,
     NEWJOB,
@@ -75,7 +75,7 @@ enum Request
     c_KILL_ALL
 };
 
-struct Command_line {
+struct CommandLine {
     enum Request request;
     int need_server;
     int store_output;
@@ -99,17 +99,17 @@ struct Command_line {
     int num_slots; /* Slots for the job to use. Default 1 */
 };
 
-enum Process_type {
+enum ProcessType {
     CLIENT,
     SERVER
 };
 
-extern struct Command_line command_line;
+extern struct CommandLine command_line;
 extern int server_socket;
-extern enum Process_type process_type;
+extern enum ProcessType process_type;
 extern int server_socket; /* Used in the client */
 
-struct msg;
+struct Msg;
 
 enum Jobstate
 {
@@ -120,9 +120,9 @@ enum Jobstate
     HOLDING_CLIENT
 };
 
-struct msg
+struct Msg
 {
-    enum msg_types type;
+    enum MsgTypes type;
 
     union
     {
@@ -238,7 +238,7 @@ void c_kill_all_jobs();
 
 /* jobs.c */
 void s_list(int s);
-int s_newjob(int s, struct msg *m);
+int s_newjob(int s, struct Msg *m);
 void s_removejob(int jobid);
 void job_finished(const struct Result *result, int jobid);
 int next_run_job();
@@ -307,15 +307,15 @@ void unblock_sigint_and_install_handler();
 /* msg.c */
 void send_bytes(const int fd, const char *data, int bytes);
 int recv_bytes(const int fd, char *data, int bytes);
-void send_msg(const int fd, const struct msg *m);
-int recv_msg(const int fd, struct msg *m);
+void send_msg(const int fd, const struct Msg *m);
+int recv_msg(const int fd, struct Msg *m);
 
 /* msgdump.c */
-void msgdump(FILE *, const struct msg *m);
+void msgdump(FILE *, const struct Msg *m);
 
 /* error.c */
-void error_msg(const struct msg *m, const char *str, ...);
-void warning_msg(const struct msg *m, const char *str, ...);
+void error_msg(const struct Msg *m, const char *str, ...);
+void warning_msg(const struct Msg *m, const char *str, ...);
 
 /* list.c */
 char * joblist_headers();

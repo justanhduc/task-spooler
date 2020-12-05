@@ -65,7 +65,7 @@ extern int max_jobs;
 
 static void s_send_version(int s)
 {
-    struct msg m;
+    struct Msg m;
 
     m.type = VERSION;
     m.u.version = PROTOCOL_VERSION;
@@ -357,7 +357,7 @@ clean_after_client_disappeared(int socket, int index)
 static enum Break
     client_read(int index)
 {
-    struct msg m;
+    struct Msg m;
     int s;
     int res;
 
@@ -524,7 +524,7 @@ static void s_runjob(int jobid, int index)
 static void s_newjob_ok(int index)
 {
     int s;
-    struct msg m;
+    struct Msg m;
     
     if (!client_cs[index].hasjob)
         error("Run job of the client %i which doesn't have any job", index);
@@ -540,7 +540,7 @@ static void s_newjob_ok(int index)
 static void s_newjob_nok(int index)
 {
     int s;
-    struct msg m;
+    struct Msg m;
     
     if (!client_cs[index].hasjob)
         error("Run job of the client %i which doesn't have any job", index);

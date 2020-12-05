@@ -56,7 +56,7 @@ char *build_command_string()
 
 void c_new_job()
 {
-    struct msg m;
+    struct Msg m;
     char *new_command;
     char *myenv;
 
@@ -102,7 +102,7 @@ void c_new_job()
 
 int c_wait_newjob_ok()
 {
-    struct msg m;
+    struct Msg m;
     int res;
 
     res = recv_msg(server_socket, &m);
@@ -121,7 +121,7 @@ int c_wait_newjob_ok()
 
 int c_wait_server_commands()
 {
-    struct msg m;
+    struct Msg m;
     int res;
 
     while (1)
@@ -147,7 +147,7 @@ int c_wait_server_commands()
 
 void c_wait_server_lines()
 {
-    struct msg m;
+    struct Msg m;
     int res;
 
     while (1)
@@ -173,7 +173,7 @@ void c_wait_server_lines()
 
 void c_list_jobs()
 {
-    struct msg m;
+    struct Msg m;
 
     m.type = LIST;
 
@@ -183,7 +183,7 @@ void c_list_jobs()
 /* Exits if wrong */
 void c_check_version()
 {
-    struct msg m;
+    struct Msg m;
     int res;
 
     m.type = GET_VERSION;
@@ -214,7 +214,7 @@ void c_check_version()
 
 void c_show_info()
 {
-    struct msg m;
+    struct Msg m;
     int res;
 
     m.type = INFO;
@@ -252,7 +252,7 @@ void c_show_info()
 }
 
 void c_show_last_id() {
-    struct msg m;
+    struct Msg m;
     int res;
 
     m.type = LAST_ID;
@@ -273,7 +273,7 @@ void c_show_last_id() {
 
 void c_send_runjob_ok(const char *ofname, int pid)
 {
-    struct msg m;
+    struct Msg m;
 
     /* Prepare the message */
     m.type = RUNJOB_OK;
@@ -296,7 +296,7 @@ void c_send_runjob_ok(const char *ofname, int pid)
 
 static void c_end_of_job(const struct Result *res)
 {
-    struct msg m;
+    struct Msg m;
 
     m.type = ENDJOB;
     m.u.result = *res; /* struct copy */
@@ -306,7 +306,7 @@ static void c_end_of_job(const struct Result *res)
 
 void c_shutdown_server()
 {
-    struct msg m;
+    struct Msg m;
 
     m.type = KILL_SERVER;
     send_msg(server_socket, &m);
@@ -314,7 +314,7 @@ void c_shutdown_server()
 
 void c_clear_finished()
 {
-    struct msg m;
+    struct Msg m;
 
     m.type = CLEAR_FINISHED;
     send_msg(server_socket, &m);
@@ -322,7 +322,7 @@ void c_clear_finished()
 
 static char * get_output_file(int *pid)
 {
-    struct msg m;
+    struct Msg m;
     int res;
     char *string = 0;
 
@@ -440,7 +440,7 @@ void c_kill_job()
 }
 
 void c_kill_all_jobs() {
-    struct msg m;
+    struct Msg m;
     int res;
 
     /* Send the request */
@@ -467,7 +467,7 @@ void c_kill_all_jobs() {
 
 void c_remove_job()
 {
-    struct msg m;
+    struct Msg m;
     int res;
     char *string = 0;
 
@@ -500,7 +500,7 @@ void c_remove_job()
 
 int c_wait_job_recv()
 {
-    struct msg m;
+    struct Msg m;
     int res;
     char *string = 0;
 
@@ -531,7 +531,7 @@ int c_wait_job_recv()
 
 static void c_wait_job_send()
 {
-    struct msg m;
+    struct Msg m;
 
     /* Send the request */
     m.type = WAITJOB;
@@ -541,7 +541,7 @@ static void c_wait_job_send()
 
 static void c_wait_running_job_send()
 {
-    struct msg m;
+    struct Msg m;
 
     /* Send the request */
     m.type = WAIT_RUNNING_JOB;
@@ -565,7 +565,7 @@ int c_wait_running_job()
 
 void c_send_max_slots(int max_slots)
 {
-    struct msg m;
+    struct Msg m;
 
     /* Send the request */
     m.type = SET_MAX_SLOTS;
@@ -575,7 +575,7 @@ void c_send_max_slots(int max_slots)
 
 void c_get_max_slots()
 {
-    struct msg m;
+    struct Msg m;
     int res;
 
     /* Send the request */
@@ -599,7 +599,7 @@ void c_get_max_slots()
 
 void c_move_urgent()
 {
-    struct msg m;
+    struct Msg m;
     int res;
     char *string = 0;
 
@@ -635,7 +635,7 @@ void c_move_urgent()
 
 void c_get_state()
 {
-    struct msg m;
+    struct Msg m;
     int res;
     char *string = 0;
 
@@ -672,7 +672,7 @@ void c_get_state()
 
 void c_swap_jobs()
 {
-    struct msg m;
+    struct Msg m;
     int res;
     char *string = 0;
 
@@ -708,7 +708,7 @@ void c_swap_jobs()
 }
 
 void c_get_count_running() {
-    struct msg m;
+    struct Msg m;
     int res;
 
     /* Send the request */
@@ -735,7 +735,7 @@ void c_get_count_running() {
 
 void c_show_label()
 {
-    struct msg m;
+    struct Msg m;
     int res;
     char *string = 0;
 
