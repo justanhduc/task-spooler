@@ -14,8 +14,7 @@
 
 
 /* maxsize: max buffer size, with '\0' */
-int fd_nprintf(int fd, int maxsize, const char *fmt, ...)
-{
+int fd_nprintf(int fd, int maxsize, const char *fmt, ...) {
     va_list ap;
     char *out;
     int size;
@@ -24,8 +23,7 @@ int fd_nprintf(int fd, int maxsize, const char *fmt, ...)
     va_start(ap, fmt);
 
     out = (char *) malloc(maxsize * sizeof(char));
-    if (out == 0)
-    {
+    if (out == 0) {
         warning("Not enough memory in fd_nprintf()");
         return -1;
     }
@@ -33,12 +31,10 @@ int fd_nprintf(int fd, int maxsize, const char *fmt, ...)
     size = vsnprintf(out, maxsize, fmt, ap);
 
     rest = size; /* We don't want the last null character */
-    while (rest > 0)
-    {
+    while (rest > 0) {
         int res;
         res = write(fd, out, rest);
-        if (res == -1)
-        {
+        if (res == -1) {
             warning("Cannot write more chars in pinfo_dump");
             break;
         }

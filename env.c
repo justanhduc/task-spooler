@@ -14,8 +14,7 @@
 #include <stdlib.h>
 #include "main.h"
 
-static int fork_command(const char *command)
-{
+static int fork_command(const char *command) {
     int pid;
     int p[2];
     int fdnull;
@@ -27,8 +26,7 @@ static int fork_command(const char *command)
 
     pid = fork();
 
-    switch(pid)
-    {
+    switch (pid) {
         case 0:
             restore_sigmask();
             close(server_socket);
@@ -40,7 +38,7 @@ static int fork_command(const char *command)
             if (p[1] != 1 && p[1] != 2)
                 close(p[1]);
             close(p[0]);
-            execlp("/bin/sh", "/bin/sh", "-c", command, (char*)NULL);
+            execlp("/bin/sh", "/bin/sh", "-c", command, (char *) NULL);
             error("/bin/sh exec error");
         case -1:
             error("Fork error");
@@ -51,14 +49,13 @@ static int fork_command(const char *command)
     return p[0];
 }
 
-char * get_environment()
-{
+char *get_environment() {
     char *ptr;
     char *command;
     int readfd;
     int bytes = 0;
     int alloc = 0;
-    
+
     command = getenv("TS_ENV");
     if (command == 0)
         return 0;
@@ -66,13 +63,11 @@ char * get_environment()
     readfd = fork_command(command);
 
     ptr = 0;
-    do
-    {
+    do {
         int next;
         int res;
         next = bytes + 1000;
-        if (next > alloc)
-        {
+        if (next > alloc) {
             ptr = realloc(ptr, next);
             alloc = next;
         }
@@ -83,7 +78,7 @@ char * get_environment()
             break;
         else
             bytes += res;
-    } while(1);
+    } while (1);
 
     /* We will always have 1000 bytes more to be written, on end.
      * We add a null for it to be an ASCIIZ string. */

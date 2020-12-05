@@ -16,8 +16,7 @@ static sigset_t normal_sigmask;
 /* as extern in execute.c */
 int signals_child_pid; /* 0, not set. otherwise, set. */
 
-void ignore_sigpipe()
-{
+void ignore_sigpipe() {
     sigset_t set;
 
     sigemptyset(&set);
@@ -25,25 +24,20 @@ void ignore_sigpipe()
     sigprocmask(SIG_BLOCK, &set, &normal_sigmask);
 }
 
-void restore_sigmask()
-{
+void restore_sigmask() {
     sigprocmask(SIG_SETMASK, &normal_sigmask, NULL);
 }
 
-void sigint_handler(int s)
-{
-    if (signals_child_pid)
-    {
+void sigint_handler(int s) {
+    if (signals_child_pid) {
         kill(signals_child_pid, SIGINT);
-    } else
-    {
+    } else {
         /* ts client killed by SIGINT */
         exit(1);
     }
 }
 
-void block_sigint()
-{
+void block_sigint() {
     sigset_t set;
 
     sigemptyset(&set);
@@ -53,8 +47,7 @@ void block_sigint()
     sigprocmask(SIG_BLOCK, &set, 0);
 }
 
-void unblock_sigint_and_install_handler()
-{
+void unblock_sigint_and_install_handler() {
     sigset_t set;
     struct sigaction act;
 

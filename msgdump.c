@@ -8,11 +8,9 @@
 #include <sys/time.h>
 #include "main.h"
 
-void msgdump(FILE *f, const struct Msg *m)
-{
+void msgdump(FILE *f, const struct Msg *m) {
     fprintf(f, "msgdump:\n");
-    switch(m->type)
-    {
+    switch (m->type) {
         case KILL_SERVER:
             fprintf(f, " KILL SERVER\n");
             break;

@@ -18,8 +18,7 @@
 
 #include "main.h"
 
-enum Etype
-{
+enum Etype {
     WARNING,
     ERROR
 };
@@ -33,8 +32,7 @@ static int real_errno;
 static void dump_structs(FILE *out);
 
 
-static void print_date(FILE *out)
-{
+static void print_date(FILE *out) {
     time_t t;
     const char *tstr;
 
@@ -44,8 +42,7 @@ static void print_date(FILE *out)
     fprintf(out, "date %s", tstr);
 }
 
-static void dump_proc_info(FILE *out)
-{
+static void dump_proc_info(FILE *out) {
     print_date(out);
     fprintf(out, "pid %i\n", getpid());
     if (process_type == SERVER)
@@ -56,16 +53,15 @@ static void dump_proc_info(FILE *out)
         fprintf(out, "type UNKNOWN\n");
 }
 
-static FILE * open_error_file()
-{
+static FILE *open_error_file() {
     int fd;
-    FILE* out;
+    FILE *out;
     char *path;
     int new_size;
     char *new_path;
 
     create_socket_path(&path);
-    new_size = strlen(path)+10;
+    new_size = strlen(path) + 10;
     new_path = malloc(new_size);
 
     strncpy(new_path, path, new_size);
@@ -73,15 +69,13 @@ static FILE * open_error_file()
     free(path);
 
     fd = open(new_path, O_CREAT | O_APPEND | O_WRONLY, 0600);
-    if (fd == -1)
-    {
+    if (fd == -1) {
         free(new_path);
         return 0;
     }
 
     out = fdopen(fd, "a");
-    if (out == NULL)
-    {
+    if (out == NULL) {
         close(fd);
         free(new_path);
         return 0;
@@ -92,8 +86,7 @@ static FILE * open_error_file()
     return out;
 }
 
-static void print_error(FILE *out, enum Etype type, const char *str, va_list ap)
-{
+static void print_error(FILE *out, enum Etype type, const char *str, va_list ap) {
     fprintf(out, "-------------------");
     if (type == ERROR)
         fprintf(out, "Error\n");
@@ -110,8 +103,7 @@ static void print_error(FILE *out, enum Etype type, const char *str, va_list ap)
     fprintf(out, " errno %i, \"%s\"\n", real_errno, strerror(real_errno));
 }
 
-static void problem(enum Etype type, const char *str, va_list ap)
-{
+static void problem(enum Etype type, const char *str, va_list ap) {
     FILE *out;
 
     out = open_error_file();
@@ -126,8 +118,7 @@ static void problem(enum Etype type, const char *str, va_list ap)
     fclose(out);
 }
 
-static void problem_msg(enum Etype type, const struct Msg *m, const char *str, va_list ap)
-{
+static void problem_msg(enum Etype type, const struct Msg *m, const char *str, va_list ap) {
     FILE *out;
 
     out = open_error_file();
@@ -143,16 +134,14 @@ static void problem_msg(enum Etype type, const struct Msg *m, const char *str, v
     fclose(out);
 }
 
-void error(const char *str, ...)
-{
+void error(const char *str, ...) {
     va_list ap;
 
     va_start(ap, str);
 
     real_errno = errno;
 
-    if (process_type == CLIENT)
-    {
+    if (process_type == CLIENT) {
         vfprintf(stderr, str, ap);
         fputc('\n', stderr);
     }
@@ -161,8 +150,7 @@ void error(const char *str, ...)
     exit(-1);
 }
 
-void error_msg(const struct Msg *m, const char *str, ...)
-{
+void error_msg(const struct Msg *m, const char *str, ...) {
     va_list ap;
 
     va_start(ap, str);
@@ -173,8 +161,7 @@ void error_msg(const struct Msg *m, const char *str, ...)
     exit(-1);
 }
 
-void warning(const char *str, ...)
-{
+void warning(const char *str, ...) {
     va_list ap;
 
     va_start(ap, str);
@@ -184,8 +171,7 @@ void warning(const char *str, ...)
     problem(WARNING, str, ap);
 }
 
-void warning_msg(const struct Msg *m, const char *str, ...)
-{
+void warning_msg(const struct Msg *m, const char *str, ...) {
     va_list ap;
 
     va_start(ap, str);
@@ -195,11 +181,9 @@ void warning_msg(const struct Msg *m, const char *str, ...)
     problem_msg(WARNING, m, str, ap);
 }
 
-static void dump_structs(FILE *out)
-{
+static void dump_structs(FILE *out) {
     dump_proc_info(out);
-    if (process_type == SERVER)
-    {
+    if (process_type == SERVER) {
         dump_jobs_struct(out);
         dump_notifies_struct(out);
         dump_conns_struct(out);

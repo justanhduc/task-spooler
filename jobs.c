@@ -18,8 +18,7 @@
 int busy_slots = 0;
 int max_slots = 1;
 
-struct Notify
-{
+struct Notify {
     int socket;
     int jobid;
     struct Notify *next;
@@ -40,11 +39,11 @@ static struct Notify *first_notify = 0;
 
 int max_jobs;
 
-static struct Job * get_job(int jobid);
+static struct Job *get_job(int jobid);
+
 void notify_errorlevel(struct Job *p);
 
-static void send_list_line(int s, const char * str)
-{
+static void send_list_line(int s, const char *str) {
     struct Msg m;
 
     /* Message */
@@ -57,8 +56,7 @@ static void send_list_line(int s, const char * str)
     send_bytes(s, str, m.u.size);
 }
 
-static void send_urgent_ok(int s)
-{
+static void send_urgent_ok(int s) {
     struct Msg m;
 
     /* Message */
@@ -67,8 +65,7 @@ static void send_urgent_ok(int s)
     send_msg(s, &m);
 }
 
-static void send_swap_jobs_ok(int s)
-{
+static void send_swap_jobs_ok(int s) {
     struct Msg m;
 
     /* Message */
@@ -77,14 +74,12 @@ static void send_swap_jobs_ok(int s)
     send_msg(s, &m);
 }
 
-static struct Job * find_previous_job(const struct Job *final)
-{
+static struct Job *find_previous_job(const struct Job *final) {
     struct Job *p;
 
     /* Show Queued or Running jobs */
     p = firstjob;
-    while(p != 0)
-    {
+    while (p != 0) {
         if (p->next == final)
             return p;
         p = p->next;
@@ -93,14 +88,12 @@ static struct Job * find_previous_job(const struct Job *final)
     return 0;
 }
 
-static struct Job * findjob(int jobid)
-{
+static struct Job *findjob(int jobid) {
     struct Job *p;
 
     /* Show Queued or Running jobs */
     p = firstjob;
-    while(p != 0)
-    {
+    while (p != 0) {
         if (p->jobid == jobid)
             return p;
         p = p->next;
@@ -109,14 +102,12 @@ static struct Job * findjob(int jobid)
     return 0;
 }
 
-static struct Job * findjob_holding_client()
-{
+static struct Job *findjob_holding_client() {
     struct Job *p;
 
     /* Show Queued or Running jobs */
     p = firstjob;
-    while(p != 0)
-    {
+    while (p != 0) {
         if (p->state == HOLDING_CLIENT)
             return p;
         p = p->next;
@@ -125,14 +116,12 @@ static struct Job * findjob_holding_client()
     return 0;
 }
 
-static struct Job * find_finished_job(int jobid)
-{
+static struct Job *find_finished_job(int jobid) {
     struct Job *p;
 
     /* Show Queued or Running jobs */
     p = first_finished_job;
-    while(p != 0)
-    {
+    while (p != 0) {
         if (p->jobid == jobid)
             return p;
         p = p->next;
@@ -141,34 +130,31 @@ static struct Job * find_finished_job(int jobid)
     return 0;
 }
 
-static int count_not_finished_jobs()
-{
-    int count=0;
+static int count_not_finished_jobs() {
+    int count = 0;
     struct Job *p;
 
     /* Show Queued or Running jobs */
     p = firstjob;
-    while(p != 0)
-    {
+    while (p != 0) {
         ++count;
         p = p->next;
     }
     return count;
 }
 
-static void add_notify_errorlevel_to(struct Job *job, int jobid)
-{
+static void add_notify_errorlevel_to(struct Job *job, int jobid) {
     int *p;
     int newsize = (job->notify_errorlevel_to_size + 1)
-        * sizeof(int);
+                  * sizeof(int);
     p = (int *) realloc(job->notify_errorlevel_to,
-            newsize);
+                        newsize);
 
     if (p == 0)
         error("Cannot allocate more memory for notify_errorlist_to for jobid %i,"
-                " having already %i elements",
-                job->jobid, job->notify_errorlevel_to_size);
-    
+              " having already %i elements",
+              job->jobid, job->notify_errorlevel_to_size);
+
     job->notify_errorlevel_to = p;
     job->notify_errorlevel_to_size += 1;
     job->notify_errorlevel_to[job->notify_errorlevel_to_size - 1] = jobid;
@@ -180,8 +166,7 @@ void s_kill_all_jobs(int s) {
 
     /* send running job PIDs */
     p = firstjob;
-    while(p != 0)
-    {
+    while (p != 0) {
         if (p->state == RUNNING)
             send(s, &p->pid, sizeof(int), 0);
 
@@ -189,16 +174,14 @@ void s_kill_all_jobs(int s) {
     }
 }
 
-void s_count_running_jobs(int s)
-{
+void s_count_running_jobs(int s) {
     int count = 0;
     struct Job *p;
     struct Msg m;
 
     /* Count running jobs */
     p = firstjob;
-    while(p != 0)
-    {
+    while (p != 0) {
         if (p->state == RUNNING)
             ++count;
 
@@ -211,13 +194,11 @@ void s_count_running_jobs(int s)
     send_msg(s, &m);
 }
 
-void s_get_label(int s, int jobid)
-{
+void s_get_label(int s, int jobid) {
     struct Job *p = 0;
     char *label;
 
-    if (jobid == -1)
-    {
+    if (jobid == -1) {
         /* Find the last job added */
         p = firstjob;
 
@@ -226,22 +207,18 @@ void s_get_label(int s, int jobid)
                 p = p->next;
 
         /* Look in finished jobs if needed */
-        if (p == 0)
-        {
+        if (p == 0) {
             p = first_finished_job;
             if (p != 0)
                 while (p->next != 0)
                     p = p->next;
         }
 
-    }
-    else
-    {
+    } else {
         p = get_job(jobid);
     }
 
-    if (p == 0)
-    {
+    if (p == 0) {
         char tmp[50];
         sprintf(tmp, "Job %i not finished or not running.\n", jobid);
         send_list_line(s, tmp);
@@ -256,8 +233,7 @@ void s_get_label(int s, int jobid)
     send_list_line(s, label);
 }
 
-void s_mark_job_running(int jobid)
-{
+void s_mark_job_running(int jobid) {
     struct Job *p;
     p = findjob(jobid);
     if (!p)
@@ -266,23 +242,19 @@ void s_mark_job_running(int jobid)
 }
 
 /* -1 means nothing awaken, otherwise returns the jobid awaken */
-int wake_hold_client()
-{
+int wake_hold_client() {
     struct Job *p;
     p = findjob_holding_client();
-    if (p)
-    {
+    if (p) {
         p->state = QUEUED;
         return p->jobid;
     }
     return -1;
 }
 
-const char * jstate2string(enum Jobstate s)
-{
-    const char * jobstate;
-    switch(s)
-    {
+const char *jstate2string(enum Jobstate s) {
+    const char *jobstate;
+    switch (s) {
         case QUEUED:
             jobstate = "queued";
             break;
@@ -302,24 +274,21 @@ const char * jstate2string(enum Jobstate s)
     return jobstate;
 }
 
-void s_list(int s)
-{
+void s_list(int s) {
     struct Job *p;
     char *buffer;
 
-    /* Times:   0.00/0.00/0.00 - 4+4+4+2 = 14*/ 
+    /* Times:   0.00/0.00/0.00 - 4+4+4+2 = 14*/
     buffer = joblist_headers();
-    send_list_line(s,buffer);
+    send_list_line(s, buffer);
     free(buffer);
 
     /* Show Queued or Running jobs */
     p = firstjob;
-    while(p != 0)
-    {
-        if (p->state != HOLDING_CLIENT)
-        {
+    while (p != 0) {
+        if (p->state != HOLDING_CLIENT) {
             buffer = joblist_line(p);
-            send_list_line(s,buffer);
+            send_list_line(s, buffer);
             free(buffer);
         }
         p = p->next;
@@ -328,21 +297,18 @@ void s_list(int s)
     p = first_finished_job;
 
     /* Show Finished jobs */
-    while(p != 0)
-    {
+    while (p != 0) {
         buffer = joblist_line(p);
-        send_list_line(s,buffer);
+        send_list_line(s, buffer);
         free(buffer);
         p = p->next;
     }
 }
 
-static struct Job * newjobptr()
-{
+static struct Job *newjobptr() {
     struct Job *p;
 
-    if (firstjob == 0)
-    {
+    if (firstjob == 0) {
         firstjob = (struct Job *) malloc(sizeof(*firstjob));
         firstjob->next = 0;
         firstjob->output_filename = 0;
@@ -351,7 +317,7 @@ static struct Job * newjobptr()
     }
 
     p = firstjob;
-    while(p->next != 0)
+    while (p->next != 0)
         p = p->next;
 
     p->next = (struct Job *) malloc(sizeof(*p));
@@ -363,14 +329,12 @@ static struct Job * newjobptr()
 }
 
 /* Returns -1 if no last job id found */
-static int find_last_jobid_in_queue(int neglect_jobid)
-{
+static int find_last_jobid_in_queue(int neglect_jobid) {
     struct Job *p;
     int last_jobid = -1;
 
     p = firstjob;
-    while(p != 0)
-    {
+    while (p != 0) {
         if (p->jobid != neglect_jobid &&
             p->jobid > last_jobid)
             last_jobid = p->jobid;
@@ -381,14 +345,12 @@ static int find_last_jobid_in_queue(int neglect_jobid)
 }
 
 /* Returns -1 if no last job id found */
-static int find_last_stored_jobid_finished()
-{
+static int find_last_stored_jobid_finished() {
     struct Job *p;
     int last_jobid = -1;
 
     p = first_finished_job;
-    while(p != 0)
-    {
+    while (p != 0) {
         if (p->jobid > last_jobid)
             last_jobid = p->jobid;
         p = p->next;
@@ -398,8 +360,7 @@ static int find_last_stored_jobid_finished()
 }
 
 /* Returns job id or -1 on error */
-int s_newjob(int s, struct Msg *m)
-{
+int s_newjob(int s, struct Msg *m) {
     struct Job *p;
     int res;
 
@@ -417,14 +378,12 @@ int s_newjob(int s, struct Msg *m)
     p->notify_errorlevel_to_size = 0;
     p->do_depend = m->u.newjob.do_depend;
     p->depend_on = -1; /* By default. May be overriden in the next conditions */
-    if (m->u.newjob.do_depend == 1)
-    {
+    if (m->u.newjob.do_depend == 1) {
         /* Depend on the last queued job. */
 
         /* As we already have 'p' in the queue,
          * neglect it during the find_last_jobid_in_queue() */
-        if (m->u.newjob.depend_on == -1)
-        {
+        if (m->u.newjob.depend_on == -1) {
             p->depend_on = find_last_jobid_in_queue(p->jobid);
 
             /* We don't trust the last jobid in the queue (running or queued)
@@ -436,21 +395,18 @@ int s_newjob(int s, struct Msg *m)
 
             /* If it's queued still without result, let it know
              * its result to p when it finishes. */
-            if (p->depend_on != -1)
-            {
+            if (p->depend_on != -1) {
                 struct Job *depended_job;
                 depended_job = findjob(p->depend_on);
                 if (depended_job != 0)
                     add_notify_errorlevel_to(depended_job, p->jobid);
                 else
                     warning("The jobid %i is queued to do_depend on the jobid %i"
-                        " suddenly non existent in the queue", p->jobid,
-                        p->depend_on);
-            }
-            else /* Otherwise take the finished job, or the last_errorlevel */
+                            " suddenly non existent in the queue", p->jobid,
+                            p->depend_on);
+            } else /* Otherwise take the finished job, or the last_errorlevel */
             {
-                if (m->u.newjob.depend_on == -1)
-                {
+                if (m->u.newjob.depend_on == -1) {
                     int ljobid = find_last_stored_jobid_finished();
                     p->depend_on = ljobid;
 
@@ -458,22 +414,18 @@ int s_newjob(int s, struct Msg *m)
                     /* NOTE:
                      *   Reading this now, I don't know how ljobid can be
                      *   greater than last_finished_jobid */
-                    if (last_finished_jobid < ljobid)
-                    {
+                    if (last_finished_jobid < ljobid) {
                         struct Job *parent;
                         parent = find_finished_job(ljobid);
                         if (!parent)
                             error("jobid %i suddenly disappeared from the finished list",
-                                ljobid);
+                                  ljobid);
                         p->dependency_errorlevel = parent->result.errorlevel;
-                    }
-                    else
+                    } else
                         p->dependency_errorlevel = last_errorlevel;
                 }
             }
-        }
-        else
-        {
+        } else {
             /* The user decided what's the job this new job depends on */
             struct Job *depended_job;
 
@@ -482,16 +434,12 @@ int s_newjob(int s, struct Msg *m)
             depended_job = findjob(p->depend_on);
             if (depended_job != 0)
                 add_notify_errorlevel_to(depended_job, p->jobid);
-            else
-            {
+            else {
                 struct Job *parent;
                 parent = find_finished_job(p->depend_on);
-                if (parent)
-                {
+                if (parent) {
                     p->dependency_errorlevel = parent->result.errorlevel;
-                }
-                else
-                {
+                } else {
                     /* We consider as if the job not found
                        didn't finish well */
                     p->dependency_errorlevel = -1;
@@ -508,20 +456,19 @@ int s_newjob(int s, struct Msg *m)
     p->command = malloc(m->u.newjob.command_size);
     if (p->command == 0)
         error("Cannot allocate memory in s_newjob command_size (%i)",
-                m->u.newjob.command_size);
+              m->u.newjob.command_size);
     res = recv_bytes(s, p->command, m->u.newjob.command_size);
     if (res == -1)
         error("wrong bytes received");
 
     /* load the label */
     p->label = 0;
-    if (m->u.newjob.label_size > 0)
-    {
+    if (m->u.newjob.label_size > 0) {
         char *ptr;
         ptr = (char *) malloc(m->u.newjob.label_size);
         if (ptr == 0)
             error("Cannot allocate memory in s_newjob env_size(%i)",
-                    m->u.newjob.env_size);
+                  m->u.newjob.env_size);
         res = recv_bytes(s, ptr, m->u.newjob.label_size);
         if (res == -1)
             error("wrong bytes received");
@@ -529,18 +476,17 @@ int s_newjob(int s, struct Msg *m)
     }
 
     /* load the info */
-    if (m->u.newjob.env_size > 0)
-    {
+    if (m->u.newjob.env_size > 0) {
         char *ptr;
         ptr = (char *) malloc(m->u.newjob.env_size);
         if (ptr == 0)
             error("Cannot allocate memory in s_newjob env_size(%i)",
-                    m->u.newjob.env_size);
+                  m->u.newjob.env_size);
         res = recv_bytes(s, ptr, m->u.newjob.env_size);
         if (res == -1)
             error("wrong bytes received");
-        pinfo_addinfo(&p->info, m->u.newjob.env_size+100,
-                "Environment:\n%s", ptr);
+        pinfo_addinfo(&p->info, m->u.newjob.env_size + 100,
+                      "Environment:\n%s", ptr);
         free(ptr);
     }
 
@@ -548,13 +494,11 @@ int s_newjob(int s, struct Msg *m)
 }
 
 /* This assumes the jobid exists */
-void s_removejob(int jobid)
-{
+void s_removejob(int jobid) {
     struct Job *p;
     struct Job *newnext;
 
-    if (firstjob->jobid == jobid)
-    {
+    if (firstjob->jobid == jobid) {
         struct Job *newfirst;
 
         /* First job is to be removed */
@@ -570,8 +514,7 @@ void s_removejob(int jobid)
 
     p = firstjob;
     /* Not first job */
-    while (p->next != 0)
-    {
+    while (p->next != 0) {
         if (p->next->jobid == jobid)
             break;
         p = p->next;
@@ -587,8 +530,7 @@ void s_removejob(int jobid)
 }
 
 /* -1 if no one should be run. */
-int next_run_job()
-{
+int next_run_job() {
     struct Job *p;
 
     const int free_slots = max_slots - busy_slots;
@@ -605,26 +547,21 @@ int next_run_job()
 
     /* Look for a runnable task */
     p = firstjob;
-    while(p != 0)
-    {
-        if (p->state == QUEUED)
-        {
-            if (p->depend_on >= 0)
-            {
+    while (p != 0) {
+        if (p->state == QUEUED) {
+            if (p->depend_on >= 0) {
                 struct Job *do_depend_job = get_job(p->depend_on);
                 /* We won't try to run any job do_depending on an unfinished
                  * job */
                 if (do_depend_job != NULL &&
-                    (do_depend_job->state == QUEUED || do_depend_job->state == RUNNING))
-                {
+                    (do_depend_job->state == QUEUED || do_depend_job->state == RUNNING)) {
                     /* Next try */
                     p = p->next;
                     continue;
                 }
             }
 
-            if (free_slots >= p->num_slots)
-            {
+            if (free_slots >= p->num_slots) {
                 busy_slots = busy_slots + p->num_slots;
                 return p->jobid;
             }
@@ -636,8 +573,7 @@ int next_run_job()
 }
 
 /* Returns 1000 if no limit, The limit otherwise. */
-static int get_max_finished_jobs()
-{
+static int get_max_finished_jobs() {
     char *limit;
 
     limit = getenv("TS_MAXFINISHED");
@@ -647,16 +583,14 @@ static int get_max_finished_jobs()
 }
 
 /* Add the job to the finished queue. */
-static void new_finished_job(struct Job *j)
-{
+static void new_finished_job(struct Job *j) {
     struct Job *p;
     int count, max;
 
     max = get_max_finished_jobs();
     count = 0;
 
-    if (first_finished_job == 0 && count < max)
-    {
+    if (first_finished_job == 0 && count < max) {
         first_finished_job = j;
         first_finished_job->next = 0;
         return;
@@ -665,15 +599,13 @@ static void new_finished_job(struct Job *j)
     ++count;
 
     p = first_finished_job;
-    while(p->next != 0)
-    {
+    while (p->next != 0) {
         p = p->next;
         ++count;
     }
 
     /* If too many jobs, wipe out the first */
-    if (count >= max)
-    {
+    if (count >= max) {
         struct Job *tmp;
         tmp = first_finished_job;
         first_finished_job = first_finished_job->next;
@@ -689,8 +621,7 @@ static void new_finished_job(struct Job *j)
     return;
 }
 
-static int job_is_in_state(int jobid, enum Jobstate state)
-{
+static int job_is_in_state(int jobid, enum Jobstate state) {
     struct Job *p;
 
     p = findjob(jobid);
@@ -701,23 +632,19 @@ static int job_is_in_state(int jobid, enum Jobstate state)
     return 0;
 }
 
-int job_is_running(int jobid)
-{
+int job_is_running(int jobid) {
     return job_is_in_state(jobid, RUNNING);
 }
 
-int job_is_holding_client(int jobid)
-{
+int job_is_holding_client(int jobid) {
     return job_is_in_state(jobid, HOLDING_CLIENT);
 }
 
-static int in_notify_list(int jobid)
-{
+static int in_notify_list(int jobid) {
     struct Notify *n, *tmp;
 
     n = first_notify;
-    while (n != 0)
-    {
+    while (n != 0) {
         tmp = n;
         n = n->next;
         if (tmp->jobid == jobid)
@@ -726,8 +653,7 @@ static int in_notify_list(int jobid)
     return 0;
 }
 
-void job_finished(const struct Result *result, int jobid)
-{
+void job_finished(const struct Result *result, int jobid) {
     struct Job *p;
 
     if (busy_slots <= 0)
@@ -765,14 +691,11 @@ void job_finished(const struct Result *result, int jobid)
         struct Job *newfirst = p->next;
         if (firstjob == p)
             jpointer = &firstjob;
-        else
-        {
+        else {
             struct Job *p2;
             p2 = firstjob;
-            while(p2 != 0)
-            {
-                if (p2->next == p)
-                {
+            while (p2 != 0) {
+                if (p2->next == p) {
                     jpointer = &(p2->next);
                     break;
                 }
@@ -787,14 +710,13 @@ void job_finished(const struct Result *result, int jobid)
         /* Remove it from the run queue */
         if (jpointer == 0)
             error("Cannot remove a finished job from the "
-                "queue list (jobid=%i)", p->jobid);
+                  "queue list (jobid=%i)", p->jobid);
 
         *jpointer = newfirst;
     }
 }
 
-void s_clear_finished()
-{
+void s_clear_finished() {
     struct Job *p;
 
     if (first_finished_job == 0)
@@ -803,8 +725,7 @@ void s_clear_finished()
     p = first_finished_job;
     first_finished_job = 0;
 
-    while (p != 0)
-    {
+    while (p != 0) {
         struct Job *tmp;
         tmp = p->next;
         free(p->command);
@@ -816,78 +737,67 @@ void s_clear_finished()
     }
 }
 
-void s_process_runjob_ok(int jobid, char *oname, int pid)
-{
+void s_process_runjob_ok(int jobid, char *oname, int pid) {
     struct Job *p;
     p = findjob(jobid);
     if (p == 0)
         error("Job %i already run not found on runjob_ok", jobid);
     if (p->state != RUNNING)
         error("Job %i not running, but %i on runjob_ok", jobid,
-                p->state);
+              p->state);
 
     p->pid = pid;
     p->output_filename = oname;
     pinfo_set_start_time(&p->info);
 }
 
-void s_send_runjob(int s, int jobid)
-{
+void s_send_runjob(int s, int jobid) {
     struct Msg m;
     struct Job *p;
 
     p = findjob(jobid);
-    if (p == 0) 
+    if (p == 0)
         error("Job %i was expected to run", jobid);
 
     m.type = RUNJOB;
     send_msg(s, &m);
 }
 
-void s_job_info(int s, int jobid)
-{
+void s_job_info(int s, int jobid) {
     struct Job *p = 0;
     struct Msg m;
 
-    if (jobid == -1)
-    {
+    if (jobid == -1) {
         /* This means that we want the job info of the running task, or that
          * of the last job run */
-        if (busy_slots > 0)
-        {
+        if (busy_slots > 0) {
             p = firstjob;
             if (p == 0)
                 error("Internal state WAITING, but job not run."
-                        "firstjob = %x", firstjob);
-        }
-        else
-        {
+                      "firstjob = %x", firstjob);
+        } else {
             p = first_finished_job;
-            if (p == 0)
-            {
+            if (p == 0) {
                 send_list_line(s, "No jobs.\n");
                 return;
             }
-            while(p->next != 0)
+            while (p->next != 0)
                 p = p->next;
         }
-    } else
-    {
+    } else {
         p = firstjob;
         while (p != 0 && p->jobid != jobid)
             p = p->next;
 
         /* Look in finished jobs if needed */
-        if (p == 0)
-        {
+        if (p == 0) {
             p = first_finished_job;
             while (p != 0 && p->jobid != jobid)
                 p = p->next;
         }
     }
 
-    if (p == 0)
-    {
+    if (p == 0) {
         char tmp[50];
         sprintf(tmp, "Job %i not finished or not running.\n", jobid);
         send_list_line(s, tmp);
@@ -904,21 +814,19 @@ void s_job_info(int s, int jobid)
     fd_nprintf(s, 100, "\n");
     fd_nprintf(s, 100, "Slots required: %i\n", p->num_slots);
     fd_nprintf(s, 100, "Enqueue time: %s",
-            ctime(&p->info.enqueue_time.tv_sec));
-    if (p->state == RUNNING)
-    {
+               ctime(&p->info.enqueue_time.tv_sec));
+    if (p->state == RUNNING) {
         fd_nprintf(s, 100, "Start time: %s",
-                ctime(&p->info.start_time.tv_sec));
+                   ctime(&p->info.start_time.tv_sec));
         fd_nprintf(s, 100, "Time running: %fs\n",
-                pinfo_time_until_now(&p->info));
-    } else if (p->state == FINISHED)
-    {
+                   pinfo_time_until_now(&p->info));
+    } else if (p->state == FINISHED) {
         fd_nprintf(s, 100, "Start time: %s",
-                ctime(&p->info.start_time.tv_sec));
+                   ctime(&p->info.start_time.tv_sec));
         fd_nprintf(s, 100, "End time: %s",
-                ctime(&p->info.end_time.tv_sec));
+                   ctime(&p->info.end_time.tv_sec));
         fd_nprintf(s, 100, "Time run: %fs\n",
-                pinfo_time_run(&p->info));
+                   pinfo_time_run(&p->info));
     }
 }
 
@@ -930,35 +838,28 @@ void s_send_last_id(int s) {
     send_msg(s, &m);
 }
 
-void s_send_output(int s, int jobid)
-{
+void s_send_output(int s, int jobid) {
     struct Job *p = 0;
     struct Msg m;
 
-    if (jobid == -1)
-    {
+    if (jobid == -1) {
         /* This means that we want the output info of the running task, or that
          * of the last job run */
-        if (busy_slots > 0)
-        {
+        if (busy_slots > 0) {
             p = firstjob;
             if (p == 0)
                 error("Internal state WAITING, but job not run."
-                        "firstjob = %x", firstjob);
-        }
-        else
-        {
+                      "firstjob = %x", firstjob);
+        } else {
             p = first_finished_job;
-            if (p == 0)
-            {
+            if (p == 0) {
                 send_list_line(s, "No jobs.\n");
                 return;
             }
-            while(p->next != 0)
+            while (p->next != 0)
                 p = p->next;
         }
-    } else
-    {
+    } else {
         p = get_job(jobid);
         if (p != 0 && p->state != RUNNING
             && p->state != FINISHED
@@ -966,8 +867,7 @@ void s_send_output(int s, int jobid)
             p = 0;
     }
 
-    if (p == 0)
-    {
+    if (p == 0) {
         char tmp[50];
         if (jobid == -1)
             sprintf(tmp, "The last job has not finished or is not running.\n");
@@ -977,12 +877,11 @@ void s_send_output(int s, int jobid)
         return;
     }
 
-    if (p->state == SKIPPED)
-    {
+    if (p->state == SKIPPED) {
         char tmp[50];
         if (jobid == -1)
-            sprintf(tmp,  "The last job was skipped due to a dependency.\n");
-                    
+            sprintf(tmp, "The last job was skipped due to a dependency.\n");
+
         else
             sprintf(tmp, "Job %i was skipped due to a dependency.\n", jobid);
         send_list_line(s, tmp);
@@ -1001,18 +900,15 @@ void s_send_output(int s, int jobid)
         send_bytes(s, p->output_filename, m.u.output.ofilename_size);
 }
 
-void notify_errorlevel(struct Job *p)
-{
+void notify_errorlevel(struct Job *p) {
     int i;
 
     last_errorlevel = p->result.errorlevel;
 
-    for(i = 0; i < p->notify_errorlevel_to_size; ++i)
-    {
+    for (i = 0; i < p->notify_errorlevel_to_size; ++i) {
         struct Job *notified;
         notified = get_job(p->notify_errorlevel_to[i]);
-        if (notified)
-        {
+        if (notified) {
             notified->dependency_errorlevel = p->result.errorlevel;
         }
     }
@@ -1020,57 +916,43 @@ void notify_errorlevel(struct Job *p)
 
 /* jobid is input/output. If the input is -1, it's changed to the jobid
  * removed */
-int s_remove_job(int s, int *jobid)
-{
+int s_remove_job(int s, int *jobid) {
     struct Job *p = 0;
     struct Msg m;
     struct Job *before_p = 0;
 
-    if (*jobid == -1)
-    {
+    if (*jobid == -1) {
         /* Find the last job added */
         p = firstjob;
-        if (p != 0)
-        {
-            while (p->next != 0)
-            {
+        if (p != 0) {
+            while (p->next != 0) {
                 before_p = p;
                 p = p->next;
             }
-        } else
-        {
+        } else {
             /* last 'finished' */
             p = first_finished_job;
-            if (p)
-            {
-                while (p->next != 0)
-                {
+            if (p) {
+                while (p->next != 0) {
                     before_p = p;
                     p = p->next;
                 }
             }
         }
-    }
-    else
-    {
+    } else {
         p = firstjob;
-        if (p != 0)
-        {
-            while (p->next != 0 && p->jobid != *jobid)
-            {
+        if (p != 0) {
+            while (p->next != 0 && p->jobid != *jobid) {
                 before_p = p;
                 p = p->next;
             }
         }
 
         /* If not found, look in the 'finished' list */
-        if (p == 0 || p->jobid != *jobid)
-        {
+        if (p == 0 || p->jobid != *jobid) {
             p = first_finished_job;
-            if (p != 0)
-            {
-                while (p->next != 0 && p->jobid != *jobid)
-                {
+            if (p != 0) {
+                while (p->next != 0 && p->jobid != *jobid) {
                     before_p = p;
                     p = p->next;
                 }
@@ -1080,8 +962,7 @@ int s_remove_job(int s, int *jobid)
         }
     }
 
-    if (p == 0 || p->state == RUNNING || p == firstjob)
-    {
+    if (p == 0 || p->state == RUNNING || p == firstjob) {
         char tmp[50];
         if (*jobid == -1)
             sprintf(tmp, "The last job cannot be removed.\n");
@@ -1098,7 +979,7 @@ int s_remove_job(int s, int *jobid)
     p->state = FINISHED;
     p->result.errorlevel = -1;
     notify_errorlevel(p);
-        
+
     /* Notify the clients in wait_job */
     check_notify_list(m.u.jobid);
 
@@ -1120,8 +1001,7 @@ int s_remove_job(int s, int *jobid)
     return 1;
 }
 
-static void add_to_notify_list(int s, int jobid)
-{
+static void add_to_notify_list(int s, int jobid) {
     struct Notify *n;
     struct Notify *new;
 
@@ -1132,20 +1012,18 @@ static void add_to_notify_list(int s, int jobid)
     new->next = 0;
 
     n = first_notify;
-    if (n == 0)
-    {
+    if (n == 0) {
         first_notify = new;
         return;
     }
 
-    while(n->next != 0)
+    while (n->next != 0)
         n = n->next;
 
     n->next = new;
 }
 
-static void send_waitjob_ok(int s, int errorlevel)
-{
+static void send_waitjob_ok(int s, int errorlevel) {
     struct Msg m;
 
     m.type = WAITJOB_OK;
@@ -1154,8 +1032,7 @@ static void send_waitjob_ok(int s, int errorlevel)
 }
 
 static struct Job *
-get_job(int jobid)
-{
+get_job(int jobid) {
     struct Job *j;
 
     j = findjob(jobid);
@@ -1171,8 +1048,7 @@ get_job(int jobid)
 }
 
 /* Don't complain, if the socket doesn't exist */
-void s_remove_notification(int s)
-{
+void s_remove_notification(int s) {
     struct Notify *n;
     struct Notify *previous;
     n = first_notify;
@@ -1183,32 +1059,27 @@ void s_remove_notification(int s)
 
     /* Remove the notification */
     previous = first_notify;
-    if (n == previous)
-    {
+    if (n == previous) {
         first_notify = n->next;
         free(n);
         return;
     }
 
     /* if not the first... */
-    while(previous->next != n)
+    while (previous->next != n)
         previous = previous->next;
 
     previous->next = n->next;
     free(n);
 }
 
-static void destroy_finished_job(struct Job *j)
-{
+static void destroy_finished_job(struct Job *j) {
     if (j == first_finished_job)
         first_finished_job = j->next;
-    else
-    {
+    else {
         struct Job *i;
-        for(i = first_finished_job; i != 0; ++i)
-        {
-            if (i->next == j)
-            {
+        for (i = first_finished_job; i != 0; ++i) {
+            if (i->next == j) {
                 i->next = j->next;
                 break;
             }
@@ -1227,22 +1098,18 @@ static void destroy_finished_job(struct Job *j)
 }
 
 /* This is called when a job finishes */
-void check_notify_list(int jobid)
-{
+void check_notify_list(int jobid) {
     struct Notify *n, *tmp;
     struct Job *j;
 
     n = first_notify;
-    while (n != 0)
-    {
+    while (n != 0) {
         tmp = n;
         n = n->next;
-        if (tmp->jobid == jobid)
-        {
+        if (tmp->jobid == jobid) {
             j = get_job(jobid);
             /* If the job finishes, notify the waiter */
-            if (j->state == FINISHED || j->state == SKIPPED)
-            {
+            if (j->state == FINISHED || j->state == SKIPPED) {
                 send_waitjob_ok(tmp->socket, j->result.errorlevel);
                 /* We want to get the next Nofity* before we remove
                  * the actual 'n'. As s_remove_notification() simply
@@ -1260,12 +1127,10 @@ void check_notify_list(int jobid)
     }
 }
 
-void s_wait_job(int s, int jobid)
-{
+void s_wait_job(int s, int jobid) {
     struct Job *p = 0;
 
-    if (jobid == -1)
-    {
+    if (jobid == -1) {
         /* Find the last job added */
         p = firstjob;
 
@@ -1274,31 +1139,26 @@ void s_wait_job(int s, int jobid)
                 p = p->next;
 
         /* Look in finished jobs if needed */
-        if (p == 0)
-        {
+        if (p == 0) {
             p = first_finished_job;
             if (p != 0)
                 while (p->next != 0)
                     p = p->next;
         }
-    }
-    else
-    {
+    } else {
         p = firstjob;
         while (p != 0 && p->jobid != jobid)
             p = p->next;
 
         /* Look in finished jobs if needed */
-        if (p == 0)
-        {
+        if (p == 0) {
             p = first_finished_job;
             while (p != 0 && p->jobid != jobid)
                 p = p->next;
         }
     }
 
-    if (p == 0)
-    {
+    if (p == 0) {
         char tmp[50];
         if (jobid == -1)
             sprintf(tmp, "The last job cannot be waited.\n");
@@ -1308,60 +1168,48 @@ void s_wait_job(int s, int jobid)
         return;
     }
 
-    if (p->state == FINISHED || p->state == SKIPPED)
-    {
+    if (p->state == FINISHED || p->state == SKIPPED) {
         send_waitjob_ok(s, p->result.errorlevel);
-    }
-    else
+    } else
         add_to_notify_list(s, p->jobid);
 }
 
-void s_wait_running_job(int s, int jobid)
-{
+void s_wait_running_job(int s, int jobid) {
     struct Job *p = 0;
 
     /* The job finding algorithm should be similar to that of
      * s_send_output, because this will be used by "-t" and "-c" */
-    if (jobid == -1)
-    {
+    if (jobid == -1) {
         /* This means that we want the output info of the running task, or that
          * of the last job run */
-        if (busy_slots > 0)
-        {
+        if (busy_slots > 0) {
             p = firstjob;
             if (p == 0)
                 error("Internal state WAITING, but job not run."
-                        "firstjob = %x", firstjob);
-        }
-        else
-        {
+                      "firstjob = %x", firstjob);
+        } else {
             p = first_finished_job;
-            if (p == 0)
-            {
+            if (p == 0) {
                 send_list_line(s, "No jobs.\n");
                 return;
             }
-            while(p->next != 0)
+            while (p->next != 0)
                 p = p->next;
         }
-    }
-    else
-    {
+    } else {
         p = firstjob;
         while (p != 0 && p->jobid != jobid)
             p = p->next;
 
         /* Look in finished jobs if needed */
-        if (p == 0)
-        {
+        if (p == 0) {
             p = first_finished_job;
             while (p != 0 && p->jobid != jobid)
                 p = p->next;
         }
     }
 
-    if (p == 0)
-    {
+    if (p == 0) {
         char tmp[50];
         if (jobid == -1)
             sprintf(tmp, "The last job cannot be waited.\n");
@@ -1371,24 +1219,20 @@ void s_wait_running_job(int s, int jobid)
         return;
     }
 
-    if (p->state == FINISHED || p->state == SKIPPED)
-    {
+    if (p->state == FINISHED || p->state == SKIPPED) {
         send_waitjob_ok(s, p->result.errorlevel);
-    }
-    else
+    } else
         add_to_notify_list(s, p->jobid);
 }
 
-void s_set_max_slots(int new_max_slots)
-{
+void s_set_max_slots(int new_max_slots) {
     if (new_max_slots > 0)
         max_slots = new_max_slots;
     else
         warning("Received new_max_slots=%i", new_max_slots);
 }
 
-void s_get_max_slots(int s)
-{
+void s_get_max_slots(int s) {
     struct Msg m;
 
     /* Message */
@@ -1398,29 +1242,24 @@ void s_get_max_slots(int s)
     send_msg(s, &m);
 }
 
-void s_move_urgent(int s, int jobid)
-{
+void s_move_urgent(int s, int jobid) {
     struct Job *p = 0;
     struct Job *tmp1;
 
-    if (jobid == -1)
-    {
+    if (jobid == -1) {
         /* Find the last job added */
         p = firstjob;
 
         if (p != 0)
             while (p->next != 0)
                 p = p->next;
-    }
-    else
-    {
+    } else {
         p = firstjob;
         while (p != 0 && p->jobid != jobid)
             p = p->next;
     }
 
-    if (p == 0 || firstjob->next == 0)
-    {
+    if (p == 0 || firstjob->next == 0) {
         char tmp[50];
         if (jobid == -1)
             sprintf(tmp, "The last job cannot be urged.\n");
@@ -1440,8 +1279,7 @@ void s_move_urgent(int s, int jobid)
     send_urgent_ok(s);
 }
 
-void s_swap_jobs(int s, int jobid1, int jobid2)
-{
+void s_swap_jobs(int s, int jobid1, int jobid2) {
     struct Job *p1, *p2;
     struct Job *prev1, *prev2;
     struct Job *tmp;
@@ -1449,8 +1287,7 @@ void s_swap_jobs(int s, int jobid1, int jobid2)
     p1 = findjob(jobid1);
     p2 = findjob(jobid2);
 
-    if (p1 == 0 || p2 == 0 || p1 == firstjob || p2 == firstjob)
-    {
+    if (p1 == 0 || p2 == 0 || p1 == firstjob || p2 == firstjob) {
         char prev[60];
         sprintf(prev, "The jobs %i and %i cannot be swapped.\n", jobid1, jobid2);
         send_list_line(s, prev);
@@ -1469,8 +1306,7 @@ void s_swap_jobs(int s, int jobid1, int jobid2)
     send_swap_jobs_ok(s);
 }
 
-static void send_state(int s, enum Jobstate state)
-{
+static void send_state(int s, enum Jobstate state) {
     struct Msg m;
 
     m.type = ANSWER_STATE;
@@ -1479,12 +1315,10 @@ static void send_state(int s, enum Jobstate state)
     send_msg(s, &m);
 }
 
-void s_send_state(int s, int jobid)
-{
+void s_send_state(int s, int jobid) {
     struct Job *p = 0;
 
-    if (jobid == -1)
-    {
+    if (jobid == -1) {
         /* Find the last job added */
         p = firstjob;
 
@@ -1493,22 +1327,18 @@ void s_send_state(int s, int jobid)
                 p = p->next;
 
         /* Look in finished jobs if needed */
-        if (p == 0)
-        {
+        if (p == 0) {
             p = first_finished_job;
             if (p != 0)
                 while (p->next != 0)
                     p = p->next;
         }
 
-    }
-    else
-    {
+    } else {
         p = get_job(jobid);
     }
 
-    if (p == 0)
-    {
+    if (p == 0) {
         char tmp[50];
         if (jobid == -1)
             sprintf(tmp, "The last job cannot be stated.\n");
@@ -1522,8 +1352,7 @@ void s_send_state(int s, int jobid)
     send_state(s, p->state);
 }
 
-static void dump_job_struct(FILE *out, const struct Job *p)
-{
+static void dump_job_struct(FILE *out, const struct Job *p) {
     fprintf(out, "  new_job\n");
     fprintf(out, "    jobid %i\n", p->jobid);
     fprintf(out, "    command \"%s\"\n", p->command);
@@ -1537,55 +1366,48 @@ static void dump_job_struct(FILE *out, const struct Job *p)
     fprintf(out, "    should_keep_finished %i\n", p->should_keep_finished);
 }
 
-void dump_jobs_struct(FILE *out)
-{
+void dump_jobs_struct(FILE *out) {
     const struct Job *p;
 
     fprintf(out, "New_jobs\n");
 
     p = firstjob;
-    while (p != 0)
-    {
+    while (p != 0) {
         dump_job_struct(out, p);
         p = p->next;
     }
 
     p = first_finished_job;
-    while (p != 0)
-    {
+    while (p != 0) {
         dump_job_struct(out, p);
         p = p->next;
     }
 }
 
-static void dump_notify_struct(FILE *out, const struct Notify *n)
-{
+static void dump_notify_struct(FILE *out, const struct Notify *n) {
     fprintf(out, "  notify\n");
     fprintf(out, "    jobid %i\n", n->jobid);
     fprintf(out, "    socket \"%i\"\n", n->socket);
 }
 
-void dump_notifies_struct(FILE *out)
-{
+void dump_notifies_struct(FILE *out) {
     const struct Notify *n;
 
     fprintf(out, "New_notifies\n");
 
     n = first_notify;
-    while (n != 0)
-    {
+    while (n != 0) {
         dump_notify_struct(out, n);
         n = n->next;
     }
 }
 
-void joblist_dump(int fd)
-{
+void joblist_dump(int fd) {
     struct Job *p;
     char *buffer;
 
     buffer = joblistdump_headers();
-    write(fd,buffer, strlen(buffer));
+    write(fd, buffer, strlen(buffer));
     free(buffer);
 
     /* We reuse the headers from the list */
@@ -1595,11 +1417,10 @@ void joblist_dump(int fd)
 
     /* Show Finished jobs */
     p = first_finished_job;
-    while(p != 0)
-    {
+    while (p != 0) {
         buffer = joblist_line(p);
         write(fd, "# ", 2);
-        write(fd,buffer, strlen(buffer));
+        write(fd, buffer, strlen(buffer));
         free(buffer);
         p = p->next;
     }
@@ -1608,10 +1429,9 @@ void joblist_dump(int fd)
 
     /* Show Queued or Running jobs */
     p = firstjob;
-    while(p != 0)
-    {
+    while (p != 0) {
         buffer = joblistdump_torun(p);
-        write(fd,buffer,strlen(buffer));
+        write(fd, buffer, strlen(buffer));
         free(buffer);
         p = p->next;
     }

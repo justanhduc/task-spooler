@@ -18,32 +18,30 @@
 
 #include "main.h"
 
-enum { BSIZE=1024 };
+enum {
+    BSIZE = 1024
+};
 
-static int min(int a, int b)
-{
+static int min(int a, int b) {
     if (a < b)
         return a;
     return b;
 }
 
-static int max(int a, int b)
-{
+static int max(int a, int b) {
     if (a > b)
         return a;
     return b;
 }
 
-static void tail_error(const char *str)
-{
+static void tail_error(const char *str) {
     fprintf(stderr, "%s", str);
     fprintf(stderr, ". errno: %i (%s)\n",
-                    errno, strerror(errno));
+            errno, strerror(errno));
     exit(-1);
 }
 
-static void seek_at_last_lines(int fd, int lines)
-{
+static void seek_at_last_lines(int fd, int lines) {
     char buf[BSIZE];
     int lines_found = 0;
     int last_lseek = BSIZE;
@@ -53,8 +51,7 @@ static void seek_at_last_lines(int fd, int lines)
 
     last_lseek = lseek(fd, 0, SEEK_END);
 
-    do
-    {
+    do {
         int next_read;
         next_read = min(last_lseek, BSIZE);
 
@@ -71,18 +68,15 @@ static void seek_at_last_lines(int fd, int lines)
             last_lseek = lseek(fd, 0, SEEK_SET);
 
         last_read = read(fd, buf, next_read);
-        if (last_read == -1)
-        {
+        if (last_read == -1) {
             if (errno == EINTR)
                 continue;
             tail_error("Error reading");
         }
 
 
-        for(i = last_read-1; i >= 0; --i)
-        {
-            if (buf[i] == '\n')
-            {
+        for (i = last_read - 1; i >= 0; --i) {
+            if (buf[i] == '\n') {
                 ++lines_found;
                 if (lines_found > lines)
                     /* We will use 'i' to calculate where to
@@ -90,18 +84,17 @@ static void seek_at_last_lines(int fd, int lines)
                     break;
             }
         }
-        
+
         /* Go back the read bytes */
         last_lseek = lseek(fd, -last_read, SEEK_CUR);
-    } while(lines_found < lines);
+    } while (lines_found < lines);
 
     /* Calculate the position */
-    move_offset = i+1;
+    move_offset = i + 1;
     lseek(fd, move_offset, SEEK_CUR);
 }
 
-static void set_non_blocking(int fd)
-{
+static void set_non_blocking(int fd) {
     long arg;
 
     arg = O_RDONLY | O_NONBLOCK;
@@ -109,8 +102,7 @@ static void set_non_blocking(int fd)
 }
 
 /* if last_lines == -1, go on from the start of the file */
-int tail_file(const char *fname, int last_lines)
-{
+int tail_file(const char *fname, int last_lines) {
     int fd;
     int res;
     int waiting_end = 1;
@@ -131,20 +123,17 @@ int tail_file(const char *fname, int last_lines)
     /* we don't want the next read calls to block. */
     set_non_blocking(fd);
 
-    do
-    {
+    do {
         char buf[BSIZE];
         int maxfd;
 
         FD_ZERO(&readset);
         maxfd = -1;
-        if (!endfile_reached)
-        {
+        if (!endfile_reached) {
             FD_SET(fd, &readset);
             maxfd = fd;
         }
-        if (waiting_end)
-        {
+        if (waiting_end) {
             FD_SET(server_socket, &readset);
             maxfd = max(maxfd, server_socket);
         }
@@ -154,28 +143,23 @@ int tail_file(const char *fname, int last_lines)
         maxfd = max(maxfd, server_socket);
 
         /* If we don't have fd's to wait for, let's sleep */
-        if (maxfd == -1)
-        {
+        if (maxfd == -1) {
             usleep(1 /* sec */* 1000000);
-        } else
-        {
+        } else {
             /* Otherwise, do a normal select */
-            struct timeval tv = {1 /*sec*/, 0 };
+            struct timeval tv = {1 /*sec*/, 0};
             res = select(maxfd + 1, &readset, 0, &errorset, &tv);
         }
 
-        if (FD_ISSET(server_socket, &readset))
-        {
+        if (FD_ISSET(server_socket, &readset)) {
             end_res = c_wait_job_recv();
             waiting_end = 0;
         }
 
         /* We always read when select awakes */
         res = read(fd, buf, BSIZE);
-        if (res == -1)
-        {
-            if (errno == EINTR || errno == EAGAIN)
-            {
+        if (res == -1) {
+            if (errno == EINTR || errno == EAGAIN) {
                 res = 1; /* Hack for the while condition */
                 continue;
             }
@@ -187,27 +171,22 @@ int tail_file(const char *fname, int last_lines)
         else
             endfile_reached = 0;
 
-        if (!FD_ISSET(1, &errorset))
-        {
-            while(res > 0)
-            {
+        if (!FD_ISSET(1, &errorset)) {
+            while (res > 0) {
                 int wres;
                 wres = write(1, buf, res);
                 /* Maybe the listener doesn't want to receive more */
-                if (wres < 0)
-                {
+                if (wres < 0) {
                     could_write = 0;
                     break;
                 }
                 res -= wres;
             }
-        }
-        else
-        {
+        } else {
             could_write = 0;
             break;
         }
-    } while((!endfile_reached || waiting_end) && could_write);
+    } while ((!endfile_reached || waiting_end) && could_write);
 
     close(fd);
 
