@@ -1,0 +1,5 @@
+#!/bin/bash
+
+ts -K
+sudo rm -f /usr/local/bin/ts
+sudo rm -f /usr/local/share/man/man1/ts.1
