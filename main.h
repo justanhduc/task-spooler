@@ -43,7 +43,8 @@ enum MsgTypes {
     COUNT_RUNNING,
     GET_LABEL,
     LAST_ID,
-    KILL_ALL
+    KILL_ALL,
+    GET_CMD
 };
 
 enum Request {
@@ -69,7 +70,8 @@ enum Request {
     c_COUNT_RUNNING,
     c_GET_LABEL,
     c_LAST_ID,
-    c_KILL_ALL
+    c_KILL_ALL,
+    c_SHOW_CMD
 };
 
 struct CommandLine {
@@ -255,6 +257,8 @@ void c_show_label();
 
 void c_kill_all_jobs();
 
+void c_show_cmd();
+
 /* jobs.c */
 void s_list(int s);
 
@@ -324,6 +328,8 @@ void s_kill_all_jobs(int s);
 void server_main(int notify_fd, char *_path);
 
 void dump_conns_struct(FILE *out);
+
+void s_send_cmd(int s, int jobid);
 
 /* server_start.c */
 int try_connect(int s);
