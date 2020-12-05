@@ -715,3 +715,33 @@ void c_show_label() {
     /* This will never be reached */
     return;
 }
+
+void c_show_cmd() {
+    struct Msg m;
+    int res;
+    char *string = 0;
+
+    /* Send the request */
+    m.type = GET_CMD;
+    m.u.jobid = command_line.jobid;
+    send_msg(server_socket, &m);
+
+    /* Receive the answer */
+    res = recv_msg(server_socket, &m);
+    if (res != sizeof(m))
+        error("Error in show_cmd");
+
+    switch (m.type) {
+        case LIST_LINE:
+            string = (char *) malloc(m.u.size);
+            res = recv_bytes(server_socket, string, m.u.size);
+            if (res != m.u.size)
+                error("Error in show_cmd - line size");
+
+            printf("%s", string);
+            free(string);
+            return;
+        default:
+            warning("Wrong internal message in show_cmd");
+    }
+}
