@@ -301,8 +301,6 @@ const char *jstate2string(enum Jobstate s) {
             jobstate = "finished";
             break;
         case SKIPPED:
-            jobstate = "skipped";
-            break;
         case HOLDING_CLIENT:
             jobstate = "skipped";
             break;
