@@ -84,7 +84,7 @@ void parse_opts(int argc, char **argv)
 
     /* Parse options */
     while(1) {
-        c = getopt(argc, argv, ":RVhKgClnfmBEr:a:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:");
+        c = getopt(argc, argv, ":RTVhKgClnfmBEr:a:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:");
 
         if (c == -1)
             break;
@@ -94,6 +94,9 @@ void parse_opts(int argc, char **argv)
             case 'K':
                 command_line.request = c_KILL_SERVER;
                 command_line.should_go_background = 0;
+                break;
+            case 'T':
+                command_line.request = c_KILL_ALL;
                 break;
             case 'k':
                 command_line.request = c_KILL_JOB;
@@ -377,6 +380,7 @@ static void print_help(const char *cmd)
     printf("  -r [id]  remove a job. The last added, if not specified.\n");
     printf("  -w [id]  wait for a job. The last added, if not specified.\n");
     printf("  -k [id]  send SIGTERM to the job process group. The last run, if not specified.\n");
+    printf("  -T       send SIGTERM to all running job groups.\n");
     printf("  -u [id]  put that job first. The last added, if not specified.\n");
     printf("  -U <id-id>  swap two jobs in the queue.\n");
     printf("  -B       in case of full queue on the server, quit (2) instead of waiting.\n");
@@ -476,6 +480,8 @@ int main(int argc, char **argv)
     case c_KILL_SERVER:
         if (!command_line.need_server)
             error("The command %i needs the server", command_line.request);
+        /* terminate all jobs first */
+        c_kill_all_jobs();
         c_shutdown_server();
         break;
     case c_CLEAR_FINISHED:
@@ -504,6 +510,11 @@ int main(int argc, char **argv)
         if (!command_line.need_server)
             error("The command %i needs the server", command_line.request);
         c_show_pid();
+        break;
+    case c_KILL_ALL:
+        if (!command_line.need_server)
+            error("The command %i needs the server", command_line.request);
+        c_kill_all_jobs();
         break;
     case c_KILL_JOB:
         if (!command_line.need_server)

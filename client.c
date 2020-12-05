@@ -451,6 +451,32 @@ void c_kill_job()
     kill(-pid, SIGTERM);
 }
 
+void c_kill_all_jobs() {
+    struct msg m;
+    int res;
+
+    /* Send the request */
+    m.type = KILL_ALL;
+    send_msg(server_socket, &m);
+
+    /* Receive the answer */
+    res = recv_msg(server_socket, &m);
+    if(res != sizeof(m))
+        error("Error in kill_all");
+    switch (m.type) {
+        case COUNT_RUNNING:
+            for (int i = 0; i < m.u.count_running; ++i) {
+                int pid;
+                res = recv(server_socket, &pid, sizeof(int), 0);
+                if(res != sizeof(int))
+                    error("Error in receiving PID kill_all");
+                kill(-pid, SIGTERM);
+            }
+        default:
+            warning("Wrong internal message in kill_all");
+    }
+}
+
 void c_remove_job()
 {
     struct msg m;

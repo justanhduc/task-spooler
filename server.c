@@ -410,6 +410,9 @@ static enum Break
                         m.u.output.pid);
             }
             break;
+        case KILL_ALL:
+            s_kill_all_jobs(s);
+            break;
         case LIST:
             s_list(s);
             /* We must actively close, meaning End of Lines */

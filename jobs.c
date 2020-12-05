@@ -10,6 +10,8 @@
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
+#include <sys/socket.h>
+
 #include "main.h"
 
 /* The list will access them */
@@ -170,6 +172,21 @@ static void add_notify_errorlevel_to(struct Job *job, int jobid)
     job->notify_errorlevel_to = p;
     job->notify_errorlevel_to_size += 1;
     job->notify_errorlevel_to[job->notify_errorlevel_to_size - 1] = jobid;
+}
+
+void s_kill_all_jobs(int s) {
+    struct Job *p;
+    s_count_running_jobs(s);
+
+    /* send running job PIDs */
+    p = firstjob;
+    while(p != 0)
+    {
+        if (p->state == RUNNING)
+            send(s, &p->pid, sizeof(int), 0);
+
+        p = p->next;
+    }
 }
 
 void s_count_running_jobs(int s)
