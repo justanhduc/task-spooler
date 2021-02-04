@@ -132,7 +132,18 @@ int c_wait_server_commands() {
         if (m.type == RUNJOB) {
             struct Result result;
             result.skipped = 0;
-            run_job(&result);
+            /* These will send RUNJOB_OK */
+            if (command_line.do_depend && command_line.require_elevel && m.u.last_errorlevel != 0)
+            {
+                result.errorlevel = -1;
+                result.user_ms = 0.;
+                result.system_ms = 0.;
+                result.real_ms = 0.;
+                result.skipped = 1;
+                c_send_runjob_ok(0, -1);
+            }
+            else
+                run_job(&result);
             c_end_of_job(&result);
             return result.errorlevel;
         }
