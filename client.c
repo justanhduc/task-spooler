@@ -166,6 +166,8 @@ int c_wait_server_commands() {
                         putenv(tmp);
                     }
                     free(freeList);
+                } else {
+                    putenv("CUDA_VISIBLE_DEVICES=-1");
                 }
 
                 run_job(&result);
