@@ -854,6 +854,13 @@ void s_send_runjob(int s, int jobid) {
         error("Job %i was expected to run", jobid);
 
     m.type = RUNJOB;
+
+    /* TODO
+     * We should make the dependencies update the jobids they're do_depending on.
+     * Then, on finish, these could set the errorlevel to send to its dependency childs.
+     * We cannot consider that the jobs will leave traces in the finished job list (-nf?) . */
+
+    m.u.last_errorlevel = p->dependency_errorlevel;
     send_msg(s, &m);
 }
 

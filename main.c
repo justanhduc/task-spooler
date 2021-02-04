@@ -44,6 +44,7 @@ static void default_command_line() {
     command_line.wait_enqueuing = 1;
     command_line.stderr_apart = 0;
     command_line.num_slots = 1;
+    command_line.require_elevel = 0;
     command_line.gpus = 0;
 }
 
@@ -93,7 +94,7 @@ void parse_opts(int argc, char **argv) {
 
     /* Parse options */
     while (1) {
-        c = getopt_long(argc, argv, ":RTVhKgClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:G:",
+        c = getopt_long(argc, argv, ":RTVhKgClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:G:W:",
                         longOptions, &optionIdx);
 
         if (c == -1)
@@ -224,6 +225,11 @@ void parse_opts(int argc, char **argv) {
             case 'D':
                 command_line.do_depend = 1;
                 command_line.depend_on = atoi(optarg);
+                break;
+            case 'W':
+                command_line.do_depend = 1;
+                command_line.depend_on = atoi(optarg);
+                command_line.require_elevel = 1;
                 break;
             case 'U':
                 command_line.request = c_SWAP_JOBS;
@@ -426,6 +432,7 @@ static void print_help(const char *cmd) {
     printf("  -m       send the output by e-mail (uses sendmail).\n");
     printf("  -d       the job will be run after the last job ends.\n");
     printf("  -D <id>  the job will be run after the job of given id ends.\n");
+    printf("  -W <id>  the job will be run after the job of given id ends well (exit code 0).\n");
     printf("  -L <lab> name this task with a label, to be distinguished on listing.\n");
     printf("  -N <num> number of slots required by the job (1 default).\n");
 }
