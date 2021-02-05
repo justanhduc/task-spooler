@@ -651,8 +651,6 @@ static void new_finished_job(struct Job *j) {
     }
     p->next = j;
     p->next->next = 0;
-
-    return;
 }
 
 static int job_is_in_state(int jobid, enum Jobstate state) {
