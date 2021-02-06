@@ -398,6 +398,7 @@ static void go_background() {
 }
 
 static void print_help(const char *cmd) {
+    puts(version);
     printf("usage: %s [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]\n", cmd);
     printf("Env vars:\n");
     printf("  TS_SOCKET  the path to the unix socket used by the ts command.\n");
@@ -419,36 +420,36 @@ static void print_help(const char *cmd) {
     printf("Long option adding jobs:\n");
     printf("  --gpus           || -G [num]  number of GPUs required by the job (1 default).\n");
     printf("Actions:\n");
-    printf("  -K       kill the task spooler server\n");
-    printf("  -C       clear the list of finished jobs\n");
-    printf("  -l       show the job list (default action)\n");
-    printf("  -S [num] get/set the number of max simultaneous jobs of the server.\n");
-    printf("  -t [id]  \"tail -n 10 -f\" the output of the job. Last run if not specified.\n");
-    printf("  -c [id]  like -t, but shows all the lines. Last run if not specified.\n");
-    printf("  -p [id]  show the pid of the job. Last run if not specified.\n");
-    printf("  -o [id]  show the output file. Of last job run, if not specified.\n");
-    printf("  -i [id]  show job information. Of last job run, if not specified.\n");
-    printf("  -s [id]  show the job state. Of the last added, if not specified.\n");
-    printf("  -r [id]  remove a job. The last added, if not specified.\n");
-    printf("  -w [id]  wait for a job. The last added, if not specified.\n");
-    printf("  -k [id]  send SIGTERM to the job process group. The last run, if not specified.\n");
-    printf("  -T       send SIGTERM to all running job groups.\n");
-    printf("  -u [id]  put that job first. The last added, if not specified.\n");
-    printf("  -U <id-id>  swap two jobs in the queue.\n");
-    printf("  -B       in case of full queue on the server, quit (2) instead of waiting.\n");
-    printf("  -h       show this help\n");
-    printf("  -V       show the program version\n");
+    printf("  -K           kill the task spooler server\n");
+    printf("  -C           clear the list of finished jobs\n");
+    printf("  -l           show the job list (default action)\n");
+    printf("  -S [num]     get/set the number of max simultaneous jobs of the server.\n");
+    printf("  -t [id]      \"tail -n 10 -f\" the output of the job. Last run if not specified.\n");
+    printf("  -c [id]      like -t, but shows all the lines. Last run if not specified.\n");
+    printf("  -p [id]      show the PID of the job. Last run if not specified.\n");
+    printf("  -o [id]      show the output file. Of last job run, if not specified.\n");
+    printf("  -i [id]      show job information. Of last job run, if not specified.\n");
+    printf("  -s [id]      show the job state. Of the last added, if not specified.\n");
+    printf("  -r [id]      remove a job. The last added, if not specified.\n");
+    printf("  -w [id]      wait for a job. The last added, if not specified.\n");
+    printf("  -k [id]      send SIGTERM to the job process group. The last run, if not specified.\n");
+    printf("  -T           send SIGTERM to all running job groups.\n");
+    printf("  -u [id]      put that job first. The last added, if not specified.\n");
+    printf("  -U <id-id>   swap two jobs in the queue.\n");
+    printf("  -B           in case of full queue on the server, quit (2) instead of waiting.\n");
+    printf("  -h           show this help\n");
+    printf("  -V           show the program version\n");
     printf("Options adding jobs:\n");
-    printf("  -n       don't store the output of the command.\n");
-    printf("  -E       Keep stderr apart, in a name like the output file, but adding '.e'.\n");
-    printf("  -g       gzip the stored output (if not -n).\n");
-    printf("  -f       don't fork into background.\n");
-    printf("  -m       send the output by e-mail (uses sendmail).\n");
-    printf("  -d       the job will be run after the last job ends.\n");
-    printf("  -D <id>  the job will be run after the job of given id ends.\n");
-    printf("  -W <id>  the job will be run after the job of given id ends well (exit code 0).\n");
-    printf("  -L <lab> name this task with a label, to be distinguished on listing.\n");
-    printf("  -N <num> number of slots required by the job (1 default).\n");
+    printf("  -n           don't store the output of the command.\n");
+    printf("  -E           Keep stderr apart, in a name like the output file, but adding '.e'.\n");
+    printf("  -g           gzip the stored output (if not -n).\n");
+    printf("  -f           don't fork into background.\n");
+    printf("  -m           send the output by e-mail (uses sendmail).\n");
+    printf("  -d           the job will be run after the last job ends.\n");
+    printf("  -D <id,...>  the job will be run after the job of given IDs ends.\n");
+    printf("  -W <id,...>  the job will be run after the job of given IDs ends well (exit code 0).\n");
+    printf("  -L <lab>     name this task with a label, to be distinguished on listing.\n");
+    printf("  -N <num>     number of slots required by the job (1 default).\n");
 }
 
 static void print_version() {
