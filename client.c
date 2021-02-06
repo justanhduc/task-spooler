@@ -78,7 +78,7 @@ void c_new_job() {
         m.u.newjob.label_size = 0;
     m.u.newjob.store_output = command_line.store_output;
     m.u.newjob.do_depend = command_line.do_depend;
-    m.u.newjob.depend_on = command_line.depend_on;
+    m.u.newjob.depend_on_size = command_line.depend_on_size;
     m.u.newjob.should_keep_finished = command_line.should_keep_finished;
     m.u.newjob.command_size = strlen(new_command) + 1; /* add null */
     m.u.newjob.wait_enqueuing = command_line.wait_enqueuing;
@@ -87,6 +87,10 @@ void c_new_job() {
 
     /* Send the message */
     send_msg(server_socket, &m);
+
+    /* send dependencies */
+    if (command_line.do_depend)
+        send_ints(server_socket, command_line.depend_on, command_line.depend_on_size);
 
     /* Send the command */
     send_bytes(server_socket, new_command, m.u.newjob.command_size);

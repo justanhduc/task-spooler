@@ -91,8 +91,8 @@ static char *print_noresult(const struct Job *p) {
     const char *output_filename;
     int maxlen;
     char *line;
-    /* 18 chars should suffice for a string like "[int]&& " */
-    char dependstr[18] = "";
+    /* 20 chars should suffice for a string like "[int,int,..]&& " */
+    char dependstr[20] = "";
 
     jobstate = jstate2string(p->state);
     output_filename = ofilename_shown(p);
@@ -104,10 +104,19 @@ static char *print_noresult(const struct Job *p) {
         maxlen += 3 + strlen(p->label);
     if (p->do_depend) {
         maxlen += sizeof(dependstr);
-        if (p->depend_on == -1)
-            snprintf(dependstr, sizeof(dependstr), "&& ");
+        int pos = 0;
+        if (p->depend_on[0] == -1)
+            pos += snprintf(&dependstr[pos], sizeof(dependstr), "[ ");
         else
-            snprintf(dependstr, sizeof(dependstr), "[%i]&& ", p->depend_on);
+            pos += snprintf(&dependstr[pos], sizeof(dependstr), "[%i", p->depend_on[0]);
+
+        for (int i = 1; i < p->depend_on_size; i++) {
+            if (p->depend_on[i] == -1)
+                pos += snprintf(&dependstr[pos], sizeof(dependstr), ", ");
+            else
+                pos += snprintf(&dependstr[pos], sizeof(dependstr), ",%i", p->depend_on[i]);
+        }
+        pos += snprintf(&dependstr[pos], sizeof(dependstr), "]&& ");
     }
 
     line = (char *) malloc(maxlen);
@@ -144,8 +153,8 @@ static char *print_result(const struct Job *p) {
     int maxlen;
     char *line;
     const char *output_filename;
-    /* 18 chars should suffice for a string like "[int]&& " */
-    char dependstr[18] = "";
+    /* 20 chars should suffice for a string like "[int,int,..]&& " */
+    char dependstr[20] = "";
     float real_ms = p->result.real_ms;
     char *unit = "s";
 
@@ -159,10 +168,19 @@ static char *print_result(const struct Job *p) {
         maxlen += 3 + strlen(p->label);
     if (p->do_depend) {
         maxlen += sizeof(dependstr);
-        if (p->depend_on == -1)
-            snprintf(dependstr, sizeof(dependstr), "&&");
+        int pos = 0;
+        if (p->depend_on[0] == -1)
+            pos += snprintf(&dependstr[pos], sizeof(dependstr), "[ ");
         else
-            snprintf(dependstr, sizeof(dependstr), "[%i]&&", p->depend_on);
+            pos += snprintf(&dependstr[pos], sizeof(dependstr), "[%i", p->depend_on[0]);
+
+        for (int i = 1; i < p->depend_on_size; i++) {
+            if (p->depend_on[i] == -1)
+                pos += snprintf(&dependstr[pos], sizeof(dependstr), ", ");
+            else
+                pos += snprintf(&dependstr[pos], sizeof(dependstr), ",%i", p->depend_on[i]);
+        }
+        pos += snprintf(&dependstr[pos], sizeof(dependstr), "]&& ");
     }
 
     line = (char *) malloc(maxlen);

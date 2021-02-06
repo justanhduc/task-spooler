@@ -92,7 +92,8 @@ struct CommandLine {
     int send_output_by_mail;
     int gzip;
     int do_depend;
-    int depend_on; /* -1 means depend on previous */
+    int *depend_on; /* -1 means depend on previous */
+    int depend_on_size;
     int max_slots; /* How many jobs to run at once */
     int jobid; /* When queuing a job, main.c will fill it automatically from
                   the server answer to NEWJOB */
@@ -141,7 +142,7 @@ struct Msg {
             int label_size;
             int env_size;
             int do_depend;
-            int depend_on; /* -1 means depend on previous */
+            int depend_on_size;
             int wait_enqueuing;
             int num_slots;
             int gpus;
@@ -196,7 +197,8 @@ struct Job {
     int pid;
     int should_keep_finished;
     int do_depend;
-    int depend_on;
+    int *depend_on;
+    int depend_on_size;
     int *notify_errorlevel_to;
     int notify_errorlevel_to_size;
     int dependency_errorlevel;
@@ -399,13 +401,17 @@ void block_sigint();
 void unblock_sigint_and_install_handler();
 
 /* msg.c */
-void send_bytes(const int fd, const char *data, int bytes);
+void send_bytes(int fd, const char *data, int bytes);
 
-int recv_bytes(const int fd, char *data, int bytes);
+int recv_bytes(int fd, char *data, int bytes);
 
-void send_msg(const int fd, const struct Msg *m);
+void send_msg(int fd, const struct Msg *m);
 
-int recv_msg(const int fd, struct Msg *m);
+int recv_msg(int fd, struct Msg *m);
+
+void send_ints(int fd, const int *data, int num);
+
+int *recv_ints(int fd);
 
 /* msgdump.c */
 void msgdump(FILE *, const struct Msg *m);
