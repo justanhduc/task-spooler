@@ -444,7 +444,6 @@ int s_newjob(int s, struct Msg *m) {
      * so it only matters whether the error level is 0 or not.
      * thus, summing the absolute error levels of all dependencies is sufficient.*/
     p->dependency_errorlevel = 0;
-    warning("here\n");
     if (m->u.newjob.do_depend == 1) {
         int *depend_on;
         p->depend_on = (int*) malloc(sizeof(int));
