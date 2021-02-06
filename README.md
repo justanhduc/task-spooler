@@ -13,19 +13,8 @@ which I like as overview, guide and examples (original url).
 On more advanced usage, don't neglect the TRICKS file in the package.
 
 ### Changelog
-**Minor update (Feb 4, 2021)**
 
-- Added back option to skip a job if its dependency does not end with exit code 0. 
-
-**Major update (Nov 11, 2020)**
-
-- Various functionality updates
-        
-    - Dependent jobs will run no matter what the error codes of their parents are.
-    - Adding more query information about a job.
-    - Added long options.
-
-- New task list UI.
+See [CHANGELOG](CHANGELOG.md).
 
 ## Features
 
@@ -156,16 +145,16 @@ Actions:
   -h       show this help
   -V       show the program version
 Options adding jobs:
-  -n       don't store the output of the command.
-  -E       Keep stderr apart, in a name like the output file, but adding '.e'.
-  -g       gzip the stored output (if not -n).
-  -f       don't fork into background.
-  -m       send the output by e-mail (uses sendmail).
-  -d       the job will be run after the last job ends.
-  -D <id>  the job will be run after the job of given id ends.
-  -W <id>  the job will be run after the job of given id ends well (exit code 0).
-  -L <lab> name this task with a label, to be distinguished on listing.
-  -N <num> number of slots required by the job (1 default).
+  -n           don't store the output of the command.
+  -E           Keep stderr apart, in a name like the output file, but adding '.e'.
+  -g           gzip the stored output (if not -n).
+  -f           don't fork into background.
+  -m           send the output by e-mail (uses sendmail).
+  -d           the job will be run after the last job ends.
+  -D <id,...>  the job will be run after the job of given IDs ends.
+  -W <id,...>  the job will be run after the job of given IDs ends well (exit code 0).
+  -L <lab>     name this task with a label, to be distinguished on listing.
+  -N <num>     number of slots required by the job (1 default).
 ```
 
 ## Thanks
