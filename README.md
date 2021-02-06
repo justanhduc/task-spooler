@@ -1,4 +1,4 @@
-# Task Spooler
+# GPU Task Spooler
 
 Originally, [Task Spooler by Lluís Batlle i Rossell](https://vicerveza.homeunix.net/~viric/soft/ts/).
 
