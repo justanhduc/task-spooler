@@ -39,7 +39,7 @@ static void default_command_line() {
     command_line.send_output_by_mail = 0;
     command_line.label = 0;
     command_line.do_depend = 0;
-    command_line.depend_on = -1; /* -1 means depend on previous */
+    command_line.depend_on = NULL; /* -1 means depend on previous */
     command_line.max_slots = 1;
     command_line.wait_enqueuing = 1;
     command_line.stderr_apart = 0;
@@ -73,6 +73,16 @@ static int get_two_jobs(const char *str, int *j1, int *j2) {
     *j1 = atoi(tmp);
     *j2 = atoi(tmp2);
     return 1;
+}
+
+int strtok_int(char* str, char* delim, int* ids) {
+    int count = 0;
+    char *ptr = strtok(str, delim);
+    while(ptr != NULL) {
+        ids[count++] = atoi(ptr);
+        ptr = strtok(NULL, delim);
+    }
+    return count;
 }
 
 static struct option longOptions[] = {
@@ -116,7 +126,9 @@ void parse_opts(int argc, char **argv) {
                 break;
             case 'd':
                 command_line.do_depend = 1;
-                command_line.depend_on = -1;
+                command_line.depend_on = (int*) malloc(sizeof(int));
+                command_line.depend_on_size = 1;
+                command_line.depend_on[0] = -1;
                 break;
             case 'V':
                 command_line.request = c_SHOW_VERSION;
@@ -201,11 +213,13 @@ void parse_opts(int argc, char **argv) {
                 break;
             case 'D':
                 command_line.do_depend = 1;
-                command_line.depend_on = atoi(optarg);
+                command_line.depend_on = (int*) malloc(strlen(optarg) * sizeof(int));
+                command_line.depend_on_size = strtok_int(optarg, ",", command_line.depend_on);
                 break;
             case 'W':
                 command_line.do_depend = 1;
-                command_line.depend_on = atoi(optarg);
+                command_line.depend_on = (int*) malloc(strlen(optarg) * sizeof(int));
+                command_line.depend_on_size = strtok_int(optarg, ",", command_line.depend_on);
                 command_line.require_elevel = 1;
                 break;
             case 'U':
@@ -584,6 +598,8 @@ int main(int argc, char **argv) {
     if (command_line.need_server) {
         close(server_socket);
     }
+    free(command_line.depend_on);
+    free(command_line.label);
 
     return errorlevel;
 }
