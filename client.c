@@ -441,6 +441,7 @@ void c_kill_all_jobs() {
                     error("Error in receiving PID kill_all");
                 kill(-pid, SIGTERM);
             }
+            return;
         default:
             warning("Wrong internal message in kill_all");
     }
