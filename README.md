@@ -43,8 +43,7 @@ At the end, after some time using and developing ts, it can do something more:
 
 ### Install Task Spooler
 
-To setup Task Spooler with GPU support, one needs to set a `CUDA_HOME` environment variable.
-Then, simple run the provided script
+Simple run the provided script
 
 ```
 ./install
@@ -55,12 +54,6 @@ to use CMake, or
 ```
 to use Makefile.
 
-Common problems
-* Cannot find CUDA: Did you set a `CUDA_HOME` flag?
-* `/usr/bin/ld: cannot find -lnvidia-ml`: This lib lies in `$CUDA_HOME/lib64/stubs`. 
-Please append this path to `LD_LIBRARY_PATH`.
-Sometimes, this problem persists even after adding the lib path.
-Then one can add `-L$(CUDA_HOME)/lib64/stubs` to [this line](./Makefile#L29) in the Makefile.
 
 ### Uinstall Task Spooler
 
