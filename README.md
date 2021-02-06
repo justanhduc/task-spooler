@@ -4,6 +4,8 @@ Originally, [Task Spooler by Lluís Batlle i Rossell](https://vicerveza.homeunix
 
 ## Introduction 
 
+A **CPU-only** version that is more faithful to the original Task Spooler is being actively developed in [here](https://github.com/justanhduc/task-spooler/tree/cpu-only).
+
 As in freshmeat.net:
 
 > task spooler is a Unix batch system where the tasks spooled run one after the other. The amount of jobs to run at once can be set at any time. Each user in each system has his own job queue. The tasks are run in the correct context (that of enqueue) from any shell/process, and its output/results can be easily watched. It is very useful when you know that your commands depend on a lot of RAM, a lot of disk use, give a lot of output, or for whatever reason it's better not to run them all at the same time, while you want to keep your resources busy for maximum benfit. Its interface allows using it easily in scripts. 
