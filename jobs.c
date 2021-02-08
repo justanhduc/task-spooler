@@ -43,6 +43,16 @@ static struct Job *get_job(int jobid);
 
 void notify_errorlevel(struct Job *p);
 
+static void destroy_job(struct Job* p) {
+    free(p->notify_errorlevel_to);
+    free(p->command);
+    free(p->output_filename);
+    pinfo_free(&p->info);
+    free(p->depend_on);
+    free(p->label);
+    free(p);
+}
+
 static void send_list_line(int s, const char *str) {
     struct Msg m;
 
@@ -412,6 +422,7 @@ int s_newjob(int s, struct Msg *m) {
     p->notify_errorlevel_to_size = 0;
     p->do_depend = m->u.newjob.do_depend;
     p->depend_on_size = m->u.newjob.depend_on_size;
+    p->depend_on = (int*) malloc(sizeof(int) * (p->depend_on_size + 1));
 
     /* this error level here is used internally to decide whether a job should be run or not
      * so it only matters whether the error level is 0 or not.
@@ -419,7 +430,6 @@ int s_newjob(int s, struct Msg *m) {
     p->dependency_errorlevel = 0;
     if (m->u.newjob.do_depend == 1) {
         int *depend_on;
-        p->depend_on = (int*) malloc(sizeof(int));
         depend_on = recv_ints(s);
         /* Depend on the last queued job. */
         for (int idx = 0; idx < p->depend_on_size; idx++) {
@@ -547,11 +557,7 @@ void s_removejob(int jobid) {
 
         /* First job is to be removed */
         newfirst = firstjob->next;
-        free(firstjob->command);
-        free(firstjob->output_filename);
-        pinfo_free(&firstjob->info);
-        free(firstjob->label);
-        free(firstjob);
+        destroy_job(firstjob);
         firstjob = newfirst;
         return;
     }
@@ -659,11 +665,7 @@ static void new_finished_job(struct Job *j) {
         struct Job *tmp;
         tmp = first_finished_job;
         first_finished_job = first_finished_job->next;
-        free(tmp->command);
-        free(tmp->output_filename);
-        pinfo_free(&tmp->info);
-        free(tmp->label);
-        free(tmp);
+        destroy_job(tmp);
     }
     p->next = j;
     p->next->next = 0;
@@ -776,11 +778,7 @@ void s_clear_finished() {
     while (p != 0) {
         struct Job *tmp;
         tmp = p->next;
-        free(p->command);
-        free(p->output_filename);
-        pinfo_free(&p->info);
-        free(p->label);
-        free(p);
+        destroy_job(p);
         p = tmp;
     }
 }
@@ -1048,12 +1046,7 @@ int s_remove_job(int s, int *jobid) {
     else
         before_p->next = p->next;
 
-    free(p->notify_errorlevel_to);
-    free(p->command);
-    free(p->output_filename);
-    pinfo_free(&p->info);
-    free(p->label);
-    free(p);
+    destroy_job(p);
 
     m.type = REMOVEJOB_OK;
     send_msg(s, &m);
@@ -1148,12 +1141,7 @@ static void destroy_finished_job(struct Job *j) {
         }
     }
 
-    free(j->notify_errorlevel_to);
-    free(j->command);
-    free(j->output_filename);
-    pinfo_free(&j->info);
-    free(j->label);
-    free(j);
+    destroy_job(j);
 }
 
 /* This is called when a job finishes */
