@@ -12,7 +12,7 @@ enum {
     PROTOCOL_VERSION = 730
 };
 
-enum msg_types {
+enum MsgTypes {
     KILL_SERVER,
     NEWJOB,
     NEWJOB_OK,
@@ -116,7 +116,6 @@ enum Process_type {
 };
 
 extern struct CommandLine command_line;
-extern int server_socket;
 extern enum Process_type process_type;
 extern int server_socket; /* Used in the client */
 
@@ -132,7 +131,7 @@ enum Jobstate {
 };
 
 struct Msg {
-    enum msg_types type;
+    enum MsgTypes type;
 
     union {
         struct {
