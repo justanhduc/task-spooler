@@ -422,20 +422,27 @@ int s_newjob(int s, struct Msg *m) {
     p->notify_errorlevel_to_size = 0;
     p->do_depend = m->u.newjob.do_depend;
     p->depend_on_size = m->u.newjob.depend_on_size;
-    p->depend_on = (int*) malloc(sizeof(int) * (p->depend_on_size + 1));
+    p->depend_on = 0;
 
     /* this error level here is used internally to decide whether a job should be run or not
      * so it only matters whether the error level is 0 or not.
      * thus, summing the absolute error levels of all dependencies is sufficient.*/
     p->dependency_errorlevel = 0;
-    if (m->u.newjob.do_depend == 1) {
+    if (m->u.newjob.do_depend) {
         int *depend_on;
         depend_on = recv_ints(s);
+
         /* Depend on the last queued job. */
-        for (int idx = 0; idx < p->depend_on_size; idx++) {
+        int idx = 0;
+        for (int i = 0; i < p->depend_on_size; i++) {
+            /* filter out dependencies that are current jobs */
+            if (depend_on[i] == p->jobid)
+                continue;
+
+            p->depend_on = (int*) realloc(p->depend_on, (idx + 1) * sizeof(int));
             /* As we already have 'p' in the queue,
              * neglect it during the find_last_jobid_in_queue() */
-            if (depend_on[idx] == -1) {
+            if (depend_on[i] == -1) {
                 p->depend_on[idx] = find_last_jobid_in_queue(p->jobid);
 
                 /* We don't trust the last jobid in the queue (running or queued)
@@ -458,7 +465,7 @@ int s_newjob(int s, struct Msg *m) {
                                 p->depend_on[idx]);
                 } else /* Otherwise take the finished job, or the last_errorlevel */
                 {
-                    if (depend_on[idx] == -1) {
+                    if (depend_on[i] == -1) {
                         int ljobid = find_last_stored_jobid_finished();
                         p->depend_on[idx] = ljobid;
 
@@ -480,10 +487,9 @@ int s_newjob(int s, struct Msg *m) {
             } else {
                 /* The user decided what's the job this new job depends on */
                 struct Job *depended_job;
-
-                p->depend_on[idx] = depend_on[idx];
-
+                p->depend_on[idx] = depend_on[i];
                 depended_job = findjob(p->depend_on[idx]);
+
                 if (depended_job != 0)
                     add_notify_errorlevel_to(depended_job, p->jobid);
                 else {
@@ -498,11 +504,17 @@ int s_newjob(int s, struct Msg *m) {
                     }
                 }
             }
+            idx++;
         }
         free(depend_on);
-    } else
-        p->depend_on = NULL; /* By default. May be overriden in the next conditions */
+        p->depend_on_size = idx;
+    }
 
+    /* if dependency list is empty after removing invalid dependencies, make it independent */
+    if (p->do_depend && p->depend_on_size == 0) {
+        p->depend_on = 0;
+        p->do_depend = 0;
+    }
 
     pinfo_init(&p->info);
     pinfo_set_enqueue_time(&p->info);
