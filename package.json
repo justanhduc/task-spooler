@@ -1,0 +1,8 @@
+{
+    "auto-changelog": {
+        "output": "CHANGELOG.md",
+        "unreleased": true,
+        "commitLimit": false,
+        "tagPattern": "^((?!-cpu).)*$"
+    }
+}
