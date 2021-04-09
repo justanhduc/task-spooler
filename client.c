@@ -84,6 +84,7 @@ void c_new_job() {
     m.u.newjob.wait_enqueuing = command_line.wait_enqueuing;
     m.u.newjob.num_slots = command_line.num_slots;
     m.u.newjob.gpus = command_line.gpus;
+    m.u.newjob.wait_free_gpus = command_line.wait_free_gpus;
 
     /* Send the message */
     send_msg(server_socket, &m);
@@ -147,29 +148,36 @@ int c_wait_server_commands() {
                 c_send_runjob_ok(0, -1);
             } else {
                 if (command_line.gpus) {
-                    int numFree;
-                    int *freeList = getFreeGpuList(&numFree);
-                    if ((command_line.gpus > numFree)) {
-                        result.errorlevel = -1;
-                        result.user_ms = 0.;
-                        result.system_ms = 0.;
-                        result.real_ms = 0.;
-                        result.skipped = 1;
-                        c_send_runjob_ok(0, -1);
-                    } else {
+                    if (command_line.gpu_nums) {
                         char tmp[50];
                         strcpy(tmp, "CUDA_VISIBLE_DEVICES=");
-                        shuffle(freeList, numFree);
-                        for (int i = 0; i < command_line.gpus; i++) {
-                            char tmp2[5];
-                            sprintf(tmp2, "%d", freeList[i]);
-                            strcat(tmp, tmp2);
-                            if (i < command_line.gpus - 1)
-                                strcat(tmp, ",");
-                        }
+                        strcat(tmp, command_line.gpu_nums);
                         putenv(tmp);
+                    } else {
+                        int numFree;
+                        int *freeList = getFreeGpuList(&numFree);
+                        if ((command_line.gpus > numFree)) {
+                            result.errorlevel = -1;
+                            result.user_ms = 0.;
+                            result.system_ms = 0.;
+                            result.real_ms = 0.;
+                            result.skipped = 1;
+                            c_send_runjob_ok(0, -1);
+                        } else {
+                            char tmp[50];
+                            strcpy(tmp, "CUDA_VISIBLE_DEVICES=");
+                            shuffle(freeList, numFree);
+                            for (int i = 0; i < command_line.gpus; i++) {
+                                char tmp2[5];
+                                sprintf(tmp2, "%d", freeList[i]);
+                                strcat(tmp, tmp2);
+                                if (i < command_line.gpus - 1)
+                                    strcat(tmp, ",");
+                            }
+                            putenv(tmp);
+                        }
+                        free(freeList);
                     }
-                    free(freeList);
                 } else {
                     putenv("CUDA_VISIBLE_DEVICES=-1");
                 }

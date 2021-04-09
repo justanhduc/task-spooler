@@ -107,6 +107,8 @@ struct CommandLine {
     int num_slots; /* Slots for the job to use. Default 1 */
     int require_elevel;  /* whether requires error level of dependencies or not */
     int gpus;
+    char *gpu_nums;
+    int wait_free_gpus;
     int gpu_wait_time;
 };
 
@@ -145,6 +147,7 @@ struct Msg {
             int wait_enqueuing;
             int num_slots;
             int gpus;
+            int wait_free_gpus;
         } newjob;
         struct {
             int ofilename_size;
@@ -205,6 +208,7 @@ struct Job {
     struct Procinfo info;
     int num_slots;
     int gpus;
+    int wait_free_gpus;
 };
 
 enum ExitCodes {

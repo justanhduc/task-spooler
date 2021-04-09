@@ -46,6 +46,7 @@ static void default_command_line() {
     command_line.num_slots = 1;
     command_line.require_elevel = 0;
     command_line.gpus = 0;
+    command_line.wait_free_gpus = 1;
 }
 
 void get_command(int index, int argc, char **argv) {
@@ -91,6 +92,7 @@ static struct option longOptions[] = {
         {"count_running", no_argument,       NULL, 'R'},
         {"last_queue_id", no_argument,       NULL, 'q'},
         {"gpus",          required_argument, NULL, 'G'},
+        {"gpu_indices",   required_argument, NULL, 'g'},
         {"set_gpu_wait",  required_argument, NULL, 0},
         {"get_gpu_wait",  no_argument,       NULL, 0},
         {"full_cmd",      optional_argument, NULL, 'F'},
@@ -104,7 +106,7 @@ void parse_opts(int argc, char **argv) {
 
     /* Parse options */
     while (1) {
-        c = getopt_long(argc, argv, ":RTVhKgClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:G:W:",
+        c = getopt_long(argc, argv, ":RTVhKzClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:G:W:g:",
                         longOptions, &optionIdx);
 
         if (c == -1)
@@ -167,7 +169,7 @@ void parse_opts(int argc, char **argv) {
             case 'L':
                 command_line.label = optarg;
                 break;
-            case 'g':
+            case 'z':
                 command_line.gzip = 1;
                 break;
             case 'f':
@@ -181,6 +183,12 @@ void parse_opts(int argc, char **argv) {
                     command_line.gpus = atoi(optarg);
                 else
                     command_line.gpus = 1;
+                break;
+            case 'g':
+                command_line.gpu_nums = optarg;
+                int *foo = (int*) malloc(strlen(optarg) * sizeof(int));;
+                command_line.gpus = strtok_int(optarg, ",", foo);
+                command_line.wait_free_gpus = 0;
                 break;
             case 't':
                 command_line.request = c_TAIL;
@@ -442,7 +450,7 @@ static void print_help(const char *cmd) {
     printf("Options adding jobs:\n");
     printf("  -n           don't store the output of the command.\n");
     printf("  -E           Keep stderr apart, in a name like the output file, but adding '.e'.\n");
-    printf("  -g           gzip the stored output (if not -n).\n");
+    printf("  -z           gzip the stored output (if not -n).\n");
     printf("  -f           don't fork into background.\n");
     printf("  -m           send the output by e-mail (uses sendmail).\n");
     printf("  -d           the job will be run after the last job ends.\n");
@@ -450,6 +458,7 @@ static void print_help(const char *cmd) {
     printf("  -W <id,...>  the job will be run after the job of given IDs ends well (exit code 0).\n");
     printf("  -L <lab>     name this task with a label, to be distinguished on listing.\n");
     printf("  -N <num>     number of slots required by the job (1 default).\n");
+    printf("  -g <id,...>  the job will be on these GPU indices without checking whether they are free.\n");
 }
 
 static void print_version() {

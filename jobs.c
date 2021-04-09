@@ -442,6 +442,8 @@ int s_newjob(int s, struct Msg *m) {
         p->state = (p->gpus) ? ALLOCATING : QUEUED;
     else
         p->state = HOLDING_CLIENT;
+    p->wait_free_gpus = m->u.newjob.wait_free_gpus;
+
     p->num_slots = m->u.newjob.num_slots;
     p->store_output = m->u.newjob.store_output;
     p->should_keep_finished = m->u.newjob.should_keep_finished;
@@ -638,7 +640,7 @@ int next_run_job() {
     p = firstjob;
     while (p != 0) {
         if (p->state == QUEUED || p->state == ALLOCATING) {
-            if (p->gpus) {
+            if (p->gpus && p->wait_free_gpus) {
                 /* GPU mem takes some time to be allocated,
                  * so two consecutive jobs can use the same GPU,
                  * so we need to spare some time between two GPU jobs.
