@@ -419,14 +419,15 @@ static void print_help(const char *cmd) {
     printf("  TS_SLOTS   amount of jobs which can run at once, read on server start.\n");
     printf("  TMPDIR     directory where to place the output files and the default socket.\n");
     printf("Long option actions:\n");
-    printf("  --set_gpu_wait   <sec>        set time to wait before running the next GPU job (30 seconds by default).\n");
-    printf("  --get_gpu_wait                get time to wait before running the next GPU job.\n");
-    printf("  --get_label      || -a [id]   show the job label. Of the last added, if not specified.\n");
-    printf("  --full_cmd       || -F [id]   show full command. Of the last added, if not specified.\n");
-    printf("  --count_running  || -R        return the number of running jobs\n");
-    printf("  --last_queue_id  || -q        show the job ID of the last added.\n");
+    printf("  --set_gpu_wait   <sec>          set time to wait before running the next GPU job (30 seconds by default).\n");
+    printf("  --get_gpu_wait                  get time to wait before running the next GPU job.\n");
+    printf("  --get_label      || -a [id]     show the job label. Of the last added, if not specified.\n");
+    printf("  --full_cmd       || -F [id]     show full command. Of the last added, if not specified.\n");
+    printf("  --count_running  || -R          return the number of running jobs\n");
+    printf("  --last_queue_id  || -q          show the job ID of the last added.\n");
     printf("Long option adding jobs:\n");
-    printf("  --gpus           || -G [num]  number of GPUs required by the job (1 default).\n");
+    printf("  --gpus           || -G [num]    number of GPUs required by the job (1 default).\n");
+    printf("  --gpu_indices    || -g <id,...> the job will be on these GPU indices without checking whether they are free.\n");
     printf("Actions:\n");
     printf("  -K           kill the task spooler server\n");
     printf("  -C           clear the list of finished jobs\n");
@@ -458,7 +459,6 @@ static void print_help(const char *cmd) {
     printf("  -W <id,...>  the job will be run after the job of given IDs ends well (exit code 0).\n");
     printf("  -L <lab>     name this task with a label, to be distinguished on listing.\n");
     printf("  -N <num>     number of slots required by the job (1 default).\n");
-    printf("  -g <id,...>  the job will be on these GPU indices without checking whether they are free.\n");
 }
 
 static void print_version() {

@@ -135,14 +135,15 @@ Env vars:
   TS_SLOTS   amount of jobs which can run at once, read on server start.
   TMPDIR     directory where to place the output files and the default socket.
 Long option actions:
-  --set_gpu_wait   <sec>        set time to wait before running the next GPU job (30 seconds by default).
-  --get_gpu_wait                get time to wait before running the next GPU job.
-  --get_label      || -a [id]   show the job label. Of the last added, if not specified.
-  --full_cmd       || -F [id]   show full command. Of the last added, if not specified.
-  --count_running  || -R        return the number of running jobs
-  --last_queue_id  || -q        show the job ID of the last added.
+  --set_gpu_wait   <sec>          set time to wait before running the next GPU job (30 seconds by default).
+  --get_gpu_wait                  get time to wait before running the next GPU job.
+  --get_label      || -a [id]     show the job label. Of the last added, if not specified.
+  --full_cmd       || -F [id]     show full command. Of the last added, if not specified.
+  --count_running  || -R          return the number of running jobs
+  --last_queue_id  || -q          show the job ID of the last added.
 Long option adding jobs:
-  --gpus           || -G [num]  number of GPUs required by the job (1 default).
+  --gpus           || -G [num]    number of GPUs required by the job (1 default).
+  --gpu_indices    || -g <id,...> the job will be on these GPU indices without checking whether they are free.
 Actions:
   -K          kill the task spooler server
   -C          clear the list of finished jobs
@@ -166,7 +167,7 @@ Actions:
 Options adding jobs:
   -n           don't store the output of the command.
   -E           Keep stderr apart, in a name like the output file, but adding '.e'.
-  -g           gzip the stored output (if not -n).
+  -z           gzip the stored output (if not -n).
   -f           don't fork into background.
   -m           send the output by e-mail (uses sendmail).
   -d           the job will be run after the last job ends.
