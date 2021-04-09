@@ -18,6 +18,10 @@ On more advanced usage, don't neglect the TRICKS file in the package.
 
 See [CHANGELOG](CHANGELOG.md).
 
+## Tutorial
+
+A tutorial with colab is available [here](https://librecv.github.io/blog/spooler/task%20manager/deep%20learning/2021/02/09/task-spooler.html).
+
 ## Features
 
 I wrote Task Spooler because I didn't have any comfortable way of running batch jobs in my linux computer. I wanted to:
@@ -69,7 +73,7 @@ to use CMake, or
 ```
 to use Makefile.
 
-Common problems
+#### Common problems
 * Cannot find CUDA: Did you set a `CUDA_HOME` flag?
 * `/usr/bin/ld: cannot find -lnvidia-ml`: This lib lies in `$CUDA_HOME/lib64/stubs`. 
 Please append this path to `LD_LIBRARY_PATH`.
@@ -192,3 +196,7 @@ Options adding jobs:
 * To Pascal Bleser, for the SuSE packages.
 * To Sergio Ballestrero, who sent code and motivated the development of a multislot version of ts.
 * To GNU, an ugly but working and helpful ol' UNIX implementation. 
+
+## Related projects
+
+[Messenger](https://github.com/justanhduc/messenger)
