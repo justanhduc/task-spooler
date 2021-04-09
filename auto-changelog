@@ -1,0 +1,3 @@
+auto-changelog
+git add CHANGELOG.md
+git commit -m "update changelog"
