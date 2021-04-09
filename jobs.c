@@ -534,8 +534,8 @@ int s_newjob(int s, struct Msg *m) {
         char *ptr;
         ptr = (char *) malloc(m->u.newjob.label_size);
         if (ptr == 0)
-            error("Cannot allocate memory in s_newjob env_size(%i)",
-                  m->u.newjob.env_size);
+            error("Cannot allocate memory in s_newjob label_size(%i)",
+                  m->u.newjob.label_size);
         res = recv_bytes(s, ptr, m->u.newjob.label_size);
         if (res == -1)
             error("wrong bytes received");
