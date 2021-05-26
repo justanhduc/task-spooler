@@ -91,21 +91,25 @@ void send_ints(const int fd, const int* data, int num) {
     if (res == -1)
         warning("Sending to %i.", fd);
 
-    res = write(fd, data, num * sizeof(int));
-    if (res == -1)
-        warning("Sending %i bytes to %i.", num * sizeof(int), fd);
+    if (num) {
+        res = write(fd, data, num * sizeof(int));
+        if (res == -1)
+            warning("Sending %i bytes to %i.", num * sizeof(int), fd);
+    }
 }
 
-int *recv_ints(const int fd) {
+int *recv_ints(const int fd, int *num) {
     int res;
-    int num;
-    res = read(fd, &num, sizeof(int));
+    res = read(fd, num, sizeof(int));
     if (res == -1)
         warning("Receiving from %i.", fd);
 
-    int *data = (int*) malloc(num * sizeof(int));
-    res = read(fd, data, sizeof(int) * num);
-    if (res == -1)
-        warning("Receiving %i bytes from %i.", sizeof(int) * num, fd);
+    int *data = 0;
+    if (*num) {
+        data = (int *) malloc(*num * sizeof(int));
+        res = read(fd, data, sizeof(int) * *num);
+        if (res == -1)
+            warning("Receiving %i bytes from %i.", sizeof(int) * *num, fd);
+    }
     return data;
 }

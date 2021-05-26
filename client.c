@@ -78,7 +78,6 @@ void c_new_job() {
         m.u.newjob.label_size = 0;
     m.u.newjob.store_output = command_line.store_output;
     m.u.newjob.do_depend = command_line.do_depend;
-    m.u.newjob.depend_on_size = command_line.depend_on_size;
     m.u.newjob.should_keep_finished = command_line.should_keep_finished;
     m.u.newjob.command_size = strlen(new_command) + 1; /* add null */
     m.u.newjob.wait_enqueuing = command_line.wait_enqueuing;
@@ -155,7 +154,7 @@ int c_wait_server_commands() {
                         putenv(tmp);
                     } else {
                         int numFree;
-                        int *freeList = getFreeGpuList(&numFree);
+                        int *freeGpuList = getFreeGpuList(&numFree);
                         if ((command_line.gpus > numFree)) {
                             result.errorlevel = -1;
                             result.user_ms = 0.;
@@ -166,17 +165,17 @@ int c_wait_server_commands() {
                         } else {
                             char tmp[50];
                             strcpy(tmp, "CUDA_VISIBLE_DEVICES=");
-                            shuffle(freeList, numFree);
+                            shuffle(freeGpuList, numFree);
                             for (int i = 0; i < command_line.gpus; i++) {
                                 char tmp2[5];
-                                sprintf(tmp2, "%d", freeList[i]);
+                                sprintf(tmp2, "%d", freeGpuList[i]);
                                 strcat(tmp, tmp2);
                                 if (i < command_line.gpus - 1)
                                     strcat(tmp, ",");
                             }
                             putenv(tmp);
                         }
-                        free(freeList);
+                        free(freeGpuList);
                     }
                 } else {
                     putenv("CUDA_VISIBLE_DEVICES=-1");

@@ -143,7 +143,6 @@ struct Msg {
             int label_size;
             int env_size;
             int do_depend;
-            int depend_on_size;
             int wait_enqueuing;
             int num_slots;
             int gpus;
@@ -414,7 +413,7 @@ int recv_msg(int fd, struct Msg *m);
 
 void send_ints(int fd, const int *data, int num);
 
-int *recv_ints(int fd);
+int *recv_ints(int fd, int *num);
 
 /* msgdump.c */
 void msgdump(FILE *, const struct Msg *m);
