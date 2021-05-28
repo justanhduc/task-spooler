@@ -5,14 +5,14 @@
 .\" that should have been distributed together with this file.
 .\" 
 .\" Note: I took the gnu 'ls' man page as an example.
-.TH TS 1 2016-03 "Task Spooler 1.0"
+.TH TS 1 2021-05 "Task Spooler 1.2"
 .SH NAME
 ts \- task spooler. A simple unix batch system
 .SH SYNOPSIS
 .BI "ts [" actions "] [" options "] [" command... ]
 .sp
 Actions:
-.BI "[\-KClhV]
+.BI "[\-KClhVTRq]
 .BI "[\-t ["id ]]
 .BI "[\-c ["id ]]
 .BI "[\-p ["id ]]
@@ -25,11 +25,14 @@ Actions:
 .BI "[\-i ["id ]]
 .BI "[\-U <"id - id >]
 .BI "[\-S ["num ]]
+.BI "[\-a/--get_label ["id ]]
+.BI "[\-F/--full_cmd ["id ]]
+
 .sp
 Options:
-.BI "[\-nfgmd]"
+.BI "[\-nEfzmd]"
 .BI "[\-L <"label >]
-.BI "[\-D <"id >]
+.BI "[\-D <"id1,id2,... >]
 
 .SH DESCRIPTION
 .B ts
@@ -42,8 +45,8 @@ Calling
 with a command will add that command to the queue, and calling it without
 commands or parameters will show the task list.
 .SH COMMAND OPTIONS
-When adding a job to ts, we can specify how it will be run and how will the
-results be collected:
+When adding a job to ts, we can specify how it will be run and how the
+results will be collected:
 .TP
 .B "\-n"
 Do not store the standard output/error in a file at
@@ -51,7 +54,7 @@ Do not store the standard output/error in a file at
 - let it use the
 file descriptors decided by the calling process. If it is not used, the
 .B jobid
-for the new task will be outputed to stdout.
+for the new task will be output to stdout.
 .TP
 .B "\-g"
 Pass the output through gzip (only if
@@ -80,11 +83,14 @@ the queue. It makes more comfortable distinguishing similar commands with
 different goals.
 .TP
 .B "\-d"
-Run the command only if the command before finished well (errorlevel = 0). This new
-task enqueued depends on the result of the previous command. If the task is not run,
-it is considered as failed for further dependencies.
+Run the command only after the last command finished.
+It does not depend on how its dependency ends.
 .TP
-.B "\-D <id>"
+.B "\-D <id,...>"
+Run the command only after the specified job IDs finished.
+It does not depend on how its dependencies end.
+.TP
+.B "\-W <id,...>"
 Run the command only if the job of given id finished well (errorlevel = 0). This new
 task enqueued depends on the result of the previous command. If the task is not run,
 it is considered as failed for further dependencies.
@@ -124,6 +130,9 @@ It is not reliable to think that
 .B ts -K
 will finish when the server is really killed. By now it is a race condition.
 .TP
+.B "\-T"
+Send SIGTERM to all running job groups.
+.TP
 .B "\-C"
 Clear the results of finished jobs from the queue.
 .TP
@@ -132,6 +141,18 @@ Show the list of jobs - to be run, running and finished - for the current queue.
 This is the default behaviour if
 .B ts
 is called without options.
+.TP
+.B "\-q/--last_queue_id"
+Show the job ID of the last added.
+.TP
+.B "\-R/--count_running"
+Return the number of running jobs
+.TP
+.B "\-a/--get_label <id>"
+Show the job label. Of the last added, if not specified.
+.TP
+.B "\-F/--full_cmd <id>"
+Show the full command. Of the last added, if not specified.
 .TP
 .B "\-t [id]"
 Show the last ten lines of the output file of the named job, or the last
@@ -310,11 +331,11 @@ is created, which you can submit to the developer in order to fix the bug.
 .SH SEE ALSO
 .BR at (1)
 .SH AUTHOR
-Lluis Batlle i Rossell
+Duc Nguyen and Lluis Batlle i Rossell
 .SH NOTES
 This page describes
 .B ts
-as in version 1.0. Other versions may differ. The file
+as in version 1.2. Other versions may differ. The file
 .B TRICKS
 found in the distribution package can show some ideas on special uses of
 .B ts.

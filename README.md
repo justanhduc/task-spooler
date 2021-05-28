@@ -1,6 +1,6 @@
 # Task Spooler
 
-Originally, [Task Spooler](https://vicerveza.homeunix.net/~viric/soft/ts/) by Lluís Batlle i Rossell.
+Originally, [Task Spooler by Lluís Batlle i Rossell](https://vicerveza.homeunix.net/~viric/soft/ts/).
 
 ## Introduction 
 
@@ -15,6 +15,10 @@ On more advanced usage, don't neglect the TRICKS file in the package.
 ### Changelog
 
 See [CHANGELOG](CHANGELOG.md).
+
+## Tutorial
+
+A tutorial with colab is available [here](https://librecv.github.io/blog/spooler/task%20manager/deep%20learning/2021/02/09/task-spooler.html).
 
 ## Features
 
@@ -54,6 +58,12 @@ to use CMake, or
 ```
 to use Makefile.
 
+#### Common problems
+* Cannot find CUDA: Did you set a `CUDA_HOME` flag?
+* `/usr/bin/ld: cannot find -lnvidia-ml`: This lib lies in `$CUDA_HOME/lib64/stubs`. 
+Please append this path to `LD_LIBRARY_PATH`.
+Sometimes, this problem persists even after adding the lib path.
+Then one can add `-L$(CUDA_HOME)/lib64/stubs` to [this line](./Makefile#L29) in the Makefile.
 
 ### Uinstall Task Spooler
 
@@ -78,11 +88,7 @@ When the job finishes, the client notifies the server. At this time, the server 
 
 Moreover the client can take advantage of many information from the server: when a job finishes, where does the job output go to, etc.
 
-## Download
-
-Download the latest version (GPLv2+ licensed): ts-1.0.tar.gz - v1.0 (2016-10-19) - Changelog
-
-Look at the version repository if you are interested in its development.
+## History 
 
 Андрей Пантюхин (Andrew Pantyukhin) maintains the BSD port.
 
@@ -96,10 +102,11 @@ Gnomeye maintains the AUR package.
 
 Eric Keller wrote a nodejs web server showing the status of the task spooler queue (github project).
 
+Duc Nguyen took the project and develops a GPU-support version.
 
 ## Manual
 
-**NOTE**: `man ts` is not updated (yet).
+See below or `man ts` for more details.
 
 ```
 usage: ts [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]
@@ -140,7 +147,7 @@ Actions:
 Options adding jobs:
   -n           don't store the output of the command.
   -E           Keep stderr apart, in a name like the output file, but adding '.e'.
-  -g           gzip the stored output (if not -n).
+  -z           gzip the stored output (if not -n).
   -f           don't fork into background.
   -m           send the output by e-mail (uses sendmail).
   -d           the job will be run after the last job ends.
@@ -153,8 +160,8 @@ Options adding jobs:
 ## Thanks
 
 **Author**
-  - Lluís Batlle i Rossell, <lluis@vicerveza.homeunix.net>
-  - Duc Nguyen, <adnguyen@yonsei.ac.kr>
+- Duc Nguyen, <adnguyen@yonsei.ac.kr>
+- Lluís Batlle i Rossell, <lluis@vicerveza.homeunix.net>
 
 **Acknowledgement**
 * To Raúl Salinas, for his inspiring ideas
@@ -165,3 +172,7 @@ Options adding jobs:
 * To Pascal Bleser, for the SuSE packages.
 * To Sergio Ballestrero, who sent code and motivated the development of a multislot version of ts.
 * To GNU, an ugly but working and helpful ol' UNIX implementation. 
+
+## Related projects
+
+[Messenger](https://github.com/justanhduc/messenger)

@@ -25,7 +25,7 @@ int server_socket;
 static char getopt_env[] = "POSIXLY_CORRECT=YES";
 static char *old_getopt_env;
 
-static char version[] = "Task Spooler v1.1 - a task queue system for the unix user.\n"
+static char version[] = "Task Spooler v1.2 - a task queue system for the unix user.\n"
                         "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell";
 
 
@@ -409,10 +409,10 @@ static void print_help(const char *cmd) {
     printf("  -T           send SIGTERM to all running job groups.\n");
     printf("  -u [id]      put that job first. The last added, if not specified.\n");
     printf("  -U <id-id>   swap two jobs in the queue.\n");
-    printf("  -B           in case of full queue on the server, quit (2) instead of waiting.\n");
     printf("  -h           show this help\n");
     printf("  -V           show the program version\n");
     printf("Options adding jobs:\n");
+    printf("  -B           in case of full clients on the server, quit instead of waiting.\n");
     printf("  -n           don't store the output of the command.\n");
     printf("  -E           Keep stderr apart, in a name like the output file, but adding '.e'.\n");
     printf("  -z           gzip the stored output (if not -n).\n");
