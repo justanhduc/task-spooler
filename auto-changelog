@@ -1,3 +1,5 @@
+#!/bin/bash
+
 auto-changelog --sort-commits date-desc
 git add CHANGELOG.md
 git commit -m "update changelog"
