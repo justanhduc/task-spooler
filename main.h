@@ -206,7 +206,7 @@ struct Job {
     char *label;
     struct Procinfo info;
     int num_slots;
-    int gpus;
+    int num_gpus;
     int wait_free_gpus;
 };
 

@@ -314,7 +314,7 @@ int wake_hold_client() {
     struct Job *p;
     p = findjob_holding_client();
     if (p) {
-        p->state = (p->gpus) ? ALLOCATING : QUEUED;
+        p->state = (p->num_gpus) ? ALLOCATING : QUEUED;
         return p->jobid;
     }
     return -1;
@@ -438,9 +438,9 @@ int s_newjob(int s, struct Msg *m) {
     p = newjobptr();
 
     p->jobid = jobids++;
-    p->gpus = m->u.newjob.gpus;
+    p->num_gpus = m->u.newjob.gpus;
     if (count_not_finished_jobs() < max_jobs)
-        p->state = (p->gpus) ? ALLOCATING : QUEUED;
+        p->state = (p->num_gpus) ? ALLOCATING : QUEUED;
     else
         p->state = HOLDING_CLIENT;
     p->wait_free_gpus = m->u.newjob.wait_free_gpus;
@@ -639,7 +639,7 @@ int next_run_job() {
     p = firstjob;
     while (p != 0) {
         if (p->state == QUEUED || p->state == ALLOCATING) {
-            if (p->gpus && p->wait_free_gpus) {
+            if (p->num_gpus && p->wait_free_gpus) {
                 /* GPU mem takes some time to be allocated,
                  * so two consecutive jobs can use the same GPU,
                  * so we need to spare some time between two GPU jobs.
@@ -666,7 +666,7 @@ int next_run_job() {
                 int *list = getFreeGpuList(&numFree);
                 free(list);
 
-                if (numFree < p->gpus) {
+                if (numFree < p->num_gpus) {
                     /* if fewer GPUs than required then next */
                     p = p->next;
                     continue;
@@ -694,7 +694,7 @@ int next_run_job() {
 
             if (free_slots >= p->num_slots) {
                 busy_slots = busy_slots + p->num_slots;
-                if (p->gpus)
+                if (p->num_gpus)
                     time(&last_gpu_run_time);
                 return p->jobid;
             }
@@ -947,6 +947,7 @@ void s_job_info(int s, int jobid) {
     write(s, p->command, strlen(p->command));
     fd_nprintf(s, 100, "\n");
     fd_nprintf(s, 100, "Slots required: %i\n", p->num_slots);
+    fd_nprintf(s, 100, "GPUs required: %d\n", p->num_gpus);
     fd_nprintf(s, 100, "Enqueue time: %s",
                ctime(&p->info.enqueue_time.tv_sec));
     if (p->state == RUNNING) {

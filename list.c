@@ -130,7 +130,7 @@ static char *print_noresult(const struct Job *p) {
                  output_filename,
                  "",
                  "",
-                 p->gpus,
+                 p->num_gpus,
                  dependstr,
                  shorten(p->label, 10),
                  shorten(p->command, 20));
@@ -141,7 +141,7 @@ static char *print_noresult(const struct Job *p) {
                  output_filename,
                  "",
                  "",
-                 p->gpus,
+                 p->num_gpus,
                  dependstr,
                  shorten(p->command, 20));
 
@@ -210,7 +210,7 @@ static char *print_result(const struct Job *p) {
                  p->result.errorlevel,
                  real_ms,
                  unit,
-                 p->gpus,
+                 p->num_gpus,
                  dependstr,
                  shorten(p->label, 10),
                  shorten(p->command, 20));
@@ -222,7 +222,7 @@ static char *print_result(const struct Job *p) {
                  p->result.errorlevel,
                  real_ms,
                  unit,
-                 p->gpus,
+                 p->num_gpus,
                  dependstr,
                  shorten(p->command, 20));
 
