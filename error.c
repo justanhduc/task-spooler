@@ -18,9 +18,11 @@
 
 #include "main.h"
 
-enum Etype {
+enum Etype
+{
     WARNING,
-    ERROR
+    ERROR,
+    DEBUG
 };
 
 /* Declared in main.h as extern */
@@ -32,7 +34,8 @@ static int real_errno;
 static void dump_structs(FILE *out);
 
 
-static void print_date(FILE *out) {
+static void print_date(FILE *out)
+{
     time_t t;
     const char *tstr;
 
@@ -42,7 +45,8 @@ static void print_date(FILE *out) {
     fprintf(out, "date %s", tstr);
 }
 
-static void dump_proc_info(FILE *out) {
+static void dump_proc_info(FILE *out)
+{
     print_date(out);
     fprintf(out, "pid %i\n", getpid());
     if (process_type == SERVER)
@@ -53,9 +57,10 @@ static void dump_proc_info(FILE *out) {
         fprintf(out, "type UNKNOWN\n");
 }
 
-static FILE *open_error_file() {
+static FILE * open_error_file()
+{
     int fd;
-    FILE *out;
+    FILE* out;
     char *path;
     int new_size;
     char *new_path;
@@ -92,6 +97,8 @@ static void print_error(FILE *out, enum Etype type, const char *str, va_list ap)
         fprintf(out, "Error\n");
     else if (type == WARNING)
         fprintf(out, "Warning\n");
+    else if (type == DEBUG)
+        fprintf(out, "Debug\n");
     else
         fprintf(out, "Unknown kind of error\n");
 
@@ -100,7 +107,8 @@ static void print_error(FILE *out, enum Etype type, const char *str, va_list ap)
     vfprintf(out, str, ap);
 
     fprintf(out, "\n");
-    fprintf(out, " errno %i, \"%s\"\n", real_errno, strerror(real_errno));
+    if (type != DEBUG)
+        fprintf(out, " errno %i, \"%s\"\n", real_errno, strerror(real_errno));
 }
 
 static void problem(enum Etype type, const char *str, va_list ap) {
@@ -150,7 +158,25 @@ void error(const char *str, ...) {
     exit(-1);
 }
 
-void error_msg(const struct Msg *m, const char *str, ...) {
+void debug(const char *str, ...)
+{
+    va_list ap;
+
+    va_start(ap, str);
+
+    real_errno = errno;
+
+    if (process_type == CLIENT)
+    {
+        vfprintf(stderr, str, ap);
+        fputc('\n', stderr);
+    }
+
+    problem(DEBUG, str, ap);
+}
+
+void error_msg(const struct Msg *m, const char *str, ...)
+{
     va_list ap;
 
     va_start(ap, str);
