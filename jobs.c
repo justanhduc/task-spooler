@@ -16,6 +16,7 @@
 
 time_t last_gpu_run_time = 0;
 int time_between_gpu_runs = 30;
+static int reminder_sent = 0;
 
 /* The list will access them */
 int busy_slots = 0;
@@ -651,10 +652,14 @@ int next_run_job() {
                  * send a reminder after the waiting time */
                 if ((time(NULL) - last_gpu_run_time) < time_between_gpu_runs) {
                     /* there was one GPU task just run, next */
-                    s_request_reminder_after(time_between_gpu_runs, p->jobid);
+                    if (!reminder_sent) {
+                        reminder_sent = 1;
+                        s_request_reminder_after(time_between_gpu_runs, p->jobid);
+                    }
                     p = p->next;
                     continue;
                 }
+                reminder_sent = 0;
 
                 int numFree;
                 /* get number of free GPUs at the moment */
