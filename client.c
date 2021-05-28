@@ -77,7 +77,6 @@ void c_new_job() {
         m.u.newjob.label_size = 0;
     m.u.newjob.store_output = command_line.store_output;
     m.u.newjob.do_depend = command_line.do_depend;
-    m.u.newjob.depend_on_size = command_line.depend_on_size;
     m.u.newjob.should_keep_finished = command_line.should_keep_finished;
     m.u.newjob.command_size = strlen(new_command) + 1; /* add null */
     m.u.newjob.wait_enqueuing = command_line.wait_enqueuing;
@@ -354,6 +353,7 @@ static char *get_output_file(int *pid) {
                 error("Error in get_output_file line size");
             fprintf(stderr, "Error in the request: %s",
                     string);
+            free(string);
             exit(-1);
             /* WILL NOT GO FURTHER */
         default:
@@ -474,6 +474,7 @@ void c_remove_job() {
             res = recv_bytes(server_socket, string, m.u.size);
             fprintf(stderr, "Error in the request: %s",
                     string);
+            free(string);
             exit(-1);
             /* WILL NOT GO FURTHER */
         default:
@@ -502,6 +503,7 @@ int c_wait_job_recv() {
                 error("Error in wait_job - line size");
             fprintf(stderr, "Error in the request: %s",
                     string);
+            free(string);
             exit(-1);
             /* WILL NOT GO FURTHER */
         default:
@@ -597,6 +599,7 @@ void c_move_urgent() {
                 error("Error in move_urgent - line size");
             fprintf(stderr, "Error in the request: %s",
                     string);
+            free(string);
             exit(-1);
             /* WILL NOT GO FURTHER */
         default:
@@ -632,6 +635,7 @@ void c_get_state() {
                 error("Error in get_state - line size");
             fprintf(stderr, "Error in the request: %s",
                     string);
+            free(string);
             exit(-1);
             /* WILL NOT GO FURTHER */
         default:
@@ -667,6 +671,7 @@ void c_swap_jobs() {
                 error("Error in swap_jobs - line size");
             fprintf(stderr, "Error in the request: %s",
                     string);
+            free(string);
             exit(-1);
             /* WILL NOT GO FURTHER */
         default:
@@ -724,6 +729,7 @@ void c_show_label() {
                 error("Error in get_label - line size");
 
             printf("%s", string);
+            free(string);
             return;
         default:
             warning("Wrong internal message in get_label");

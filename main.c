@@ -496,8 +496,6 @@ int main(int argc, char **argv) {
         case c_KILL_SERVER:
             if (!command_line.need_server)
                 error("The command %i needs the server", command_line.request);
-            /* terminate all jobs first */
-            c_kill_all_jobs();
             c_shutdown_server();
             break;
         case c_CLEAR_FINISHED:

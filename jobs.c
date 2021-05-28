@@ -421,7 +421,6 @@ int s_newjob(int s, struct Msg *m) {
     p->notify_errorlevel_to = 0;
     p->notify_errorlevel_to_size = 0;
     p->do_depend = m->u.newjob.do_depend;
-    p->depend_on_size = m->u.newjob.depend_on_size;
     p->depend_on = 0;
 
     /* this error level here is used internally to decide whether a job should be run or not
@@ -430,7 +429,7 @@ int s_newjob(int s, struct Msg *m) {
     p->dependency_errorlevel = 0;
     if (m->u.newjob.do_depend) {
         int *depend_on;
-        depend_on = recv_ints(s);
+        depend_on = recv_ints(s, &p->depend_on_size);
 
         /* Depend on the last queued job. */
         int idx = 0;
@@ -586,8 +585,7 @@ void s_removejob(int jobid) {
 
     newnext = p->next->next;
 
-    free(p->next->command);
-    free(p->next);
+    destroy_job(p->next);
     p->next = newnext;
 }
 
