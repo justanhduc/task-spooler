@@ -100,7 +100,7 @@ void parse_opts(int argc, char **argv) {
 
     /* Parse options */
     while (1) {
-        c = getopt_long(argc, argv, ":RTVhKgClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:W:",
+        c = getopt_long(argc, argv, ":RTVhKzClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:W:",
                         longOptions, &optionIdx);
 
         if (c == -1)
@@ -150,7 +150,7 @@ void parse_opts(int argc, char **argv) {
             case 'L':
                 command_line.label = optarg;
                 break;
-            case 'g':
+            case 'z':
                 command_line.gzip = 1;
                 break;
             case 'f':
@@ -415,7 +415,7 @@ static void print_help(const char *cmd) {
     printf("Options adding jobs:\n");
     printf("  -n           don't store the output of the command.\n");
     printf("  -E           Keep stderr apart, in a name like the output file, but adding '.e'.\n");
-    printf("  -g           gzip the stored output (if not -n).\n");
+    printf("  -z           gzip the stored output (if not -n).\n");
     printf("  -f           don't fork into background.\n");
     printf("  -m           send the output by e-mail (uses sendmail).\n");
     printf("  -d           the job will be run after the last job ends.\n");
