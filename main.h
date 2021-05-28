@@ -120,6 +120,8 @@ enum Process_type {
 extern struct CommandLine command_line;
 extern enum Process_type process_type;
 extern int server_socket; /* Used in the client */
+extern int *used_gpus;  /* Used in both client and server */
+extern int num_total_gpus;
 extern int term_width;
 
 struct Msg;
@@ -209,6 +211,7 @@ struct Job {
     struct Procinfo info;
     int num_slots;
     int num_gpus;
+    int *gpu_ids;
     int wait_free_gpus;
 };
 

@@ -70,6 +70,17 @@ static int max_descriptors;
 /* in jobs.c */
 extern int max_jobs;
 
+int *used_gpus;
+int num_total_gpus;
+
+static void initialize_gpus() {
+    /* TODO: fixed hard code */
+    num_total_gpus = 100;
+    used_gpus = (int *) malloc(num_total_gpus * sizeof(int));
+    for (int i = 0; i < num_total_gpus; i++)
+        used_gpus[i] = 0;  /* 0 is not in used, 1 is in used */
+}
+
 static void s_send_version(int s) {
     struct Msg m;
 
@@ -203,6 +214,8 @@ void server_main(int notify_fd, char *_path) {
 
     notify_parent(notify_fd);
 
+    initialize_gpus();
+
     server_loop(ls);
 }
 
@@ -287,6 +300,7 @@ static void end_server(int ls) {
     /* This comes from the parent, in the fork after server_main.
      * This is the last use of path in this process.*/
     free(path);
+    free(used_gpus);
 }
 
 static void remove_connection(int index) {

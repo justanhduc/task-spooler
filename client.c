@@ -20,8 +20,6 @@ static void c_wait_job_send();
 
 static void c_wait_running_job_send();
 
-static void shuffle(int *array, size_t n);
-
 char *build_command_string() {
     int size;
     int i;
@@ -136,6 +134,11 @@ int c_wait_server_commands() {
         if (res != sizeof(m))
             error("Error in wait_server_commands");
         if (m.type == RUNJOB) {
+            int num_gpus;
+            int *freeGpuList = NULL;
+            if (command_line.wait_free_gpus)
+                freeGpuList = recv_ints(server_socket, &num_gpus);
+
             struct Result result;
             result.skipped = 0;
             if (command_line.do_depend && command_line.require_elevel && m.u.last_errorlevel != 0) {
@@ -147,34 +150,20 @@ int c_wait_server_commands() {
                 c_send_runjob_ok(0, -1);
             } else {
                 if (command_line.gpus) {
+                    char tmp[1024];
+                    strcpy(tmp, "CUDA_VISIBLE_DEVICES=");
                     if (command_line.gpu_nums) {
-                        char tmp[50];
-                        strcpy(tmp, "CUDA_VISIBLE_DEVICES=");
                         strcat(tmp, command_line.gpu_nums);
                         putenv(tmp);
                     } else {
-                        int numFree;
-                        int *freeGpuList = getFreeGpuList(&numFree);
-                        if ((command_line.gpus > numFree)) {
-                            result.errorlevel = -1;
-                            result.user_ms = 0.;
-                            result.system_ms = 0.;
-                            result.real_ms = 0.;
-                            result.skipped = 1;
-                            c_send_runjob_ok(0, -1);
-                        } else {
-                            char tmp[50];
-                            strcpy(tmp, "CUDA_VISIBLE_DEVICES=");
-                            shuffle(freeGpuList, numFree);
-                            for (int i = 0; i < command_line.gpus; i++) {
-                                char tmp2[5];
-                                sprintf(tmp2, "%d", freeGpuList[i]);
-                                strcat(tmp, tmp2);
-                                if (i < command_line.gpus - 1)
-                                    strcat(tmp, ",");
-                            }
-                            putenv(tmp);
+                        for (int i = 0; i < num_gpus; i++) {
+                            char tmp2[512];
+                            sprintf(tmp2, "%d", freeGpuList[i]);
+                            strcat(tmp, tmp2);
+                            if (i < command_line.gpus - 1)
+                                strcat(tmp, ",");
                         }
+                        putenv(tmp);
                         free(freeGpuList);
                     }
                 } else {
@@ -846,18 +835,5 @@ void c_show_cmd() {
             return;
         default:
             warning("Wrong internal message in show_cmd");
-    }
-}
-
-static void shuffle(int *array, size_t n) {
-    if (n > 1) {
-        size_t i;
-        srand(time(NULL));
-        for (i = 0; i < n - 1; i++) {
-            size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
-            int t = array[j];
-            array[j] = array[i];
-            array[i] = t;
-        }
     }
 }

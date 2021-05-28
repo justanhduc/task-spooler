@@ -37,7 +37,7 @@ int * getFreeGpuList(int *numFree) {
             goto Error;
         }
 
-        if (mem.free > .9 * mem.total) {
+        if (mem.free > .1 * mem.total) {
             gpuList[j] = i;
             count++;
             j++;

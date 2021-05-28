@@ -14,9 +14,10 @@
 
 #include "main.h"
 
-time_t last_gpu_run_time = 0;
-int time_between_gpu_runs = 30;
-static int reminder_sent = 0;
+int time_between_gpu_runs = 5;
+int *used_gpus;
+int num_total_gpus;
+static int sent_reminder = 0;
 
 /* The list will access them */
 int busy_slots = 0;
@@ -48,6 +49,19 @@ static struct Job *get_job(int jobid);
 
 void notify_errorlevel(struct Job *p);
 
+static void shuffle(int *array, size_t n) {
+    if (n > 1) {
+        size_t i;
+        srand(time(NULL));
+        for (i = 0; i < n - 1; i++) {
+            size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
+            int t = array[j];
+            array[j] = array[i];
+            array[i] = t;
+        }
+    }
+}
+
 static void destroy_job(struct Job* p) {
     free(p->notify_errorlevel_to);
     free(p->command);
@@ -55,6 +69,7 @@ static void destroy_job(struct Job* p) {
     pinfo_free(&p->info);
     free(p->depend_on);
     free(p->label);
+    free(p->gpu_ids);
     free(p);
 }
 
@@ -438,11 +453,14 @@ int s_newjob(int s, struct Msg *m) {
     p = newjobptr();
 
     p->jobid = jobids++;
+
+    /* GPUs */
     p->num_gpus = m->u.newjob.gpus;
     if (count_not_finished_jobs() < max_jobs)
         p->state = (p->num_gpus) ? ALLOCATING : QUEUED;
     else
         p->state = HOLDING_CLIENT;
+    p->gpu_ids = (int*) malloc(p->num_gpus * sizeof(int));
     p->wait_free_gpus = m->u.newjob.wait_free_gpus;
 
     p->num_slots = m->u.newjob.num_slots;
@@ -640,37 +658,42 @@ int next_run_job() {
     while (p != 0) {
         if (p->state == QUEUED || p->state == ALLOCATING) {
             if (p->num_gpus && p->wait_free_gpus) {
-                /* GPU mem takes some time to be allocated,
-                 * so two consecutive jobs can use the same GPU,
-                 * so we need to spare some time between two GPU jobs.
-                 * this is ugly. if a job finishes faster
-                 * than time_between_gpu_runs the next job may not
-                 * be executed as `select` blocks. fortunately, GPU jobs
-                 * usually last much longer (hours) than
-                 * time_between_gpu_runs (tens of seconds).
-                 * So each time like that, the server asks the client to
-                 * send a reminder after the waiting time */
-                if ((time(NULL) - last_gpu_run_time) < time_between_gpu_runs) {
-                    /* there was one GPU task just run, next */
-                    if (!reminder_sent) {
-                        reminder_sent = 1;
+                int numFree;
+                /* get number of free GPUs at the moment */
+                int *freeGpuList = getFreeGpuList(&numFree);
+                if (numFree < p->num_gpus) {
+                    /* if fewer GPUs than required then next */
+                    p = p->next;
+                    free(freeGpuList);
+                    continue;
+                }
+                shuffle(freeGpuList, numFree);
+
+                /* We have to check whether some GPUs are used by other jobs, but their RAMs are still free
+                 * These GPUs should not be used.*/
+                int i = 0, j = 0;
+                /* loop until all GPUs required can be found, or there are enough GPUs */
+                debug("wake up");
+                while (i < p->num_gpus && j < numFree) {
+                    /* if the prospective GPUs are in used, select the next one */
+                    if (!used_gpus[freeGpuList[j]]) {
+                        p->gpu_ids[i] = freeGpuList[j];
+                        i++;  /* select this GPU */
+                    }
+                    j++;
+                }
+                /* some GPUs might already be claimed by other jobs, but the system still reports as free -> skip */
+                if (i < p->num_gpus) {
+                    free(freeGpuList);
+                    if (!sent_reminder) {
                         s_request_reminder_after(time_between_gpu_runs, p->jobid);
+                        sent_reminder = 1;
                     }
                     p = p->next;
                     continue;
                 }
-                reminder_sent = 0;
-
-                int numFree;
-                /* get number of free GPUs at the moment */
-                int *list = getFreeGpuList(&numFree);
-                free(list);
-
-                if (numFree < p->num_gpus) {
-                    /* if fewer GPUs than required then next */
-                    p = p->next;
-                    continue;
-                }
+                sent_reminder = 0;
+                free(freeGpuList);
             }
 
             if (p->do_depend) {
@@ -695,7 +718,8 @@ int next_run_job() {
             if (free_slots >= p->num_slots) {
                 busy_slots = busy_slots + p->num_slots;
                 if (p->num_gpus)
-                    time(&last_gpu_run_time);
+                    for (int i = 0; i < p->num_gpus; ++i)
+                        used_gpus[p->gpu_ids[i]] = 1;
                 return p->jobid;
             }
         }
@@ -789,6 +813,10 @@ void job_finished(const struct Result *result, int jobid) {
     p = findjob(jobid);
     if (p == 0)
         error("on jobid %i finished, it doesn't exist", jobid);
+
+    /* Recycle GPUs */
+//    for (int i = 0; i < p->num_gpus; ++i)
+//        used_gpus[p->gpu_ids[i]] = 0;
 
     /* The job may be not only in running state, but also in other states, as
      * we call this to clean up the jobs list in case of the client closing the
@@ -891,6 +919,10 @@ void s_send_runjob(int s, int jobid) {
 
     m.u.last_errorlevel = p->dependency_errorlevel;
     send_msg(s, &m);
+
+    /* send GPU IDs */
+    if (p->wait_free_gpus)
+        send_ints(s, p->gpu_ids, p->num_gpus);
 }
 
 void s_job_info(int s, int jobid) {
