@@ -87,6 +87,16 @@ Then one can add `-L$(CUDA_HOME)/lib64/stubs` to [this line](./Makefile#L29) in 
 ```
 Why would you want to do that anyway?
 
+## Known issues
+
+- This is not an issue, but when multiple consecutive GPU jobs are queued, 
+  after the first job runs, there is a small delay for the next GPU job to run
+  in order to ensure that the same GPUs are not claimed by different jobs.
+  There was an issue causing this delay significantly longer as reported in [`#2`](https://github.com/justanhduc/task-spooler/issues/2)
+  but has been fixed in [176d0b76](https://github.com/justanhduc/task-spooler/commit/176d0b76).
+  To avoid the delay, you can use `-g` to indicate the exact GPU IDs for the job.
+
+
 ## Mailing list
 
 I created a GoogleGroup for the program. You look for the archive and the join methods in the taskspooler google group page.
@@ -103,11 +113,7 @@ When the job finishes, the client notifies the server. At this time, the server 
 
 Moreover the client can take advantage of many information from the server: when a job finishes, where does the job output go to, etc.
 
-## Download
-
-Download the latest version (GPLv2+ licensed): ts-1.0.tar.gz - v1.0 (2016-10-19) - Changelog
-
-Look at the version repository if you are interested in its development.
+## History 
 
 Андрей Пантюхин (Andrew Pantyukhin) maintains the BSD port.
 
@@ -121,10 +127,11 @@ Gnomeye maintains the AUR package.
 
 Eric Keller wrote a nodejs web server showing the status of the task spooler queue (github project).
 
+Duc Nguyen took the project and develops a GPU-support version.
 
 ## Manual
 
-**NOTE**: `man ts` is not updated (yet).
+See below or `man ts` for more details.
 
 ```
 usage: ts [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]
@@ -184,8 +191,8 @@ Options adding jobs:
 ## Thanks
 
 **Author**
-  - Lluís Batlle i Rossell, <lluis@vicerveza.homeunix.net>
-  - Duc Nguyen, <adnguyen@yonsei.ac.kr>
+- Duc Nguyen, <adnguyen@yonsei.ac.kr>
+- Lluís Batlle i Rossell, <lluis@vicerveza.homeunix.net>
 
 **Acknowledgement**
 * To Raúl Salinas, for his inspiring ideas
