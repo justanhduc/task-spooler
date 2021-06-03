@@ -364,6 +364,8 @@ void error(const char *str, ...);
 
 void warning(const char *str, ...);
 
+void debug(const char *str, ...);
+
 /* signals.c */
 void ignore_sigpipe();
 
