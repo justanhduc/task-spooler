@@ -11,6 +11,7 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <sys/time.h>
+#include <sys/ioctl.h>
 
 #include "main.h"
 
@@ -20,6 +21,7 @@ extern int optind, opterr, optopt;
 /* Globals */
 struct CommandLine command_line;
 int server_socket;
+int term_width;
 
 /* Globals for the environment of getopt */
 static char getopt_env[] = "POSIXLY_CORRECT=YES";
@@ -442,9 +444,16 @@ static void unset_getopt_env() {
         sprintf(getopt_env, "POSIXLY_CORRECT=%s", old_getopt_env);
 }
 
+static void get_terminal_width() {
+    struct winsize ws;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
+    term_width = ws.ws_col;
+}
+
 int main(int argc, char **argv) {
     int errorlevel = 0;
 
+    get_terminal_width();
     process_type = CLIENT;
 
     set_getopt_env();

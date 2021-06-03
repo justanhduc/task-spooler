@@ -109,6 +109,7 @@ extern struct CommandLine command_line;
 extern int server_socket;
 extern enum ProcessType process_type;
 extern int server_socket; /* Used in the client */
+extern int term_width;
 
 struct Msg;
 
@@ -160,6 +161,7 @@ struct Msg {
         int version;
         int count_running;
         char *label;
+        int term_width;
     } u;
 };
 

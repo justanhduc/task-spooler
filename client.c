@@ -181,7 +181,7 @@ void c_list_jobs() {
     struct Msg m;
 
     m.type = LIST;
-
+    m.u.term_width = term_width;
     send_msg(server_socket, &m);
 }
 
