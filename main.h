@@ -120,6 +120,7 @@ enum Process_type {
 extern struct CommandLine command_line;
 extern enum Process_type process_type;
 extern int server_socket; /* Used in the client */
+extern int term_width;
 
 struct Msg;
 
@@ -175,6 +176,7 @@ struct Msg {
         int count_running;
         char *label;
         int gpu_wait_time;
+        int term_width;
     } u;
 };
 

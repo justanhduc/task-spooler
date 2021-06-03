@@ -93,6 +93,7 @@ static char *print_noresult(const struct Job *p) {
     char *line;
     /* 20 chars should suffice for a string like "[int,int,..]&& " */
     char dependstr[20] = "";
+    int cmd_len;
 
     jobstate = jstate2string(p->state);
     output_filename = ofilename_shown(p);
@@ -123,6 +124,7 @@ static char *print_noresult(const struct Job *p) {
     if (line == NULL)
         error("Malloc for %i failed.\n", maxlen);
 
+    cmd_len = (term_width - maxlen) > 0 ? strlen(p->command) : 20;
     if (p->label)
         snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %-5d %s[%s]%s\n",
                  p->jobid,
@@ -132,8 +134,8 @@ static char *print_noresult(const struct Job *p) {
                  "",
                  p->num_gpus,
                  dependstr,
-                 shorten(p->label, 10),
-                 shorten(p->command, 20));
+                 shorten(p->label, 20),
+                 shorten(p->command, cmd_len));
     else
         snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %-5d %s%s\n",
                  p->jobid,
@@ -143,7 +145,7 @@ static char *print_noresult(const struct Job *p) {
                  "",
                  p->num_gpus,
                  dependstr,
-                 shorten(p->command, 20));
+                 shorten(p->command, cmd_len));
 
     return line;
 }
@@ -157,6 +159,7 @@ static char *print_result(const struct Job *p) {
     char dependstr[20] = "";
     float real_ms = p->result.real_ms;
     char *unit = "s";
+    int cmd_len;
 
     jobstate = jstate2string(p->state);
     output_filename = ofilename_shown(p);
@@ -202,6 +205,7 @@ static char *print_result(const struct Job *p) {
         }
     }
 
+    cmd_len = (term_width - maxlen) > 0 ? strlen(p->command) : 20;
     if (p->label)
         snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %-5d %s[%s]%s\n",
                  p->jobid,
@@ -212,8 +216,8 @@ static char *print_result(const struct Job *p) {
                  unit,
                  p->num_gpus,
                  dependstr,
-                 shorten(p->label, 10),
-                 shorten(p->command, 20));
+                 shorten(p->label, 20),
+                 shorten(p->command, cmd_len));
     else
         snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %-5d %s%s\n",
                  p->jobid,
@@ -224,7 +228,7 @@ static char *print_result(const struct Job *p) {
                  unit,
                  p->num_gpus,
                  dependstr,
-                 shorten(p->command, 20));
+                 shorten(p->command, cmd_len));
 
     return line;
 }

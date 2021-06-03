@@ -386,6 +386,7 @@ client_read(int index) {
             s_kill_all_jobs(s);
             break;
         case LIST:
+            term_width = m.u.term_width;
             s_list(s);
             /* We must actively close, meaning End of Lines */
             close(s);
