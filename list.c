@@ -47,9 +47,7 @@ char *joblist_headers() {
 }
 
 static int max(int a, int b) {
-    if (a > b)
-        return a;
-    return b;
+    return a > b ? a : b;
 }
 
 static const char *ofilename_shown(const struct Job *p) {
@@ -123,7 +121,7 @@ static char *print_noresult(const struct Job *p) {
     if (line == NULL)
         error("Malloc for %i failed.\n", maxlen);
 
-    cmd_len = (term_width - maxlen) > 0 ? strlen(p->command) : 20;
+    cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
     if (p->label)
         snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %s[%s]%s\n",
                  p->jobid,
@@ -202,7 +200,7 @@ static char *print_result(const struct Job *p) {
         }
     }
 
-    cmd_len = (term_width - maxlen) > 0 ? strlen(p->command) : 20;
+    cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
     if (p->label)
         snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %s[%s]%s\n",
                  p->jobid,
