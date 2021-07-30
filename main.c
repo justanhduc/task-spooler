@@ -96,8 +96,6 @@ static struct option longOptions[] = {
         {"last_queue_id", no_argument,       NULL, 'q'},
         {"gpus",          required_argument, NULL, 'G'},
         {"gpu_indices",   required_argument, NULL, 'g'},
-        {"set_gpu_wait",  required_argument, NULL, 0},
-        {"get_gpu_wait",  no_argument,       NULL, 0},
         {"full_cmd",      optional_argument, NULL, 'F'},
         {NULL, 0,                            NULL, 0}
 };
@@ -116,19 +114,6 @@ void parse_opts(int argc, char **argv) {
             break;
 
         switch (c) {
-            case 0:
-                if (strcmp(longOptions[optionIdx].name, "set_gpu_wait") == 0) {
-                    command_line.request = c_SET_GPU_WAIT_TIME;
-                    command_line.gpu_wait_time = atoi(optarg);
-                    if (command_line.gpu_wait_time < 0)
-                        error("Cannot set negative value for gpu_wait_time");
-                    break;
-                } else if (strcmp(longOptions[optionIdx].name, "get_gpu_wait") == 0) {
-                    command_line.request = c_GET_GPU_WAIT_TIME;
-                    break;
-                } else
-                    error("Wrong option %s.", longOptions[optionIdx].name);
-                break;
             case 'K':
                 command_line.request = c_KILL_SERVER;
                 command_line.should_go_background = 0;
@@ -636,16 +621,6 @@ int main(int argc, char **argv) {
                 error("The command %i needs the server", command_line.request);
             /* This will also print the state into stdout */
             c_get_state();
-            break;
-        case c_SET_GPU_WAIT_TIME:
-            if (!command_line.need_server)
-                error("The command %i needs the server", command_line.request);
-            c_set_gpu_wait_time();
-            break;
-        case c_GET_GPU_WAIT_TIME:
-            if (!command_line.need_server)
-                error("The command %i needs the server", command_line.request);
-            c_get_gpu_wait_time();
             break;
     }
 

@@ -173,9 +173,6 @@ int c_wait_server_commands() {
 
             c_end_of_job(&result);
             return result.errorlevel;
-        } else if (m.type == REMINDER) {
-            sleep(m.u.gpu_wait_time);
-            c_send_reminder();
         }
     }
     return -1;
@@ -772,38 +769,6 @@ void c_show_label() {
 
     /* This will never be reached */
     return;
-}
-
-void c_get_gpu_wait_time() {
-    struct Msg m;
-    int res;
-
-    m.type = GET_GPU_WAIT_TIME;
-    send_msg(server_socket, &m);
-
-    /* Receive the answer */
-    res = recv_msg(server_socket, &m);
-    if (res != sizeof(m))
-        error("Error in get_gpu_wait_time");
-
-    if (m.type == GET_GPU_WAIT_TIME)
-        printf("%d\n", m.u.gpu_wait_time);
-    else
-        warning("Wrong internal message in get_gpu_wait_time");
-}
-
-void c_set_gpu_wait_time() {
-    struct Msg m;
-
-    m.type = SET_GPU_WAIT_TIME;
-    m.u.gpu_wait_time = command_line.gpu_wait_time;
-    send_msg(server_socket, &m);
-}
-
-void c_send_reminder() {
-    struct Msg m;
-    m.type = REMINDER;
-    send_msg(server_socket, &m);
 }
 
 void c_show_cmd() {

@@ -47,9 +47,6 @@ enum MsgTypes {
     GET_LABEL,
     LAST_ID,
     KILL_ALL,
-    SET_GPU_WAIT_TIME,
-    GET_GPU_WAIT_TIME,
-    REMINDER,
     GET_CMD
 };
 
@@ -77,8 +74,6 @@ enum Request {
     c_GET_LABEL,
     c_LAST_ID,
     c_KILL_ALL,
-    c_SET_GPU_WAIT_TIME,
-    c_GET_GPU_WAIT_TIME,
     c_SHOW_CMD
 };
 
@@ -281,12 +276,6 @@ void c_show_label();
 
 void c_kill_all_jobs();
 
-void c_set_gpu_wait_time();
-
-void c_get_gpu_wait_time();
-
-void c_send_reminder();
-
 void c_show_cmd();
 
 /* jobs.c */
@@ -354,16 +343,11 @@ void s_send_label(int s, int jobid);
 
 void s_kill_all_jobs(int s);
 
-void s_set_time_between_gpu_runs(int seconds);
-
-void s_send_time_between_gpu_runs(int s);
 
 /* server.c */
 void server_main(int notify_fd, char *_path);
 
 void dump_conns_struct(FILE *out);
-
-void s_request_reminder_after(int time, int jobid);
 
 void s_send_cmd(int s, int jobid);
 

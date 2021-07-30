@@ -14,10 +14,8 @@
 
 #include "main.h"
 
-int time_between_gpu_runs = 5;
 int *used_gpus;
 int num_total_gpus;
-static int sent_reminder = 0;
 
 /* The list will access them */
 int busy_slots = 0;
@@ -688,14 +686,9 @@ int next_run_job() {
                 /* some GPUs might already be claimed by other jobs, but the system still reports as free -> skip */
                 if (i < p->num_gpus) {
                     free(freeGpuList);
-                    if (!sent_reminder) {
-                        s_request_reminder_after(time_between_gpu_runs, p->jobid);
-                        sent_reminder = 1;
-                    }
                     p = p->next;
                     continue;
                 }
-                sent_reminder = 0;
                 free(freeGpuList);
             }
 
@@ -1509,17 +1502,6 @@ void s_send_state(int s, int jobid) {
     send_state(s, p->state);
 }
 
-void s_set_time_between_gpu_runs(int seconds) {
-    time_between_gpu_runs = seconds;
-}
-
-void s_send_time_between_gpu_runs(int s) {
-    struct Msg m;
-
-    m.type = GET_GPU_WAIT_TIME;
-    m.u.gpu_wait_time = time_between_gpu_runs;
-    send_msg(s, &m);
-}
 
 static void dump_job_struct(FILE *out, const struct Job *p) {
     fprintf(out, "  new_job\n");
