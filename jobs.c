@@ -460,8 +460,11 @@ int s_newjob(int s, struct Msg *m) {
         p->state = (p->num_gpus) ? ALLOCATING : QUEUED;
     else
         p->state = HOLDING_CLIENT;
-    p->gpu_ids = (int*) malloc(p->num_gpus * sizeof(int));
+
+    p->gpu_ids = 0;
     p->wait_free_gpus = m->u.newjob.wait_free_gpus;
+    if (!p->wait_free_gpus)
+        p->gpu_ids = recv_ints(s, &p->num_gpus);
 
     p->num_slots = m->u.newjob.num_slots;
     p->store_output = m->u.newjob.store_output;
@@ -673,7 +676,7 @@ int next_run_job() {
                  * These GPUs should not be used.*/
                 int i = 0, j = 0;
                 /* loop until all GPUs required can be found, or there are enough GPUs */
-                debug("wake up");
+                p->gpu_ids = (int*) malloc(p->num_gpus * sizeof(int));
                 while (i < p->num_gpus && j < numFree) {
                     /* if the prospective GPUs are in used, select the next one */
                     if (!used_gpus[freeGpuList[j]]) {
@@ -815,8 +818,8 @@ void job_finished(const struct Result *result, int jobid) {
         error("on jobid %i finished, it doesn't exist", jobid);
 
     /* Recycle GPUs */
-//    for (int i = 0; i < p->num_gpus; ++i)
-//        used_gpus[p->gpu_ids[i]] = 0;
+    for (int i = 0; i < p->num_gpus; ++i)
+        used_gpus[p->gpu_ids[i]] = 0;
 
     /* The job may be not only in running state, but also in other states, as
      * we call this to clean up the jobs list in case of the client closing the
@@ -921,8 +924,7 @@ void s_send_runjob(int s, int jobid) {
     send_msg(s, &m);
 
     /* send GPU IDs */
-    if (p->wait_free_gpus)
-        send_ints(s, p->gpu_ids, p->num_gpus);
+    send_ints(s, p->gpu_ids, p->num_gpus);
 }
 
 void s_job_info(int s, int jobid) {

@@ -188,10 +188,8 @@ void parse_opts(int argc, char **argv) {
                     command_line.gpus = 1;
                 break;
             case 'g':
-                command_line.gpu_nums = (char *) malloc(strlen(optarg) + 1);
-                strcpy(command_line.gpu_nums, optarg);
-                int *foo = (int*) malloc(strlen(optarg) * sizeof(int));
-                command_line.gpus = strtok_int(optarg, ",", foo);
+                command_line.gpu_nums = (int*) malloc(strlen(optarg) * sizeof(int));
+                command_line.gpus = strtok_int(optarg, ",", command_line.gpu_nums);
                 command_line.wait_free_gpus = 0;
                 break;
             case 't':

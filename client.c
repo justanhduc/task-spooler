@@ -86,6 +86,10 @@ void c_new_job() {
     /* Send the message */
     send_msg(server_socket, &m);
 
+    /* send GPU IDs */
+    if (!command_line.wait_free_gpus)
+        send_ints(server_socket, command_line.gpu_nums, command_line.gpus);
+
     /* send dependencies */
     if (command_line.do_depend)
         send_ints(server_socket, command_line.depend_on, command_line.depend_on_size);
@@ -136,36 +140,30 @@ int c_wait_server_commands() {
         if (m.type == RUNJOB) {
             int num_gpus;
             int *freeGpuList = NULL;
-            if (command_line.wait_free_gpus)
-                freeGpuList = recv_ints(server_socket, &num_gpus);
-
             struct Result result;
+
+            freeGpuList = recv_ints(server_socket, &num_gpus);
             result.skipped = 0;
             if (command_line.do_depend && command_line.require_elevel && m.u.last_errorlevel != 0) {
                 result.errorlevel = -1;
-                result.user_ms = 0.;
-                result.system_ms = 0.;
-                result.real_ms = 0.;
+                result.user_ms = 0.f;
+                result.system_ms = 0.f;
+                result.real_ms = 0.f;
                 result.skipped = 1;
                 c_send_runjob_ok(0, -1);
             } else {
                 if (command_line.gpus) {
                     char tmp[1024];
                     strcpy(tmp, "CUDA_VISIBLE_DEVICES=");
-                    if (command_line.gpu_nums) {
-                        strcat(tmp, command_line.gpu_nums);
-                        putenv(tmp);
-                    } else {
-                        for (int i = 0; i < num_gpus; i++) {
-                            char tmp2[512];
-                            sprintf(tmp2, "%d", freeGpuList[i]);
-                            strcat(tmp, tmp2);
-                            if (i < command_line.gpus - 1)
-                                strcat(tmp, ",");
-                        }
-                        putenv(tmp);
-                        free(freeGpuList);
+                    for (int i = 0; i < num_gpus; i++) {
+                        char tmp2[512];
+                        sprintf(tmp2, "%d", freeGpuList[i]);
+                        strcat(tmp, tmp2);
+                        if (i < command_line.gpus - 1)
+                            strcat(tmp, ",");
                     }
+                    putenv(tmp);
+                    free(freeGpuList);
                 } else {
                     putenv("CUDA_VISIBLE_DEVICES=-1");
                 }

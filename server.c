@@ -77,8 +77,7 @@ static void initialize_gpus() {
     /* TODO: fixed hard code */
     num_total_gpus = 100;
     used_gpus = (int *) malloc(num_total_gpus * sizeof(int));
-    for (int i = 0; i < num_total_gpus; i++)
-        used_gpus[i] = 0;  /* 0 is not in used, 1 is in used */
+    memset(used_gpus, 0, num_total_gpus * sizeof(int));  /* 0 is not in used, 1 is in used */
 }
 
 static void s_send_version(int s) {
