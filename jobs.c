@@ -678,11 +678,11 @@ int next_run_job() {
                  * These GPUs should not be used.*/
                 int i = 0, j = 0;
                 /* loop until all GPUs required can be found, or there are enough GPUs */
-                p->gpu_ids = (int*) malloc(p->num_gpus * sizeof(int));
+                int *gpu_ids = (int*) malloc(p->num_gpus * sizeof(int));
                 while (i < p->num_gpus && j < numFree) {
                     /* if the prospective GPUs are in used, select the next one */
                     if (!used_gpus[freeGpuList[j]]) {
-                        p->gpu_ids[i] = freeGpuList[j];
+                        gpu_ids[i] = freeGpuList[j];
                         i++;  /* select this GPU */
                     }
                     j++;
@@ -692,6 +692,7 @@ int next_run_job() {
                     p = p->next;
                     continue;
                 }
+                memcpy(p->gpu_ids, gpu_ids, p->num_gpus * sizeof(int));
             }
 
             if (p->do_depend) {
