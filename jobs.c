@@ -654,14 +654,15 @@ int next_run_job() {
     if (firstjob == 0)
         return -1;
 
+    /* Query GPUs */
+    int numFree;
+    int *freeGpuList = getFreeGpuList(&numFree);
+
     /* Look for a runnable task */
     p = firstjob;
     while (p != 0) {
         if (p->state == QUEUED || p->state == ALLOCATING) {
             if (p->num_gpus && p->wait_free_gpus) {
-                int numFree;
-                /* get number of free GPUs at the moment */
-                int *freeGpuList = getFreeGpuList(&numFree);
                 if (numFree < p->num_gpus) {
                     /* if fewer GPUs than required then next */
                     p = p->next;
