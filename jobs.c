@@ -666,7 +666,6 @@ int next_run_job() {
                 if (numFree < p->num_gpus) {
                     /* if fewer GPUs than required then next */
                     p = p->next;
-                    free(freeGpuList);
                     continue;
                 }
                 shuffle(freeGpuList, numFree);
@@ -686,11 +685,9 @@ int next_run_job() {
                 }
                 /* some GPUs might already be claimed by other jobs, but the system still reports as free -> skip */
                 if (i < p->num_gpus) {
-                    free(freeGpuList);
                     p = p->next;
                     continue;
                 }
-                free(freeGpuList);
             }
 
             if (p->do_depend) {
@@ -722,7 +719,7 @@ int next_run_job() {
         }
         p = p->next;
     }
-
+    free(freeGpuList);
     return -1;
 }
 
