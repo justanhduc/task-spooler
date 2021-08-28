@@ -426,6 +426,8 @@ char *joblistdump_headers();
 /* print.c */
 int fd_nprintf(int fd, int maxsize, const char *fmt, ...);
 
+char *ints_to_chars(int *array, int n, const char *delim);
+
 /* info.c */
 
 void pinfo_dump(const struct Procinfo *p, int fd);

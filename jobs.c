@@ -463,6 +463,10 @@ int s_newjob(int s, struct Msg *m) {
     p->wait_free_gpus = m->u.newjob.wait_free_gpus;
     if (!p->wait_free_gpus)
         p->gpu_ids = recv_ints(s, &p->num_gpus);
+    else {
+        p->gpu_ids = (int *) malloc((p->num_gpus + 1) * sizeof(int));
+        memset(p->gpu_ids, -1, (p->num_gpus + 1) * sizeof(int));
+    }
 
     p->num_slots = m->u.newjob.num_slots;
     p->store_output = m->u.newjob.store_output;
@@ -973,6 +977,7 @@ void s_job_info(int s, int jobid) {
     fd_nprintf(s, 100, "\n");
     fd_nprintf(s, 100, "Slots required: %i\n", p->num_slots);
     fd_nprintf(s, 100, "GPUs required: %d\n", p->num_gpus);
+    fd_nprintf(s, 100, "GPU IDs: %s\n", ints_to_chars(p->gpu_ids, p->num_gpus ? p->num_gpus : 1, ","));
     fd_nprintf(s, 100, "Enqueue time: %s",
                ctime(&p->info.enqueue_time.tv_sec));
     if (p->state == RUNNING) {

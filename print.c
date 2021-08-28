@@ -49,3 +49,16 @@ int fd_nprintf(int fd, int maxsize, const char *fmt, ...)
 
     return size;
 }
+
+char *ints_to_chars(int *array, int n, const char *delim) {
+    char *tmp = malloc(n * sizeof(char) + n * strlen(delim) * sizeof(char) + 1);
+    int j = 0;
+    for (int i = 0; i < n; i++) {
+        j += sprintf(tmp + j, "%d", array[i]);
+        if (i < n - 1) {
+            strcat(tmp, delim);
+            j += strlen(delim);
+        }
+    }
+    return tmp;
+}

@@ -155,13 +155,7 @@ int c_wait_server_commands() {
                 if (command_line.gpus) {
                     char tmp[1024];
                     strcpy(tmp, "CUDA_VISIBLE_DEVICES=");
-                    for (int i = 0; i < num_gpus; i++) {
-                        char tmp2[512];
-                        sprintf(tmp2, "%d", freeGpuList[i]);
-                        strcat(tmp, tmp2);
-                        if (i < command_line.gpus - 1)
-                            strcat(tmp, ",");
-                    }
+                    strcat(tmp, ints_to_chars(freeGpuList, num_gpus, ","));
                     putenv(tmp);
                     free(freeGpuList);
                 } else {
