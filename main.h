@@ -457,4 +457,4 @@ char *get_environment();
 int tail_file(const char *fname, int last_lines);
 
 /* gpu.c */
-int *getFreeGpuList(int *numFree);
+int *getGpuList(int *num, int unoccupied);

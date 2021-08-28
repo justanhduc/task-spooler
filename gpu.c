@@ -7,7 +7,7 @@
 
 #include "main.h"
 
-int * getFreeGpuList(int *numFree) {
+int * getGpuList(int *num, int unoccupied) {
     int * gpuList;
     unsigned int nDevices;
     int i, j = 0, count = 0;
@@ -31,19 +31,22 @@ int * getFreeGpuList(int *numFree) {
             goto Error;
         }
 
-        result = nvmlDeviceGetMemoryInfo(dev, &mem);
-        if (result != 0) {
-            error("Failed to get GPU memory for GPU %d: %s", i, nvmlErrorString(result));
-            goto Error;
+        if (unoccupied) {
+            result = nvmlDeviceGetMemoryInfo(dev, &mem);
+            if (result != 0) {
+                error("Failed to get GPU memory for GPU %d: %s", i, nvmlErrorString(result));
+                goto Error;
+            }
+
+            if (mem.free < .1 * mem.total)
+                continue;
         }
 
-        if (mem.free > .1 * mem.total) {
-            gpuList[j] = i;
-            count++;
-            j++;
-        }
+        gpuList[j] = i;
+        count++;
+        j++;
     }
-    *numFree = count;
+    *num = count;
     result = nvmlShutdown();
     if (NVML_SUCCESS != result)
         error("Failed to shutdown NVML: %s", nvmlErrorString(result));

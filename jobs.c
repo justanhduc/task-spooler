@@ -660,7 +660,7 @@ int next_run_job() {
 
     /* Query GPUs */
     int numFree;
-    int *freeGpuList = getFreeGpuList(&numFree);
+    int *freeGpuList = getGpuList(&numFree, 1);
 
     /* Look for a runnable task */
     p = firstjob;

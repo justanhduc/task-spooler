@@ -19,8 +19,6 @@
 #include "main.h"
 
 extern int server_socket;
-int *used_gpus;
-int num_total_gpus;
 
 static char *socket_path;
 static int should_check_owner = 0;

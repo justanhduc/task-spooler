@@ -74,8 +74,7 @@ int *used_gpus;
 int num_total_gpus;
 
 static void initialize_gpus() {
-    /* TODO: fixed hard code */
-    num_total_gpus = 100;
+    getGpuList(&num_total_gpus, 0);
     used_gpus = (int *) malloc(num_total_gpus * sizeof(int));
     memset(used_gpus, 0, num_total_gpus * sizeof(int));  /* 0 is not in used, 1 is in used */
 }
