@@ -857,7 +857,5 @@ static void shuffle(int *array, size_t n) {
 }
 
 static struct Msg initialize_message() {
-    struct Msg m;
-    m.u.newjob.userid = (int) getuid();
-    return m;
+    return (struct Msg) {.userid = (int) getuid()};
 }

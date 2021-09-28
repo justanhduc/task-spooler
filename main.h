@@ -135,6 +135,7 @@ enum Jobstate {
 
 struct Msg {
     enum MsgTypes type;
+    int userid;
 
     union {
         struct {
@@ -148,7 +149,6 @@ struct Msg {
             int num_slots;
             int gpus;
             int wait_free_gpus;
-            int userid;
         } newjob;
         struct {
             int ofilename_size;
