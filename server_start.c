@@ -27,7 +27,6 @@ static int fork_server();
 
 void create_socket_path(char **path) {
     char *tmpdir;
-    char userid[20];
     int size;
 
     /* As a priority, TS_SOCKET mandates over the path creation */
@@ -50,8 +49,6 @@ void create_socket_path(char **path) {
     tmpdir = getenv("TMPDIR");
     if (tmpdir == NULL)
         tmpdir = "/tmp";
-
-    sprintf(userid, "%u", (unsigned int) getuid());
 
     /* Calculate the size */
     size = strlen(tmpdir) + strlen("/socket-ts.global") + 1;
