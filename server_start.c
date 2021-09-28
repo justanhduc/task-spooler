@@ -54,24 +54,36 @@ void create_socket_path(char **path) {
     sprintf(userid, "%u", (unsigned int) getuid());
 
     /* Calculate the size */
-    size = strlen(tmpdir) + strlen("/socket-ts.") + strlen(userid) + 1;
+    size = strlen(tmpdir) + strlen("/socket-ts.global") + 1;
 
     /* Freed after preparing the socket address */
     *path = (char *) malloc(size);
 
-    sprintf(*path, "%s/socket-ts.%s", tmpdir, userid);
+    sprintf(*path, "%s/socket-ts.global", tmpdir);
 
-    should_check_owner = 1;
+    should_check_owner = 0;
 }
 
 int try_connect(int s) {
     struct sockaddr_un addr;
     int res;
+    struct stat fileStat;
 
     addr.sun_family = AF_UNIX;
     strcpy(addr.sun_path, socket_path);
 
     res = connect(s, (struct sockaddr *) &addr, sizeof(addr));
+
+    if (res == 0) {
+        if (stat(socket_path, &fileStat) < 0)
+            error("Cannot get stat from server");
+
+        if (!(fileStat.st_mode & S_IWOTH)) {
+            int mode = strtol("0777", 0, 8);
+            if (chmod(socket_path, mode) < 0)
+                error("Cannot change server permission");
+        }
+    }
 
     return res;
 }
