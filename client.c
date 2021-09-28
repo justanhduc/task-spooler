@@ -24,6 +24,8 @@ static void shuffle(int *array, size_t n);
 
 static struct Msg initialize_message();
 
+static void require_root();
+
 char *build_command_string() {
     int size;
     int i;
@@ -346,6 +348,7 @@ static void c_end_of_job(const struct Result *res) {
 }
 
 void c_shutdown_server() {
+    require_root();
     struct Msg m = initialize_message();
 
     m.type = KILL_SERVER;
@@ -858,4 +861,9 @@ static void shuffle(int *array, size_t n) {
 
 static struct Msg initialize_message() {
     return (struct Msg) {.userid = (int) getuid()};
+}
+
+static void require_root() {
+    if (geteuid() != 0)
+        error("Not enough permission to perform the action");
 }
