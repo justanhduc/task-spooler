@@ -22,6 +22,8 @@ static void c_wait_running_job_send();
 
 static void shuffle(int *array, size_t n);
 
+static struct Msg initialize_message();
+
 char *build_command_string() {
     int size;
     int i;
@@ -56,7 +58,7 @@ char *build_command_string() {
 }
 
 void c_new_job() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     char *new_command;
     char *myenv;
 
@@ -106,7 +108,7 @@ void c_new_job() {
 }
 
 int c_wait_newjob_ok() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
 
     res = recv_msg(server_socket, &m);
@@ -123,7 +125,7 @@ int c_wait_newjob_ok() {
 }
 
 int c_wait_server_commands() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
 
     while (1) {
@@ -195,7 +197,7 @@ int c_wait_server_commands() {
 }
 
 void c_wait_server_lines() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
 
     while (1) {
@@ -218,7 +220,7 @@ void c_wait_server_lines() {
 }
 
 void c_list_jobs() {
-    struct Msg m;
+    struct Msg m = initialize_message();
 
     m.type = LIST;
     m.u.term_width = term_width;
@@ -227,7 +229,7 @@ void c_list_jobs() {
 
 /* Exits if wrong */
 void c_check_version() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
 
     m.type = GET_VERSION;
@@ -256,7 +258,7 @@ void c_check_version() {
 }
 
 void c_show_info() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
 
     m.type = INFO;
@@ -293,7 +295,7 @@ void c_show_info() {
 }
 
 void c_show_last_id() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
 
     m.type = LAST_ID;
@@ -313,7 +315,7 @@ void c_show_last_id() {
 }
 
 void c_send_runjob_ok(const char *ofname, int pid) {
-    struct Msg m;
+    struct Msg m = initialize_message();
 
     /* Prepare the message */
     m.type = RUNJOB_OK;
@@ -335,7 +337,7 @@ void c_send_runjob_ok(const char *ofname, int pid) {
 }
 
 static void c_end_of_job(const struct Result *res) {
-    struct Msg m;
+    struct Msg m = initialize_message();
 
     m.type = ENDJOB;
     m.u.result = *res; /* struct copy */
@@ -344,21 +346,21 @@ static void c_end_of_job(const struct Result *res) {
 }
 
 void c_shutdown_server() {
-    struct Msg m;
+    struct Msg m = initialize_message();
 
     m.type = KILL_SERVER;
     send_msg(server_socket, &m);
 }
 
 void c_clear_finished() {
-    struct Msg m;
+    struct Msg m = initialize_message();
 
     m.type = CLEAR_FINISHED;
     send_msg(server_socket, &m);
 }
 
 static char *get_output_file(int *pid) {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
     char *string = 0;
 
@@ -465,7 +467,7 @@ void c_kill_job() {
 }
 
 void c_kill_all_jobs() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
 
     /* Send the request */
@@ -492,7 +494,7 @@ void c_kill_all_jobs() {
 }
 
 void c_remove_job() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
     char *string = 0;
 
@@ -524,7 +526,7 @@ void c_remove_job() {
 }
 
 int c_wait_job_recv() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
     char *string = 0;
 
@@ -554,7 +556,7 @@ int c_wait_job_recv() {
 }
 
 static void c_wait_job_send() {
-    struct Msg m;
+    struct Msg m = initialize_message();
 
     /* Send the request */
     m.type = WAITJOB;
@@ -563,7 +565,7 @@ static void c_wait_job_send() {
 }
 
 static void c_wait_running_job_send() {
-    struct Msg m;
+    struct Msg m = initialize_message();
 
     /* Send the request */
     m.type = WAIT_RUNNING_JOB;
@@ -584,7 +586,7 @@ int c_wait_running_job() {
 }
 
 void c_send_max_slots(int max_slots) {
-    struct Msg m;
+    struct Msg m = initialize_message();
 
     /* Send the request */
     m.type = SET_MAX_SLOTS;
@@ -593,7 +595,7 @@ void c_send_max_slots(int max_slots) {
 }
 
 void c_get_max_slots() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
 
     /* Send the request */
@@ -615,7 +617,7 @@ void c_get_max_slots() {
 }
 
 void c_move_urgent() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
     char *string = 0;
 
@@ -650,7 +652,7 @@ void c_move_urgent() {
 }
 
 void c_get_state() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
     char *string = 0;
 
@@ -686,7 +688,7 @@ void c_get_state() {
 }
 
 void c_swap_jobs() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
     char *string = 0;
 
@@ -722,7 +724,7 @@ void c_swap_jobs() {
 }
 
 void c_get_count_running() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
 
     /* Send the request */
@@ -747,7 +749,7 @@ void c_get_count_running() {
 }
 
 void c_show_label() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
     char *string = 0;
 
@@ -780,7 +782,7 @@ void c_show_label() {
 }
 
 void c_get_gpu_wait_time() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
 
     m.type = GET_GPU_WAIT_TIME;
@@ -798,7 +800,7 @@ void c_get_gpu_wait_time() {
 }
 
 void c_set_gpu_wait_time() {
-    struct Msg m;
+    struct Msg m = initialize_message();
 
     m.type = SET_GPU_WAIT_TIME;
     m.u.gpu_wait_time = command_line.gpu_wait_time;
@@ -806,13 +808,13 @@ void c_set_gpu_wait_time() {
 }
 
 void c_send_reminder() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     m.type = REMINDER;
     send_msg(server_socket, &m);
 }
 
 void c_show_cmd() {
-    struct Msg m;
+    struct Msg m = initialize_message();
     int res;
     char *string = 0;
 
@@ -852,4 +854,10 @@ static void shuffle(int *array, size_t n) {
             array[i] = t;
         }
     }
+}
+
+static struct Msg initialize_message() {
+    struct Msg m;
+    m.u.newjob.userid = (int) getuid();
+    return m;
 }

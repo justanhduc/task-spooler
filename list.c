@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <pwd.h>
+
 #include "main.h"
 
 /* From jobs.c */
@@ -32,9 +34,10 @@ char *joblistdump_headers() {
 char *joblist_headers() {
     char *line;
 
-    line = malloc(100);
-    snprintf(line, 100, "%-4s %-10s %-20s %-8s %-6s %-5s %s [run=%i/%i]\n",
+    line = malloc(120);
+    snprintf(line, 120, "%-4s %-15s %-10s %-20s %-8s %-6s %-5s %s [run=%i/%i]\n",
              "ID",
+             "User",
              "State",
              "Output",
              "E-Level",
@@ -92,11 +95,14 @@ static char *print_noresult(const struct Job *p) {
     /* 20 chars should suffice for a string like "[int,int,..]&& " */
     char dependstr[20] = "";
     int cmd_len;
+    struct passwd *pwd;
+    if ((pwd = getpwuid((uid_t) p->userid)) == NULL)
+        error("Cannot get username from uid");
 
     jobstate = jstate2string(p->state);
     output_filename = ofilename_shown(p);
 
-    maxlen = 4 + 1 + 10 + 1 + max(20, strlen(output_filename)) + 1 + 8 + 1
+    maxlen = 4 + 1 + 15 + 1 + 10 + 1 + max(20, strlen(output_filename)) + 1 + 8 + 1
              + 25 + 1 + 5 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
 
     if (p->label)
@@ -124,8 +130,9 @@ static char *print_noresult(const struct Job *p) {
 
     cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
     if (p->label)
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %-5d %s[%s]%s\n",
+        snprintf(line, maxlen, "%-4i %-15s %-10s %-20s %-8s %6s %-5d %s[%s]%s\n",
                  p->jobid,
+                 pwd->pw_name,
                  jobstate,
                  output_filename,
                  "",
@@ -135,8 +142,9 @@ static char *print_noresult(const struct Job *p) {
                  shorten(p->label, 20),
                  shorten(p->command, cmd_len));
     else
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %-5d %s%s\n",
+        snprintf(line, maxlen, "%-4i %-15s %-10s %-20s %-8s %6s %-5d %s%s\n",
                  p->jobid,
+                 pwd->pw_name,
                  jobstate,
                  output_filename,
                  "",
@@ -158,11 +166,14 @@ static char *print_result(const struct Job *p) {
     float real_ms = p->result.real_ms;
     char *unit = "s";
     int cmd_len;
+    struct passwd *pwd;
+    if ((pwd = getpwuid((uid_t) p->userid)) == NULL)
+        error("Cannot get username from uid");
 
     jobstate = jstate2string(p->state);
     output_filename = ofilename_shown(p);
 
-    maxlen = 4 + 1 + 10 + 1 + max(20, strlen(output_filename)) + 1 + 8 + 1
+    maxlen = 4 + 1 + 15 + 1 + 10 + 1 + max(20, strlen(output_filename)) + 1 + 8 + 1
              + 25 + 1 + 5 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
 
     if (p->label)
@@ -205,8 +216,9 @@ static char *print_result(const struct Job *p) {
 
     cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
     if (p->label)
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %-5d %s[%s]%s\n",
+        snprintf(line, maxlen, "%-4i %-15s %-10s %-20s %-8i %5.2f%s %-5d %s[%s]%s\n",
                  p->jobid,
+                 pwd->pw_name,
                  jobstate,
                  output_filename,
                  p->result.errorlevel,
@@ -217,8 +229,9 @@ static char *print_result(const struct Job *p) {
                  shorten(p->label, 20),
                  shorten(p->command, cmd_len));
     else
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %-5d %s%s\n",
+        snprintf(line, maxlen, "%-4i %-15s %-10s %-20s %-8i %5.2f%s %-5d %s%s\n",
                  p->jobid,
+                 pwd->pw_name,
                  jobstate,
                  output_filename,
                  p->result.errorlevel,

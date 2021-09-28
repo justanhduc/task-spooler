@@ -436,6 +436,7 @@ int s_newjob(int s, struct Msg *m) {
     int res;
 
     p = newjobptr();
+    p->userid = m->u.newjob.userid;
 
     p->jobid = jobids++;
     p->num_gpus = m->u.newjob.gpus;
