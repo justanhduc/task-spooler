@@ -175,21 +175,21 @@ static void add_notify_errorlevel_to(struct Job *job, int jobid) {
     job->notify_errorlevel_to[job->notify_errorlevel_to_size - 1] = jobid;
 }
 
-void s_kill_all_jobs(int s) {
+void s_kill_all_jobs(int s, int userid) {
     struct Job *p;
-    s_count_running_jobs(s);
+    s_count_running_jobs(s, userid);
 
     /* send running job PIDs */
     p = firstjob;
     while (p != 0) {
-        if (p->state == RUNNING)
+        if (p->state == RUNNING && p->userid == userid)
             send(s, &p->pid, sizeof(int), 0);
 
         p = p->next;
     }
 }
 
-void s_count_running_jobs(int s) {
+void s_count_running_jobs(int s, int userid) {
     int count = 0;
     struct Job *p;
     struct Msg m;
@@ -197,7 +197,7 @@ void s_count_running_jobs(int s) {
     /* Count running jobs */
     p = firstjob;
     while (p != 0) {
-        if (p->state == RUNNING)
+        if (p->state == RUNNING && p->userid == userid)
             ++count;
 
         p = p->next;

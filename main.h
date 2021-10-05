@@ -323,7 +323,7 @@ void s_send_state(int s, int jobid);
 
 void s_swap_jobs(int s, int jobid1, int jobid2);
 
-void s_count_running_jobs(int s);
+void s_count_running_jobs(int s, int userid);
 
 void dump_jobs_struct(FILE *out);
 
@@ -351,7 +351,7 @@ int wake_hold_client();
 
 void s_send_label(int s, int jobid);
 
-void s_kill_all_jobs(int s);
+void s_kill_all_jobs(int s, int uesrid);
 
 void s_set_time_between_gpu_runs(int seconds);
 

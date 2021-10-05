@@ -383,7 +383,7 @@ client_read(int index) {
         }
             break;
         case KILL_ALL:
-            s_kill_all_jobs(s);
+            s_kill_all_jobs(s, m.userid);
             break;
         case LIST:
             term_width = m.u.term_width;
@@ -449,7 +449,7 @@ client_read(int index) {
             s_wait_running_job(s, m.u.jobid);
             break;
         case COUNT_RUNNING:
-            s_count_running_jobs(s);
+            s_count_running_jobs(s, m.userid);
             break;
         case URGENT:
             s_move_urgent(s, m.u.jobid);
