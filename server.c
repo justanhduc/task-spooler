@@ -42,8 +42,7 @@ enum Break {
 /* Prototypes */
 static void server_loop(int ls);
 
-static enum Break
-client_read(int index);
+static enum Break client_read(int index);
 
 static void end_server(int ls);
 
@@ -71,13 +70,6 @@ static int max_descriptors;
 extern int max_jobs;
 
 int *used_gpus;
-int num_total_gpus;
-
-static void initialize_gpus() {
-    getGpuList(&num_total_gpus, 0);
-    used_gpus = (int *) malloc(num_total_gpus * sizeof(int));
-    memset(used_gpus, 0, num_total_gpus * sizeof(int));  /* 0 is not in used, 1 is in used */
-}
 
 static void s_send_version(int s) {
     struct Msg m;
@@ -212,7 +204,7 @@ void server_main(int notify_fd, char *_path) {
 
     notify_parent(notify_fd);
 
-    initialize_gpus();
+    initGPU();
 
     server_loop(ls);
 }

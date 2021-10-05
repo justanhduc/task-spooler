@@ -4,13 +4,41 @@
 
 #include <stdlib.h>
 #include <nvml.h>
+#include <string.h>
 
 #include "main.h"
 
-int * getGpuList(int *num, int unoccupied) {
+int *used_gpus;
+int num_total_gpus;
+
+void initGPU() {
+    unsigned int nDevices;
+    nvmlReturn_t result;
+
+    result = nvmlInit();
+    if (NVML_SUCCESS != result)
+        error("Failed to initialize NVML: %s", nvmlErrorString(result));
+
+    result = nvmlDeviceGetCount_v2(&nDevices);
+    if (NVML_SUCCESS != result) {
+        error("Failed to get device count: %s", nvmlErrorString(result));
+        goto Error;
+    }
+    num_total_gpus = (int) nDevices;
+    used_gpus = (int *) malloc(num_total_gpus * sizeof(int));
+    memset(used_gpus, 0, num_total_gpus * sizeof(int));  /* 0 is not in used, 1 is in used */
+    return;
+
+    Error:
+        result = nvmlShutdown();
+        if (NVML_SUCCESS != result)
+            error("Failed to shutdown NVML: %s", nvmlErrorString(result));
+}
+
+int * getGpuList(int *num) {
     int * gpuList;
     unsigned int nDevices;
-    int i, j = 0, count = 0;
+    int i, count = 0;
     nvmlReturn_t result;
 
     result = nvmlInit();
@@ -31,20 +59,16 @@ int * getGpuList(int *num, int unoccupied) {
             goto Error;
         }
 
-        if (unoccupied) {
-            result = nvmlDeviceGetMemoryInfo(dev, &mem);
-            if (result != 0) {
-                error("Failed to get GPU memory for GPU %d: %s", i, nvmlErrorString(result));
-                goto Error;
-            }
-
-            if (mem.free < .1 * mem.total)
-                continue;
+        result = nvmlDeviceGetMemoryInfo(dev, &mem);
+        if (result != 0) {
+            error("Failed to get GPU memory for GPU %d: %s", i, nvmlErrorString(result));
+            goto Error;
         }
 
-        gpuList[j] = i;
-        count++;
-        j++;
+        if (mem.free < .9 * mem.total)
+            continue;
+
+        gpuList[count++] = i;
     }
     *num = count;
     result = nvmlShutdown();

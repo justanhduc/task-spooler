@@ -457,4 +457,6 @@ char *get_environment();
 int tail_file(const char *fname, int last_lines);
 
 /* gpu.c */
-int *getGpuList(int *num, int unoccupied);
+int *getGpuList(int *num);
+
+void initGPU();
