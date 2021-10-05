@@ -79,7 +79,7 @@ static char *shorten(char *line, int len) {
     else {
         char *newline = (char *) malloc((len + 1) * sizeof(char));
         snprintf(newline, len - 4, "%s", line);
-        sprintf(newline, "%s...", newline);
+        strcat(newline, "...");
         return newline;
     }
 }

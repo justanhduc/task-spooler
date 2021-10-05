@@ -177,7 +177,7 @@ static void run_child(int fd_send_filename) {
             if (command_line.stderr_apart) {
                 int errfd;
                 strncpy(errfname, outfname_full, sizeof errfname);
-                strncat(errfname, ".e", 2);
+                strncat(errfname, ".e", 2 + 1);
                 errfd = open(errfname, O_CREAT | O_WRONLY | O_TRUNC, 0600);
                 assert(err == 0);
                 err = dup2(errfd, 2);
@@ -202,7 +202,7 @@ static void run_child(int fd_send_filename) {
             if (command_line.stderr_apart) {
                 int errfd;
                 strncpy(errfname, outfname_full, sizeof errfname);
-                strncat(errfname, ".e", 2);
+                strncat(errfname, ".e", 2 + 1);
                 errfd = open(errfname, O_CREAT | O_WRONLY | O_TRUNC, 0600);
                 dup2(errfd, 2);
                 close(errfd);
