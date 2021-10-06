@@ -50,13 +50,17 @@ At the end, after some time using and developing ts, it can do something more:
 Simple run the provided script
 
 ```
-./install
+./install_cmake
 ```
 to use CMake, or 
 ```
+./install_make
+```
+to use Makefile. If Task Spooler has already been installed and you want to reinstall, execute 
+
+```
 ./reinstall
 ```
-to use Makefile.
 
 #### Common problems
 * Cannot find CUDA: Did you set a `CUDA_HOME` flag?
