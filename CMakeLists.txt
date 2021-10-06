@@ -3,8 +3,9 @@ project(Task-Spooler C)
 
 set(CMAKE_C_STANDARD 11)
 
+set(target ts)
 add_executable(
-        ts
+        ${target}
         client.c
         env.c
         error.c
@@ -22,5 +23,3 @@ add_executable(
         signals.c
         tail.c
 )
-
-target_link_libraries(ts nvidia-ml)
