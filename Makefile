@@ -19,22 +19,16 @@ OBJECTS=main.o \
 	env.o \
 	tail.o\
 	gpu.o
+TARGET=ts
 INSTALL=install -c
 
-all: ts
+all: $(TARGET)
 
-tsretry: tsretry.c
+$(TARGET): $(OBJECTS)
+	$(CC) $(LDFLAGS) -o $(TARGET) $^ -L$(CUDA_HOME)/lib64 -L$(CUDA_HOME)/lib64/stubs -I$(CUDA_HOME)/include -lpthread -lcudart -lcublas -fopenmp -lnvidia-ml
 
-ts: $(OBJECTS)
-	$(CC) $(LDFLAGS) -o ts $^ -L$(CUDA_HOME)/lib64 -L$(CUDA_HOME)/lib64/stubs -I$(CUDA_HOME)/include -lpthread -lcudart -lcublas -fopenmp -lnvidia-ml
-
-# Test our 'tail' implementation.
-ttail: tail.o ttail.o
-	$(CC) $(LDFLAGS) -o ttail $^
-
-
-.c.o:
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
+%.o : %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 # Dependencies
 main.o: main.c main.h
@@ -50,19 +44,19 @@ error.o: error.c main.h
 signals.o: signals.c main.h
 list.o: list.c main.h
 tail.o: tail.c main.h
-ttail.o: ttail.c main.h
 gpu.o: gpu.c main.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -L$(CUDA_HOME)/lib64 -I$(CUDA_HOME)/include -lpthread -c gpu.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -L$(CUDA_HOME)/lib64 -I$(CUDA_HOME)/include -lpthread -c $< -o $@
 
 clean:
-	rm -f *.o ts
+	rm -f *.o $(TARGET)
 
-install: ts
+install: $(TARGET)
 	$(INSTALL) -d $(PREFIX)/bin
 	$(INSTALL) ts $(PREFIX)/bin
 	$(INSTALL) -d $(PREFIX)/share/man/man1
-	$(INSTALL) -m 644 ts.1 $(PREFIX)/share/man/man1
+	$(INSTALL) -m 644 $(TARGET).1 $(PREFIX)/share/man/man1
 
+.PHONY: uninstall
 uninstall:
-	rm -f $(PREFIX)/bin/ts
-	rm -f $(PREFIX)/share/man/man1/ts.1
+	rm -f $(PREFIX)/bin/$(TARGET)
+	rm -f $(PREFIX)/share/man/man1/$(TARGET).1

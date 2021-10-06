@@ -7,8 +7,9 @@ set(CMAKE_CUDA_COMPILER $ENV{CUDA_HOME}/bin/nvcc)
 enable_language(CUDA)
 include_directories($ENV{CUDA_HOME}/include)
 
+set(target ts)
 add_executable(
-        ts
+        ${target}
         client.c
         env.c
         error.c
@@ -28,4 +29,4 @@ add_executable(
         tail.c
 )
 
-target_link_libraries(ts nvidia-ml)
+target_link_libraries(${target} nvidia-ml)
