@@ -37,7 +37,6 @@ void initGPU() {
 
 int * getGpuList(int *num) {
     int * gpuList;
-    unsigned int nDevices;
     int i, count = 0;
     nvmlReturn_t result;
 
@@ -45,12 +44,8 @@ int * getGpuList(int *num) {
     if (NVML_SUCCESS != result)
         error("Failed to initialize NVML: %s", nvmlErrorString(result));
 
-    result = nvmlDeviceGetCount_v2(&nDevices);
-    if (NVML_SUCCESS != result)
-        error("Failed to get device count: %s", nvmlErrorString(result));
-
-    gpuList = (int *) malloc(nDevices * sizeof(int));
-    for (i = 0; i < nDevices; ++i) {
+    gpuList = (int *) malloc(num_total_gpus * sizeof(int));
+    for (i = 0; i < num_total_gpus; ++i) {
         nvmlMemory_t mem;
         nvmlDevice_t dev;
         result = nvmlDeviceGetHandleByIndex_v2(i, &dev);
