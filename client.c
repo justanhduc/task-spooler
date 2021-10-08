@@ -271,8 +271,16 @@ void c_show_info() {
 
         if (res == 0)
             break;
+
         if (res != sizeof(m))
             error("Error in wait_server_lines 2");
+        if (m.type == LIST_LINE) {
+            char *buffer;
+            buffer = (char *) malloc(m.u.size);
+            recv_bytes(server_socket, buffer, m.u.size);
+            printf("%s", buffer);
+            free(buffer);
+        }
         if (m.type == INFO_DATA) {
             char *buffer;
             enum {
