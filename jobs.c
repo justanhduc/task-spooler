@@ -38,6 +38,7 @@ static int last_finished_jobid;
 static struct Notify *first_notify = 0;
 
 int max_jobs;
+char* logdir;
 
 static struct Job *get_job(int jobid);
 
@@ -1492,4 +1493,13 @@ void joblist_dump(int fd) {
         free(buffer);
         p = p->next;
     }
+}
+
+void s_get_logdir(int s) {
+    send_list_line(s, logdir);
+}
+
+void s_set_logdir(const char* path) {
+    logdir = realloc(logdir, strlen(path) + 1);
+    strcpy(logdir, path);
 }

@@ -88,11 +88,13 @@ int strtok_int(char* str, char* delim, int* ids) {
 }
 
 static struct option longOptions[] = {
-        {"get_label",     no_argument, NULL, 'a'},
-        {"count_running", no_argument, NULL, 'R'},
-        {"last_queue_id", no_argument, NULL, 'q'},
+        {"get_label",     no_argument,       NULL, 'a'},
+        {"count_running", no_argument,       NULL, 'R'},
+        {"last_queue_id", no_argument,       NULL, 'q'},
         {"full_cmd",      optional_argument, NULL, 'F'},
-        {NULL, 0,                      NULL, 0}
+        {"get_logdir",    no_argument,       NULL, 0},
+        {"set_logdir",    required_argument, NULL, 0},
+        {NULL,            0,                 NULL, 0}
 };
 
 void parse_opts(int argc, char **argv) {
@@ -109,6 +111,15 @@ void parse_opts(int argc, char **argv) {
             break;
 
         switch (c) {
+            case 0:
+                if (strcmp(longOptions[optionIdx].name, "get_logdir") == 0) {
+                    command_line.request = c_GET_LOGDIR;
+                } else if (strcmp(longOptions[optionIdx].name, "set_logdir") == 0) {
+                    command_line.request = c_SET_LOGDIR;
+                    command_line.label = optarg; /* reuse this variable */
+                } else
+                    error("Wrong option %s.", longOptions[optionIdx].name);
+                break;
             case 'K':
                 command_line.request = c_KILL_SERVER;
                 command_line.should_go_background = 0;
@@ -601,13 +612,18 @@ int main(int argc, char **argv) {
             /* This will also print the state into stdout */
             c_get_state();
             break;
+        case c_GET_LOGDIR:
+            c_get_logdir();
+            break;
+        case c_SET_LOGDIR:
+            c_set_logdir();
+            break;
     }
 
     if (command_line.need_server) {
         close(server_socket);
     }
     free(command_line.depend_on);
-    free(command_line.label);
 
     return errorlevel;
 }

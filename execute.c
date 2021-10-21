@@ -136,7 +136,7 @@ static void run_gzip(int fd_out, int fd_in) {
     }
 }
 
-static void run_child(int fd_send_filename) {
+static void run_child(int fd_send_filename, const char* tmpdir) {
     char outfname[] = "/ts-out.XXXXXX";
     char errfname[sizeof outfname + 2]; /* .e */
     int namesize;
@@ -146,7 +146,6 @@ static void run_child(int fd_send_filename) {
 
     if (command_line.store_output) {
         /* Prepare path */
-        const char *tmpdir = getenv("TMPDIR");
         int lname;
         char *outfname_full;
 
@@ -235,7 +234,7 @@ int run_job(struct Result *res) {
     int pid;
     int errorlevel;
     int p[2];
-
+    const char *tmpdir = get_logdir();
 
     /* For the parent */
     /*program_signal(); Still not needed*/
@@ -252,7 +251,7 @@ int run_job(struct Result *res) {
             restore_sigmask();
             close(server_socket);
             close(p[0]);
-            run_child(p[1]);
+            run_child(p[1], tmpdir);
             /* Not reachable, if the 'exec' of the command
              * works. Thus, command exists, etc. */
             fprintf(stderr, "ts could not run the command\n");

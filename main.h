@@ -44,7 +44,9 @@ enum MsgTypes {
     GET_LABEL,
     LAST_ID,
     KILL_ALL,
-    GET_CMD
+    GET_CMD,
+    GET_LOGDIR,
+    SET_LOGDIR
 };
 
 enum Request {
@@ -71,7 +73,9 @@ enum Request {
     c_GET_LABEL,
     c_LAST_ID,
     c_KILL_ALL,
-    c_SHOW_CMD
+    c_SHOW_CMD,
+    c_GET_LOGDIR,
+    c_SET_LOGDIR
 };
 
 struct CommandLine {
@@ -106,9 +110,9 @@ enum ProcessType {
 };
 
 extern struct CommandLine command_line;
-extern int server_socket;
 extern enum ProcessType process_type;
 extern int server_socket; /* Used in the client */
+extern char* logdir;
 extern int term_width;
 
 struct Msg;
@@ -263,6 +267,12 @@ void c_kill_all_jobs();
 
 void c_show_cmd();
 
+void c_get_logdir();
+
+void c_set_logdir();
+
+char* get_logdir();
+
 /* jobs.c */
 void s_list(int s);
 
@@ -327,6 +337,10 @@ int wake_hold_client();
 void s_get_label(int s, int jobid);
 
 void s_kill_all_jobs(int s);
+
+void s_get_logdir(int s);
+
+void s_set_logdir(const char*);
 
 /* server.c */
 void server_main(int notify_fd, char *_path);

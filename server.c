@@ -37,6 +37,8 @@ enum Break {
     CLOSE
 };
 
+char* logdir;
+
 /* Prototypes */
 static void server_loop(int ls);
 
@@ -107,6 +109,12 @@ static void set_default_maxslots() {
         slots = abs(atoi(str));
         s_set_max_slots(slots);
     }
+}
+
+static void initialize_log_dir() {
+    char *tmpdir = getenv("TMPDIR") == NULL ? "/tmp" : getenv("TMPDIR");
+    logdir = malloc(strlen(tmpdir) + 1);
+    strcpy(logdir, tmpdir);
 }
 
 static void install_sigterm_handler() {
@@ -198,6 +206,8 @@ void server_main(int notify_fd, char *_path) {
     install_sigterm_handler();
 
     set_default_maxslots();
+
+    initialize_log_dir();
 
     notify_parent(notify_fd);
 
@@ -465,6 +475,17 @@ client_read(int index) {
             break;
         case GET_VERSION:
             s_send_version(s);
+            break;
+        case GET_LOGDIR:
+            s_get_logdir(s);
+            break;
+        case SET_LOGDIR: {
+            char *path = malloc(m.u.size);
+            recv_bytes(s, path, m.u.size);
+            s_set_logdir(path);
+        }
+            close(s);
+            remove_connection(index);
             break;
         default:
             /* Command not supported */
