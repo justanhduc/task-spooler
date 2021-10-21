@@ -14,6 +14,17 @@
 extern int busy_slots;
 extern int max_slots;
 
+static char *shorten(char *line, int len) {
+    if (strlen(line) <= len)
+        return line;
+    else {
+        char *newline = (char *) malloc((len + 1) * sizeof(char));
+        snprintf(newline, len - 4, "%s", line);
+        strcat(newline, "...");
+        return newline;
+    }
+}
+
 char *joblistdump_headers() {
     char *line;
 
@@ -65,23 +76,12 @@ static const char *ofilename_shown(const struct Job *p) {
                  * problems */
                 output_filename = "(...)";
             else
-                output_filename = p->output_filename;
+                output_filename = shorten(p->output_filename, 20);
         }
     } else
         output_filename = "stdout";
 
     return output_filename;
-}
-
-static char *shorten(char *line, int len) {
-    if (strlen(line) <= len)
-        return line;
-    else {
-        char *newline = (char *) malloc((len + 1) * sizeof(char));
-        snprintf(newline, len - 4, "%s", line);
-        strcat(newline, "...");
-        return newline;
-    }
 }
 
 static char *print_noresult(const struct Job *p) {
@@ -96,7 +96,7 @@ static char *print_noresult(const struct Job *p) {
     jobstate = jstate2string(p->state);
     output_filename = ofilename_shown(p);
 
-    maxlen = 4 + 1 + 10 + 1 + max(20, strlen(output_filename)) + 1 + 8 + 1
+    maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1
              + 25 + 1 + 5 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
 
     if (p->label)
@@ -162,7 +162,7 @@ static char *print_result(const struct Job *p) {
     jobstate = jstate2string(p->state);
     output_filename = ofilename_shown(p);
 
-    maxlen = 4 + 1 + 10 + 1 + max(20, strlen(output_filename)) + 1 + 8 + 1
+    maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1
              + 25 + 1 + 5 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
 
     if (p->label)

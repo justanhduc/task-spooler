@@ -102,6 +102,8 @@ static struct option longOptions[] = {
         {"unsetenv",          required_argument, NULL, 0},
         {"set_gpu_free_perc", required_argument, NULL, 0},
         {"get_gpu_free_perc", no_argument,       NULL, 0},
+        {"get_logdir",        no_argument,       NULL, 0},
+        {"set_logdir",        required_argument, NULL, 0},
         {NULL, 0,                            NULL, 0}
 };
 
@@ -134,6 +136,11 @@ void parse_opts(int argc, char **argv) {
                     command_line.gpus = atoi(optarg); /* reuse this var */
                 } else if (strcmp(longOptions[optionIdx].name, "get_gpu_free_perc") == 0) {
                     command_line.request = c_GET_FREE_PERC;
+                } else if (strcmp(longOptions[optionIdx].name, "get_logdir") == 0) {
+                    command_line.request = c_GET_LOGDIR;
+                } else if (strcmp(longOptions[optionIdx].name, "set_logdir") == 0) {
+                    command_line.request = c_SET_LOGDIR;
+                    command_line.label = optarg; /* reuse this variable */
                 } else
                     error("Wrong option %s.", longOptions[optionIdx].name);
                 break;
@@ -676,6 +683,12 @@ int main(int argc, char **argv) {
             if (!command_line.need_server)
                 error("The command %i needs the server", command_line.request);
             c_get_free_percentage();
+            break;
+        case c_GET_LOGDIR:
+            c_get_logdir();
+            break;
+        case c_SET_LOGDIR:
+            c_set_logdir();
             break;
     }
 

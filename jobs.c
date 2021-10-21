@@ -45,6 +45,7 @@ static struct Notify *first_notify = 0;
 
 /* server will access them */
 int max_jobs;
+char* logdir;
 
 static struct Job *get_job(int jobid);
 
@@ -1647,4 +1648,13 @@ void s_get_free_percentage(int s) {
     m.type = GET_FREE_PERC;
     m.u.size = free_percentage;
     send_msg(s, &m);
+}
+
+void s_get_logdir(int s) {
+    send_list_line(s, logdir);
+}
+
+void s_set_logdir(const char* path) {
+    logdir = realloc(logdir, strlen(path) + 1);
+    strcpy(logdir, path);
 }

@@ -52,7 +52,9 @@ enum MsgTypes {
     SET_ENV,
     UNSET_ENV,
     SET_FREE_PERC,
-    GET_FREE_PERC
+    GET_FREE_PERC,
+    GET_LOGDIR,
+    SET_LOGDIR
 };
 
 enum Request {
@@ -84,7 +86,9 @@ enum Request {
     c_SET_ENV,
     c_UNSET_ENV,
     c_SET_FREE_PERC,
-    c_GET_FREE_PERC
+    c_GET_FREE_PERC,
+    c_GET_LOGDIR,
+    c_SET_LOGDIR
 };
 
 struct CommandLine {
@@ -127,6 +131,7 @@ extern enum Process_type process_type;
 extern int server_socket; /* Used in the client */
 extern int *used_gpus;  /* Used in both client and server */
 extern int num_total_gpus;
+extern char* logdir;
 extern int term_width;
 
 struct Msg;
@@ -301,6 +306,12 @@ void c_set_free_percentage();
 
 void c_get_free_percentage();
 
+void c_get_logdir();
+
+void c_set_logdir();
+
+char* get_logdir();
+
 /* jobs.c */
 void s_list(int s);
 
@@ -375,6 +386,10 @@ void s_unset_env(int s, int size);
 void s_set_free_percentage(int new_percentage);
 
 void s_get_free_percentage(int s);
+
+void s_get_logdir(int s);
+
+void s_set_logdir(const char*);
 
 /* server.c */
 void server_main(int notify_fd, char *_path);
