@@ -71,7 +71,7 @@ to use CMake, or
 ```
 ./install_make
 ```
-to use Makefile. If Task Spooler has already been installed and you want to reinstall, execute 
+to use Makefile. If Task Spooler has already been installed, and you want to reinstall, execute 
 
 ```
 ./reinstall
@@ -162,6 +162,8 @@ Long option actions:
   --full_cmd       || -F [id]     show full command. Of the last added, if not specified.
   --count_running  || -R          return the number of running jobs
   --last_queue_id  || -q          show the job ID of the last added.
+  --get_logdir                    get the path containing log files.
+  --set_logdir <path>             set the path containing log files. 
 Long option adding jobs:
   --gpus           || -G [num]    number of GPUs required by the job (1 default).
   --gpu_indices    || -g <id,...> the job will be on these GPU indices without checking whether they are free.
@@ -188,6 +190,7 @@ Actions:
 Options adding jobs:
   -n           don't store the output of the command.
   -E           Keep stderr apart, in a name like the output file, but adding '.e'.
+  -O           Set name of the log file (without any path).
   -z           gzip the stored output (if not -n).
   -f           don't fork into background.
   -m           send the output by e-mail (uses sendmail).

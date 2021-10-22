@@ -32,14 +32,17 @@ Actions:
 .BI "[\--unsetenv ["var ]]
 .BI "[\--set_gpu_free_perc ["num ]]
 .BI "[\--set_gpu_free_perc ]
+.BI "[\--get_logdir]
+.BI "[\--set_logdir ["path ]]
 
 .sp
 Options:
 .BI "[\-nEfzmd]"
-.BI "[\-L <"label >]
-.BI "[\-D <"id1,id2,... >]
+.BI "[\-L ["label ]]
+.BI "[\-D ["id1,id2,... ]]
 .BI "[\-G/--gpus ["num ]]
-.BI "[\--gpus_indices <"id1,id2,... >]
+.BI "[\--gpus_indices ["id1,id2,... ]]
+.BI "[\-O ["name ]]
 
 .SH DESCRIPTION
 .B ts
@@ -84,7 +87,7 @@ using
 Look at
 .B ENVIRONMENT.
 .TP
-.B "\-L <label>"
+.B "\-L [label]"
 Add a label to the task, which will appear next to its command when listing
 the queue. It makes more comfortable distinguishing similar commands with
 different goals.
@@ -93,11 +96,11 @@ different goals.
 Run the command only after the last command finished.
 It does not depend on how its dependency ends.
 .TP
-.B "\-D <id,...>"
+.B "\-D [id,...]"
 Run the command only after the specified job IDs finished.
 It does not depend on how its dependencies end.
 .TP
-.B "\-W <id,...>"
+.B "\-W [id,...]"
 Run the command only if the job of given id finished well (errorlevel = 0). This new
 task enqueued depends on the result of the previous command. If the task is not run,
 it is considered as failed for further dependencies.
@@ -116,17 +119,22 @@ with an additional ".e". For example, /tmp/ts-out.SKsDw8 and /tmp/ts-out.SKsDw8.
 Only the stdout file gets created with \fBmkstemp\fR, ensuring it does not overwrite
 any other; the ".e" will be overwritten if it existed.
 .TP
-.B "\-N <num>"
+.B "\-O [name]"
+Set the log name to the specified name. Do not include any path in the specified name.
+.TP
+.B "\-N [num]"
 Run the command only if there are \fbnum\fB slots free in the queue. Without it,
 the job will run if there is one slot free. For example, if you use the
 queue to feed cpu cores, and you know that a job will take two cores, with \fB\-N\fB
 you can let ts know that.
 .TP
-.B "\-G/--gpus <num>"
+.B "\-G/--gpus [num]"
 Run the job with \fbnum\fB GPUs.
 .TP
-.B "\-g/--gpu_indices <id,...>"
+.B "\-g/--gpu_indices [id,...]"
 Run the job with the specified GPU IDs. GPU IDs should be separated by commas.
+.TP
+
 .SH ACTIONS
 Instead of giving a new command, we can use the parameters for other purposes:
 .TP
@@ -185,8 +193,14 @@ Return the number of running jobs
 .B "\-a/--get_label <id>"
 Show the job label. Of the last added, if not specified.
 .TP
-.B "\-F/--full_cmd <id>"
+.B "\-F/--full_cmd [id]"
 Show the full command. Of the last added, if not specified.
+.TP
+.B "\--get_logdir"
+Show the path containing log files.
+.TP
+.B "\--get_logdir [path]"
+Set the path containing log files to the specified path.
 .TP
 .B "\-t [id]"
 Show the last ten lines of the output file of the named job, or the last

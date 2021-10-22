@@ -447,14 +447,12 @@ static void print_help(const char *cmd) {
     printf("  --set_gpu_free_perc   [num]     set the value of GPU memory threshold above which GPUs are considered available (90 by default).\n");
     printf("  --get_gpu_free_perc             get the value of GPU memory threshold above which GPUs are considered available.\n");
     printf("  --unsetenv   <var>              remove the specified flag from server environment.\n");
-    printf("  --set_gpu_wait   <sec>          set time to wait before running the next GPU job (30 seconds by default).\n");
-    printf("  --get_gpu_wait                  get time to wait before running the next GPU job.\n");
     printf("  --get_label      || -a [id]     show the job label. Of the last added, if not specified.\n");
     printf("  --full_cmd       || -F [id]     show full command. Of the last added, if not specified.\n");
     printf("  --count_running  || -R          return the number of running jobs\n");
     printf("  --last_queue_id  || -q          show the job ID of the last added.\n");
     printf("  --get_logdir                    get the path containing log files.\n");
-    printf("  --set_logdir                    set the path containing log files.\n");
+    printf("  --set_logdir [path]             set the path containing log files.\n");
     printf("Long option adding jobs:\n");
     printf("  --gpus           || -G [num]    number of GPUs required by the job (1 default).\n");
     printf("  --gpu_indices    || -g <id,...> the job will be on these GPU indices without checking whether they are free.\n");
