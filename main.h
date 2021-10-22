@@ -119,6 +119,7 @@ struct CommandLine {
     int *gpu_nums;
     int wait_free_gpus;
     int gpu_wait_time;
+    char *logfile;
 };
 
 enum Process_type {

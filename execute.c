@@ -137,12 +137,18 @@ static void run_gzip(int fd_out, int fd_in) {
 }
 
 static void run_child(int fd_send_filename, const char* tmpdir) {
-    char outfname[] = "/ts-out.XXXXXX";
+    char *outfname;
     char errfname[sizeof outfname + 2]; /* .e */
     int namesize;
     int outfd;
     int err;
     struct timeval starttv;
+
+    if (command_line.logfile) {
+        outfname = malloc(1 + strlen(command_line.logfile) + strlen(".XXXXXX") + 1);
+        sprintf(outfname, "/%s.XXXXXX", command_line.logfile);
+    } else
+        outfname = "/ts-out.XXXXXX";
 
     if (command_line.store_output) {
         /* Prepare path */

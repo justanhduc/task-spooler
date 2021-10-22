@@ -50,6 +50,7 @@ static void default_command_line() {
     command_line.require_elevel = 0;
     command_line.gpus = 0;
     command_line.wait_free_gpus = 1;
+    command_line.logfile = 0;
 }
 
 void get_command(int index, int argc, char **argv) {
@@ -114,7 +115,7 @@ void parse_opts(int argc, char **argv) {
 
     /* Parse options */
     while (1) {
-        c = getopt_long(argc, argv, ":RTVhKzClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:G:W:g:",
+        c = getopt_long(argc, argv, ":RTVhKzClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:G:W:g:O:",
                         longOptions, &optionIdx);
 
         if (c == -1)
@@ -180,6 +181,9 @@ void parse_opts(int argc, char **argv) {
             case 'o':
                 command_line.request = c_SHOW_OUTPUT_FILE;
                 command_line.jobid = atoi(optarg);
+                break;
+            case 'O':
+                command_line.logfile = optarg;
                 break;
             case 'n':
                 command_line.store_output = 0;
@@ -449,6 +453,8 @@ static void print_help(const char *cmd) {
     printf("  --full_cmd       || -F [id]     show full command. Of the last added, if not specified.\n");
     printf("  --count_running  || -R          return the number of running jobs\n");
     printf("  --last_queue_id  || -q          show the job ID of the last added.\n");
+    printf("  --get_logdir                    get the path containing log files.\n");
+    printf("  --set_logdir                    set the path containing log files.\n");
     printf("Long option adding jobs:\n");
     printf("  --gpus           || -G [num]    number of GPUs required by the job (1 default).\n");
     printf("  --gpu_indices    || -g <id,...> the job will be on these GPU indices without checking whether they are free.\n");
@@ -475,6 +481,7 @@ static void print_help(const char *cmd) {
     printf("  -B           in case of full clients on the server, quit instead of waiting.\n");
     printf("  -n           don't store the output of the command.\n");
     printf("  -E           Keep stderr apart, in a name like the output file, but adding '.e'.\n");
+    printf("  -O           Set name of the log file (without any path).\n");
     printf("  -z           gzip the stored output (if not -n).\n");
     printf("  -f           don't fork into background.\n");
     printf("  -m           send the output by e-mail (uses sendmail).\n");
