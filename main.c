@@ -47,6 +47,7 @@ static void default_command_line() {
     command_line.stderr_apart = 0;
     command_line.num_slots = 1;
     command_line.require_elevel = 0;
+    command_line.logfile = 0;
 }
 
 void get_command(int index, int argc, char **argv) {
@@ -88,7 +89,7 @@ int strtok_int(char* str, char* delim, int* ids) {
 }
 
 static struct option longOptions[] = {
-        {"get_label",     no_argument,       NULL, 'a'},
+        {"get_label",     optional_argument, NULL, 'a'},
         {"count_running", no_argument,       NULL, 'R'},
         {"last_queue_id", no_argument,       NULL, 'q'},
         {"full_cmd",      optional_argument, NULL, 'F'},
@@ -104,7 +105,7 @@ void parse_opts(int argc, char **argv) {
 
     /* Parse options */
     while (1) {
-        c = getopt_long(argc, argv, ":RTVhKzClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:W:",
+        c = getopt_long(argc, argv, ":RTVhKzClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:W:O:",
                         longOptions, &optionIdx);
 
         if (c == -1)
@@ -156,6 +157,9 @@ void parse_opts(int argc, char **argv) {
             case 'o':
                 command_line.request = c_SHOW_OUTPUT_FILE;
                 command_line.jobid = atoi(optarg);
+                break;
+            case 'O':
+                command_line.logfile = optarg;
                 break;
             case 'n':
                 command_line.store_output = 0;
@@ -405,6 +409,8 @@ static void print_help(const char *cmd) {
     printf("  --full_cmd       || -F [id]   show full command. Of the last added, if not specified.\n");
     printf("  --count_running  || -R        return the number of running jobs\n");
     printf("  --last_queue_id  || -q        show the job ID of the last added.\n");
+    printf("  --get_logdir                    get the path containing log files.\n");
+    printf("  --set_logdir                    set the path containing log files.\n");
     printf("Actions:\n");
     printf("  -K           kill the task spooler server\n");
     printf("  -C           clear the list of finished jobs\n");
@@ -428,6 +434,7 @@ static void print_help(const char *cmd) {
     printf("  -B           in case of full clients on the server, quit instead of waiting.\n");
     printf("  -n           don't store the output of the command.\n");
     printf("  -E           Keep stderr apart, in a name like the output file, but adding '.e'.\n");
+    printf("  -O           Set name of the log file (without any path).\n");
     printf("  -z           gzip the stored output (if not -n).\n");
     printf("  -f           don't fork into background.\n");
     printf("  -m           send the output by e-mail (uses sendmail).\n");
