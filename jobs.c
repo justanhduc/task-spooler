@@ -37,6 +37,7 @@ static int last_finished_jobid;
 
 static struct Notify *first_notify = 0;
 
+/* server will access them */
 int max_jobs;
 char* logdir;
 
@@ -242,6 +243,8 @@ void s_get_label(int s, int jobid) {
     } else
         label = "";
     send_list_line(s, label);
+    if (p->label)
+        free(label);
 }
 
 void s_send_cmd(int s, int jobid) {
@@ -1332,8 +1335,6 @@ void s_move_urgent(int s, int jobid) {
     tmp1->next = p->next;
     p->next = firstjob->next;
     firstjob->next = p;
-
-
     send_urgent_ok(s);
 }
 
@@ -1502,4 +1503,34 @@ void s_get_logdir(int s) {
 void s_set_logdir(const char* path) {
     logdir = realloc(logdir, strlen(path) + 1);
     strcpy(logdir, path);
+}
+
+void s_get_env(int s, int size) {
+    char *var = malloc(size);
+    int res = recv_bytes(s, var, size);
+    if (res != size)
+        error("Receiving environment variable name");
+
+    char *val = getenv(var);
+    struct Msg m;
+    m.type = LIST_LINE;
+    m.u.size = val ? sizeof(val) + 1 : 0;
+    send_msg(s, &m);
+    if (val)
+        send_bytes(s, val, m.u.size);
+
+    free(var);
+}
+
+void s_set_env(int s, int size) {
+    char *var = malloc(size);
+    int res = recv_bytes(s, var, size);
+    if (res != size)
+        error("Receiving environment variable name");
+
+    /* get the first token */
+    char *name = strtok(var, "=");
+    char *val = strtok(NULL, "=");
+    setenv(name, val, 1);
+    free(var);
 }

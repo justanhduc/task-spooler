@@ -473,6 +473,12 @@ client_read(int index) {
         case GET_STATE:
             s_send_state(s, m.u.jobid);
             break;
+        case GET_ENV:
+            s_get_env(s, m.u.size);
+            break;
+        case SET_ENV:
+            s_set_env(s, m.u.size);
+            break;
         case GET_VERSION:
             s_send_version(s);
             break;

@@ -95,6 +95,8 @@ static struct option longOptions[] = {
         {"full_cmd",      optional_argument, NULL, 'F'},
         {"get_logdir",    no_argument,       NULL, 0},
         {"set_logdir",    required_argument, NULL, 0},
+        {"getenv",        required_argument, NULL, 0},
+        {"setenv",        required_argument, NULL, 0},
         {NULL,            0,                 NULL, 0}
 };
 
@@ -118,6 +120,12 @@ void parse_opts(int argc, char **argv) {
                 } else if (strcmp(longOptions[optionIdx].name, "set_logdir") == 0) {
                     command_line.request = c_SET_LOGDIR;
                     command_line.label = optarg; /* reuse this variable */
+                } else if (strcmp(longOptions[optionIdx].name, "getenv") == 0) {
+                    command_line.request = c_GET_ENV;
+                    command_line.label = optarg;  /* reuse this var */
+                } else if (strcmp(longOptions[optionIdx].name, "setenv") == 0) {
+                    command_line.request = c_SET_ENV;
+                    command_line.label = optarg;  /* reuse this var */
                 } else
                     error("Wrong option %s.", longOptions[optionIdx].name);
                 break;
@@ -624,6 +632,16 @@ int main(int argc, char **argv) {
             break;
         case c_SET_LOGDIR:
             c_set_logdir();
+            break;
+        case c_GET_ENV:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_get_env();
+            break;
+        case c_SET_ENV:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_set_env();
             break;
     }
 
