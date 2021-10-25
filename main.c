@@ -408,6 +408,7 @@ static void print_help(const char *cmd) {
     puts(version);
     printf("usage: %s [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]\n", cmd);
     printf("Env vars:\n");
+    printf("  TS_VISIBLE_DEVICES  the GPU IDs that are visible to ts. Jobs will be run on these GPUs only\n");
     printf("  TS_SOCKET  the path to the unix socket used by the ts command.\n");
     printf("  TS_MAILTO  where to mail the result (on -m). Local user by default.\n");
     printf("  TS_MAXFINISHED  maximum finished jobs in the queue.\n");
@@ -418,6 +419,8 @@ static void print_help(const char *cmd) {
     printf("  TS_SLOTS   amount of jobs which can run at once, read on server start.\n");
     printf("  TMPDIR     directory where to place the output files and the default socket.\n");
     printf("Long option actions:\n");
+    printf("  --getenv   <var>                get the value of the specified environment variable.\n");
+    printf("  --setenv   <var>                set the specified flag to environment.\n");
     printf("  --set_gpu_wait   <sec>          set time to wait before running the next GPU job (30 seconds by default).\n");
     printf("  --get_gpu_wait                  get time to wait before running the next GPU job.\n");
     printf("  --get_label      || -a [id]     show the job label. Of the last added, if not specified.\n");
