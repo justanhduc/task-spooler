@@ -413,12 +413,14 @@ static void print_help(const char *cmd) {
     printf("  TS_SLOTS   amount of jobs which can run at once, read on server start.\n");
     printf("  TMPDIR     directory where to place the output files and the default socket.\n");
     printf("Long option actions:\n");
+    printf("  --getenv   <var>              get the value of the specified environment variable.\n");
+    printf("  --setenv   <var>              set the specified flag to environment.\n");
     printf("  --get_label      || -a [id]   show the job label. Of the last added, if not specified.\n");
     printf("  --full_cmd       || -F [id]   show full command. Of the last added, if not specified.\n");
     printf("  --count_running  || -R        return the number of running jobs\n");
     printf("  --last_queue_id  || -q        show the job ID of the last added.\n");
-    printf("  --get_logdir                    get the path containing log files.\n");
-    printf("  --set_logdir                    set the path containing log files.\n");
+    printf("  --get_logdir                  get the path containing log files.\n");
+    printf("  --set_logdir                  set the path containing log files.\n");
     printf("Actions:\n");
     printf("  -K           kill the task spooler server\n");
     printf("  -C           clear the list of finished jobs\n");
