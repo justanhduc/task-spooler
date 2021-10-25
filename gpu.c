@@ -35,37 +35,73 @@ void initGPU() {
             error("Failed to shutdown NVML: %s", nvmlErrorString(result));
 }
 
+static int getGpuVisibility(int **visibility) {
+    char* vis = getenv("TS_VISIBLE_DEVICES");
+    if (vis) {
+        *visibility = malloc(strlen(vis) * sizeof(int));
+        int num = strtok_int(vis, ",", *visibility);
+        return num;
+    }
+    return -1;
+}
+
 int * getGpuList(int *num) {
-    int * gpuList;
+    int *gpuList, *visible;
     int i, count = 0;
+    int numVis;
     nvmlReturn_t result;
 
     result = nvmlInit();
     if (NVML_SUCCESS != result)
         error("Failed to initialize NVML: %s", nvmlErrorString(result));
 
-    gpuList = (int *) malloc(num_total_gpus * sizeof(int));
-    for (i = 0; i < num_total_gpus; ++i) {
-        nvmlMemory_t mem;
-        nvmlDevice_t dev;
-        result = nvmlDeviceGetHandleByIndex_v2(i, &dev);
-        if (result != 0) {
-            error("Failed to get GPU handle for GPU %d: %s", i, nvmlErrorString(result));
-            goto Error;
-        }
-
-        result = nvmlDeviceGetMemoryInfo(dev, &mem);
-        if (result != 0) {
-            error("Failed to get GPU memory for GPU %d: %s", i, nvmlErrorString(result));
-            goto Error;
-        }
-
-        if (mem.free < .9 * mem.total)
-            continue;
-
-        gpuList[count++] = i;
+    numVis = getGpuVisibility(&visible);
+    if (numVis == 0) {
+        *num = 0;
+        goto Error;
     }
-    *num = count;
+
+    gpuList = (int *) malloc(num_total_gpus * sizeof(int));
+    if (numVis < 0) {
+        for (i = 0; i < num_total_gpus; ++i) {
+            nvmlMemory_t mem;
+            nvmlDevice_t dev;
+            result = nvmlDeviceGetHandleByIndex_v2(i, &dev);
+            if (result != 0) {
+                error("Failed to get GPU handle for GPU %d: %s", i, nvmlErrorString(result));
+                goto Error;
+            }
+
+            result = nvmlDeviceGetMemoryInfo(dev, &mem);
+            if (result != 0) {
+                error("Failed to get GPU memory for GPU %d: %s", i, nvmlErrorString(result));
+                goto Error;
+            }
+
+            if (mem.free > .9 * mem.total)
+                gpuList[count++] = i;
+        }
+        *num = count;
+    } else {
+        for (i = 0; i < numVis; i++) {
+            nvmlMemory_t mem;
+            nvmlDevice_t dev;
+            result = nvmlDeviceGetHandleByIndex_v2(visible[i], &dev);
+            if (result != 0) {
+                error("Failed to get GPU handle for GPU %d: %s", visible[i], nvmlErrorString(result));
+                goto Error;
+            }
+
+            result = nvmlDeviceGetMemoryInfo(dev, &mem);
+            if (result != 0) {
+                error("Failed to get GPU memory for GPU %d: %s", visible[i], nvmlErrorString(result));
+                goto Error;
+            }
+
+            if (mem.free > .9 * mem.total)
+                gpuList[count++] = visible[i];
+        }
+    }
     result = nvmlShutdown();
     if (NVML_SUCCESS != result)
         error("Failed to shutdown NVML: %s", nvmlErrorString(result));

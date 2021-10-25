@@ -217,6 +217,9 @@ enum ExitCodes {
 };
 
 
+/* main.c */
+int strtok_int(char* str, char* delim, int* ids);
+
 /* client.c */
 void c_new_job();
 

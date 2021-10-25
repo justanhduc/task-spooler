@@ -681,10 +681,8 @@ int next_run_job() {
                 int *gpu_ids = (int*) malloc(p->num_gpus * sizeof(int));
                 while (i < p->num_gpus && j < numFree) {
                     /* if the prospective GPUs are in used, select the next one */
-                    if (!used_gpus[freeGpuList[j]]) {
-                        gpu_ids[i] = freeGpuList[j];
-                        i++;  /* select this GPU */
-                    }
+                    if (!used_gpus[freeGpuList[j]])
+                        gpu_ids[i++] = freeGpuList[j];
                     j++;
                 }
                 /* some GPUs might already be claimed by other jobs, but the system still reports as free -> skip */
