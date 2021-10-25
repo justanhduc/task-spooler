@@ -1589,3 +1589,33 @@ void joblist_dump(int fd) {
         p = p->next;
     }
 }
+
+void s_get_env(int s, int size) {
+    char *var = malloc(size);
+    int res = recv_bytes(s, var, size);
+    if (res != size)
+        error("Receiving environment variable name");
+
+    char *val = getenv(var);
+    struct Msg m;
+    m.type = LIST_LINE;
+    m.u.size = val ? sizeof(val) + 1 : 0;
+    send_msg(s, &m);
+    if (val)
+        send_bytes(s, val, m.u.size);
+
+    free(var);
+}
+
+void s_set_env(int s, int size) {
+    char *var = malloc(size);
+    int res = recv_bytes(s, var, size);
+    if (res != size)
+        error("Receiving environment variable name");
+
+    /* get the first token */
+    char *name = strtok(var, "=");
+    char *val = strtok(NULL, "=");
+    setenv(name, val, 1);
+    free(var);
+}

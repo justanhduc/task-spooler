@@ -794,3 +794,48 @@ void c_show_cmd() {
             warning("Wrong internal message in show_cmd");
     }
 }
+
+void c_get_env() {
+    struct Msg m;
+    int res;
+    char *string = 0;
+
+    /* Send the request */
+    m.type = GET_ENV;
+    m.u.size = strlen(command_line.label) + 1;
+    send_msg(server_socket, &m);
+    send_bytes(server_socket, command_line.label, m.u.size);
+
+    /* Receive the answer */
+    res = recv_msg(server_socket, &m);
+    if (res != sizeof(m))
+        error("Error in get_env");
+
+    switch (m.type) {
+        case LIST_LINE:
+            if (m.u.size) {
+                string = (char *) malloc(m.u.size);
+                res = recv_bytes(server_socket, string, m.u.size);
+                if (res != m.u.size)
+                    error("Error in get_env - line size");
+
+                printf("%s\n", string);
+                free(string);
+            } else
+                printf("\n");
+
+            return;
+        default:
+            warning("Wrong internal message in get_env");
+    }
+}
+
+void c_set_env() {
+    struct Msg m;
+
+    /* Send the request */
+    m.type = SET_ENV;
+    m.u.size = strlen(command_line.label) + 1;
+    send_msg(server_socket, &m);
+    send_bytes(server_socket, command_line.label, m.u.size);
+}

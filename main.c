@@ -97,6 +97,8 @@ static struct option longOptions[] = {
         {"gpus",          required_argument, NULL, 'G'},
         {"gpu_indices",   required_argument, NULL, 'g'},
         {"full_cmd",      optional_argument, NULL, 'F'},
+        {"getenv",        required_argument, NULL, 0},
+        {"setenv",        required_argument, NULL, 0},
         {NULL, 0,                            NULL, 0}
 };
 
@@ -114,6 +116,16 @@ void parse_opts(int argc, char **argv) {
             break;
 
         switch (c) {
+            case 0:
+                if (strcmp(longOptions[optionIdx].name, "getenv") == 0) {
+                    command_line.request = c_GET_ENV;
+                    command_line.label = optarg;  /* reuse this var */
+                } else if (strcmp(longOptions[optionIdx].name, "setenv") == 0) {
+                    command_line.request = c_SET_ENV;
+                    command_line.label = optarg;  /* reuse this var */
+                } else
+                    error("Wrong option %s.", longOptions[optionIdx].name);
+                break;
             case 'K':
                 command_line.request = c_KILL_SERVER;
                 command_line.should_go_background = 0;
@@ -622,13 +634,22 @@ int main(int argc, char **argv) {
             /* This will also print the state into stdout */
             c_get_state();
             break;
+        case c_GET_ENV:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_get_env();
+            break;
+        case c_SET_ENV:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_set_env();
+            break;
     }
 
     if (command_line.need_server) {
         close(server_socket);
     }
     free(command_line.depend_on);
-    free(command_line.label);
 
     return errorlevel;
 }
