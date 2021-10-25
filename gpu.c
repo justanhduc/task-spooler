@@ -36,10 +36,12 @@ void initGPU() {
 }
 
 static int getGpuVisibility(int **visibility) {
-    char* vis = getenv("TS_VISIBLE_DEVICES");
-    if (vis) {
-        *visibility = malloc(strlen(vis) * sizeof(int));
-        int num = strtok_int(vis, ",", *visibility);
+    const char* tmp = getenv("TS_VISIBLE_DEVICES");
+    char* visFlag = malloc(strlen(tmp) + 1);
+    strcpy(visFlag, tmp);
+    if (visFlag) {
+        *visibility = malloc(strlen(visFlag) * sizeof(int));
+        int num = strtok_int(visFlag, ",", *visibility);
         return num;
     }
     return -1;
@@ -81,7 +83,6 @@ int * getGpuList(int *num) {
             if (mem.free > .9 * mem.total)
                 gpuList[count++] = i;
         }
-        *num = count;
     } else {
         for (i = 0; i < numVis; i++) {
             nvmlMemory_t mem;
@@ -102,6 +103,7 @@ int * getGpuList(int *num) {
                 gpuList[count++] = visible[i];
         }
     }
+    *num = count;
     result = nvmlShutdown();
     if (NVML_SUCCESS != result)
         error("Failed to shutdown NVML: %s", nvmlErrorString(result));
