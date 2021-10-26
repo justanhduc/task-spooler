@@ -48,7 +48,8 @@ enum MsgTypes {
     GET_LOGDIR,
     SET_LOGDIR,
     GET_ENV,
-    SET_ENV
+    SET_ENV,
+    UNSET_ENV
 };
 
 enum Request {
@@ -79,7 +80,8 @@ enum Request {
     c_GET_LOGDIR,
     c_SET_LOGDIR,
     c_GET_ENV,
-    c_SET_ENV
+    c_SET_ENV,
+    c_UNSET_ENV
 };
 
 struct CommandLine {
@@ -282,6 +284,8 @@ void c_get_env();
 
 void c_set_env();
 
+void c_unset_env();
+
 /* jobs.c */
 void s_list(int s);
 
@@ -354,6 +358,8 @@ void s_set_logdir(const char*);
 void s_get_env(int s, int size);
 
 void s_set_env(int s, int size);
+
+void s_unset_env(int s, int size);
 
 /* server.c */
 void server_main(int notify_fd, char *_path);

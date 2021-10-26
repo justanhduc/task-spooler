@@ -1528,9 +1528,21 @@ void s_set_env(int s, int size) {
     if (res != size)
         error("Receiving environment variable name");
 
-    /* get the first token */
+    /* get the var name */
     char *name = strtok(var, "=");
+
+    /* get the var value */
     char *val = strtok(NULL, "=");
     setenv(name, val, 1);
+    free(var);
+}
+
+void s_unset_env(int s, int size) {
+    char *var = malloc(size);
+    int res = recv_bytes(s, var, size);
+    if (res != size)
+        error("Receiving environment variable name");
+
+    unsetenv(var);
     free(var);
 }

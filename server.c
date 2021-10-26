@@ -479,6 +479,9 @@ client_read(int index) {
         case SET_ENV:
             s_set_env(s, m.u.size);
             break;
+        case UNSET_ENV:
+            s_unset_env(s, m.u.size);
+            break;
         case GET_VERSION:
             s_send_version(s);
             break;
