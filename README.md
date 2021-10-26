@@ -142,6 +142,7 @@ See below or `man ts` for more details.
 ```
 usage: ts [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]
 Env vars:
+  TS_VISIBLE_DEVICES  the path to the unix socket used by the ts command.
   TS_SOCKET  the path to the unix socket used by the ts command.
   TS_MAILTO  where to mail the result (on -m). Local user by default.
   TS_MAXFINISHED  maximum finished jobs in the queue.
@@ -152,6 +153,8 @@ Env vars:
   TS_SLOTS   amount of jobs which can run at once, read on server start.
   TMPDIR     directory where to place the output files and the default socket.
 Long option actions:
+  --getenv   <var>                get the value of the specified environment variable.
+  --setenv   <var>                set the specified flag to environment.
   --set_gpu_wait   <sec>          set time to wait before running the next GPU job (30 seconds by default).
   --get_gpu_wait                  get time to wait before running the next GPU job.
   --get_label      || -a [id]     show the job label. Of the last added, if not specified.
