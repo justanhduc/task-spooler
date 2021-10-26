@@ -412,7 +412,7 @@ static void print_help(const char *cmd) {
     puts(version);
     printf("usage: %s [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]\n", cmd);
     printf("Env vars:\n");
-    printf("  TS_VISIBLE_DEVICES  the GPU IDs that are visible to ts. Jobs will be run on these GPUs only\n");
+    printf("  TS_VISIBLE_DEVICES  the GPU IDs that are visible to ts. Jobs will be run on these GPUs only.\n");
     printf("  TS_SOCKET  the path to the unix socket used by the ts command.\n");
     printf("  TS_MAILTO  where to mail the result (on -m). Local user by default.\n");
     printf("  TS_MAXFINISHED  maximum finished jobs in the queue.\n");
@@ -464,8 +464,8 @@ static void print_help(const char *cmd) {
     printf("  -d           the job will be run after the last job ends.\n");
     printf("  -D <id,...>  the job will be run after the job of given IDs ends.\n");
     printf("  -W <id,...>  the job will be run after the job of given IDs ends well (exit code 0).\n");
-    printf("  -L <lab>     name this task with a label, to be distinguished on listing.\n");
-    printf("  -N <num>     number of slots required by the job (1 default).\n");
+    printf("  -L [label]   name this task with a label, to be distinguished on listing.\n");
+    printf("  -N [num]     number of slots required by the job (1 default).\n");
 }
 
 static void print_version() {

@@ -142,7 +142,7 @@ See below or `man ts` for more details.
 ```
 usage: ts [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]
 Env vars:
-  TS_VISIBLE_DEVICES  the path to the unix socket used by the ts command.
+  TS_VISIBLE_DEVICES  the GPU IDs that are visible to ts. Jobs will be run on these GPUs only.
   TS_SOCKET  the path to the unix socket used by the ts command.
   TS_MAILTO  where to mail the result (on -m). Local user by default.
   TS_MAXFINISHED  maximum finished jobs in the queue.
