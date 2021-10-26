@@ -419,6 +419,7 @@ static void print_help(const char *cmd) {
     printf("Long option actions:\n");
     printf("  --getenv   <var>              get the value of the specified environment variable.\n");
     printf("  --setenv   <var>              set the specified flag to environment.\n");
+    printf("  --unsetenv   <var>            remove the specified flag from server environment.\n");
     printf("  --get_label      || -a [id]   show the job label. Of the last added, if not specified.\n");
     printf("  --full_cmd       || -F [id]   show full command. Of the last added, if not specified.\n");
     printf("  --count_running  || -R        return the number of running jobs\n");
