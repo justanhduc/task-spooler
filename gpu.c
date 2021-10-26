@@ -37,19 +37,18 @@ void initGPU() {
             error("Failed to shutdown NVML: %s", nvmlErrorString(result));
 }
 
-static int getVisibleGpus(int **visibility) {
+static int getVisibleGpus(int *visibility) {
     const char* tmp = getenv(TS_VISIBLE_DEVICES);
-    *visibility = malloc(num_total_gpus * sizeof(int));
 
     if (tmp) {
         char* visFlag = malloc(strlen(tmp) + 1);
         strcpy(visFlag, tmp);
-        int num = strtok_int(visFlag, ",", *visibility);
+        int num = strtok_int(visFlag, ",", visibility);
         return num;
     }
 
     for (int i = 0; i < num_total_gpus; i++)
-        *visibility[i] = i;
+        visibility[i] = i;
 
     return num_total_gpus;
 }
@@ -64,7 +63,8 @@ int * getGpuList(int *num) {
     if (NVML_SUCCESS != result)
         error("Failed to initialize NVML: %s", nvmlErrorString(result));
 
-    numVis = getVisibleGpus(&visible);
+    visible = malloc(num_total_gpus * sizeof(int));
+    numVis = getVisibleGpus(visible);
     if (numVis == 0) {
         *num = 0;
         goto Error;
