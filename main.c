@@ -99,6 +99,7 @@ static struct option longOptions[] = {
         {"full_cmd",      optional_argument, NULL, 'F'},
         {"getenv",        required_argument, NULL, 0},
         {"setenv",        required_argument, NULL, 0},
+        {"unsetenv",      required_argument, NULL, 0},
         {NULL, 0,                            NULL, 0}
 };
 
@@ -122,6 +123,9 @@ void parse_opts(int argc, char **argv) {
                     command_line.label = optarg;  /* reuse this var */
                 } else if (strcmp(longOptions[optionIdx].name, "setenv") == 0) {
                     command_line.request = c_SET_ENV;
+                    command_line.label = optarg;  /* reuse this var */
+                } else if (strcmp(longOptions[optionIdx].name, "unsetenv") == 0) {
+                    command_line.request = c_UNSET_ENV;
                     command_line.label = optarg;  /* reuse this var */
                 } else
                     error("Wrong option %s.", longOptions[optionIdx].name);
@@ -646,6 +650,11 @@ int main(int argc, char **argv) {
             if (!command_line.need_server)
                 error("The command %i needs the server", command_line.request);
             c_set_env();
+            break;
+        case c_UNSET_ENV:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_unset_env();
             break;
     }
 

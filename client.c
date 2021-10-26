@@ -839,3 +839,13 @@ void c_set_env() {
     send_msg(server_socket, &m);
     send_bytes(server_socket, command_line.label, m.u.size);
 }
+
+void c_unset_env() {
+    struct Msg m;
+
+    /* Send the request */
+    m.type = UNSET_ENV;
+    m.u.size = strlen(command_line.label) + 1;
+    send_msg(server_socket, &m);
+    send_bytes(server_socket, command_line.label, m.u.size);
+}
