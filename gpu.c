@@ -8,6 +8,8 @@
 
 #include "main.h"
 
+#define TS_VISIBLE_DEVICES "TS_VISIBLE_DEVICES"
+
 int *used_gpus;
 int num_total_gpus;
 
@@ -36,14 +38,16 @@ void initGPU() {
 }
 
 static int getVisibleGpus(int **visibility) {
-    const char* tmp = getenv("TS_VISIBLE_DEVICES");
-    char* visFlag = malloc(strlen(tmp) + 1);
-    strcpy(visFlag, tmp);
+    const char* tmp = getenv(TS_VISIBLE_DEVICES);
     *visibility = malloc(num_total_gpus * sizeof(int));
-    if (visFlag) {
+
+    if (tmp) {
+        char* visFlag = malloc(strlen(tmp) + 1);
+        strcpy(visFlag, tmp);
         int num = strtok_int(visFlag, ",", *visibility);
         return num;
     }
+
     for (int i = 0; i < num_total_gpus; i++)
         *visibility[i] = i;
 
