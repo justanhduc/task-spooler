@@ -27,6 +27,8 @@ Actions:
 .BI "[\-S ["num ]]
 .BI "[\-a/--get_label ["id ]]
 .BI "[\-F/--full_cmd ["id ]]
+.BI "[\--getenv ["var ]]
+.BI "[\--setenv ["var=val ]]
 
 .sp
 Options:
@@ -116,6 +118,16 @@ queue to feed cpu cores, and you know that a job will take two cores, with \fB\-
 you can let ts know that.
 .SH ACTIONS
 Instead of giving a new command, we can use the parameters for other purposes:
+.TP
+.B "\--getenv [var]"
+Get the specified environment variable value from the
+.B ts
+server.
+.TP
+.B "\--setenv [var]"
+Set the specified environment variable to the
+.B ts
+server.
 .TP
 .B "\-K"
 Kill the
@@ -228,6 +240,8 @@ job running, and \fB\-d\fR will try to set the dependency with the last job adde
 Set the maximum amount of running jobs at once. If you don't specify
 .B num
 it will return the maximum amount of running jobs set.
+
+
 .SH ENVIRONMENT
 .TP
 .B "TS_MAXFINISHED"
