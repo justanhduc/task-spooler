@@ -29,6 +29,7 @@ Actions:
 .BI "[\-F/--full_cmd ["id ]]
 .BI "[\--getenv ["var ]]
 .BI "[\--setenv ["var=val ]]
+.BI "[\--unsetenv ["var ]]
 
 .sp
 Options:
@@ -134,6 +135,11 @@ server.
 .TP
 .B "\--setenv [var]"
 Set the specified environment variable to the
+.B ts
+server.
+.TP
+.B "\--unsetenv [var]"
+Remove the specified environment variable from the
 .B ts
 server.
 .TP

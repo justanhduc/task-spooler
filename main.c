@@ -423,8 +423,9 @@ static void print_help(const char *cmd) {
     printf("  TS_SLOTS   amount of jobs which can run at once, read on server start.\n");
     printf("  TMPDIR     directory where to place the output files and the default socket.\n");
     printf("Long option actions:\n");
-    printf("  --getenv   <var>                get the value of the specified environment variable.\n");
-    printf("  --setenv   <var>                set the specified flag to environment.\n");
+    printf("  --getenv   <var>                get the value of the specified variable in server environment.\n");
+    printf("  --setenv   <var>                set the specified flag to server environment.\n");
+    printf("  --unsetenv   <var>              remove the specified flag from server environment.\n");
     printf("  --set_gpu_wait   <sec>          set time to wait before running the next GPU job (30 seconds by default).\n");
     printf("  --get_gpu_wait                  get time to wait before running the next GPU job.\n");
     printf("  --get_label      || -a [id]     show the job label. Of the last added, if not specified.\n");
