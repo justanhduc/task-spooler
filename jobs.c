@@ -1600,7 +1600,7 @@ void s_get_env(int s, int size) {
     char *val = getenv(var);
     struct Msg m;
     m.type = LIST_LINE;
-    m.u.size = val ? sizeof(val) + 1 : 0;
+    m.u.size = val ? strlen(val) + 1 : 0;
     send_msg(s, &m);
     if (val)
         send_bytes(s, val, m.u.size);
