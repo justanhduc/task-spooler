@@ -480,6 +480,12 @@ client_read(int index) {
         case UNSET_ENV:
             s_unset_env(s, m.u.size);
             break;
+        case SET_FREE_PERC:
+            s_set_free_percentage(m.u.size);
+            break;
+        case GET_FREE_PERC:
+            s_get_free_percentage(s);
+            break;
         case GET_VERSION:
             s_send_version(s);
             break;

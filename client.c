@@ -849,3 +849,31 @@ void c_unset_env() {
     send_msg(server_socket, &m);
     send_bytes(server_socket, command_line.label, m.u.size);
 }
+
+void c_set_free_percentage() {
+    struct Msg m;
+    m.type = SET_FREE_PERC;
+    m.u.size = command_line.gpus;
+    send_msg(server_socket, &m);
+}
+
+void c_get_free_percentage() {
+    struct Msg m;
+    int res;
+
+    m.type = GET_FREE_PERC;
+    send_msg(server_socket, &m);
+
+    /* Receive the answer */
+    res = recv_msg(server_socket, &m);
+    if (res != sizeof(m))
+        error("Error in get_free_percentage");
+
+    switch (m.type) {
+        case GET_FREE_PERC:
+            printf("%d\n", m.u.size);
+            return;
+        default:
+            warning("Wrong internal message in get_free_percentage");
+    }
+}

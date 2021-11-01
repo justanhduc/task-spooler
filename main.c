@@ -100,6 +100,8 @@ static struct option longOptions[] = {
         {"getenv",        required_argument, NULL, 0},
         {"setenv",        required_argument, NULL, 0},
         {"unsetenv",      required_argument, NULL, 0},
+        {"set_gpu_free_perc", required_argument, NULL, 0},
+        {"get_gpu_free_perc", no_argument,       NULL, 0},
         {NULL, 0,                            NULL, 0}
 };
 
@@ -127,6 +129,11 @@ void parse_opts(int argc, char **argv) {
                 } else if (strcmp(longOptions[optionIdx].name, "unsetenv") == 0) {
                     command_line.request = c_UNSET_ENV;
                     command_line.label = optarg;  /* reuse this var */
+                } else if (strcmp(longOptions[optionIdx].name, "set_gpu_free_perc") == 0) {
+                    command_line.request = c_SET_FREE_PERC;
+                    command_line.gpus = atoi(optarg); /* reuse this var */
+                } else if (strcmp(longOptions[optionIdx].name, "get_gpu_free_perc") == 0) {
+                    command_line.request = c_GET_FREE_PERC;
                 } else
                     error("Wrong option %s.", longOptions[optionIdx].name);
                 break;
@@ -656,6 +663,16 @@ int main(int argc, char **argv) {
             if (!command_line.need_server)
                 error("The command %i needs the server", command_line.request);
             c_unset_env();
+            break;
+        case c_SET_FREE_PERC:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_set_free_percentage();
+            break;
+        case c_GET_FREE_PERC:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_get_free_percentage();
             break;
     }
 

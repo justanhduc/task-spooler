@@ -22,6 +22,8 @@ int num_total_gpus;
 int busy_slots = 0;
 int max_slots = 1;
 
+int free_percentage = 90;
+
 struct Notify {
     int socket;
     int jobid;
@@ -1631,4 +1633,18 @@ void s_unset_env(int s, int size) {
 
     unsetenv(var);
     free(var);
+}
+
+void s_set_free_percentage(int new_percentage) {
+    if (new_percentage > 0)
+        free_percentage = new_percentage;
+    else
+        warning("Received new_percentage=%i", new_percentage);
+}
+
+void s_get_free_percentage(int s) {
+    struct Msg m;
+    m.type = GET_FREE_PERC;
+    m.u.size = free_percentage;
+    send_msg(s, &m);
 }

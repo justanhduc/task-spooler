@@ -10,6 +10,7 @@
 
 #define TS_VISIBLE_DEVICES "TS_VISIBLE_DEVICES"
 
+extern int free_percentage;
 int *used_gpus;
 int num_total_gpus;
 
@@ -86,7 +87,7 @@ int * getGpuList(int *num) {
             goto Error;
         }
 
-        if (mem.free > .9 * mem.total)
+        if (mem.free > free_percentage / 100. * mem.total)
             gpuList[count++] = visible[i];
     }
     *num = count;

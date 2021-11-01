@@ -50,7 +50,9 @@ enum MsgTypes {
     GET_CMD,
     GET_ENV,
     SET_ENV,
-    UNSET_ENV
+    UNSET_ENV,
+    SET_FREE_PERC,
+    GET_FREE_PERC
 };
 
 enum Request {
@@ -80,7 +82,9 @@ enum Request {
     c_SHOW_CMD,
     c_GET_ENV,
     c_SET_ENV,
-    c_UNSET_ENV
+    c_UNSET_ENV,
+    c_SET_FREE_PERC,
+    c_GET_FREE_PERC
 };
 
 struct CommandLine {
@@ -293,6 +297,10 @@ void c_set_env();
 
 void c_unset_env();
 
+void c_set_free_percentage();
+
+void c_get_free_percentage();
+
 /* jobs.c */
 void s_list(int s);
 
@@ -363,6 +371,10 @@ void s_get_env(int s, int size);
 void s_set_env(int s, int size);
 
 void s_unset_env(int s, int size);
+
+void s_set_free_percentage(int new_percentage);
+
+void s_get_free_percentage(int s);
 
 /* server.c */
 void server_main(int notify_fd, char *_path);
