@@ -30,6 +30,8 @@ Actions:
 .BI "[\--getenv ["var ]]
 .BI "[\--setenv ["var=val ]]
 .BI "[\--unsetenv ["var ]]
+.BI "[\--set_gpu_free_perc ["num ]]
+.BI "[\--set_gpu_free_perc ]
 
 .sp
 Options:
@@ -142,6 +144,12 @@ server.
 Remove the specified environment variable from the
 .B ts
 server.
+.TP
+.B "\--set_gpu_free_perc [num]"
+Set the value of GPU memory threshold above which GPUs are considered available (90 by default).
+.TP
+.B "\--get_gpu_free_perc"
+Get the value of GPU memory threshold above which GPUs are considered available.
 .TP
 .B "\-K"
 Kill the

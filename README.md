@@ -153,11 +153,11 @@ Env vars:
   TS_SLOTS   amount of jobs which can run at once, read on server start.
   TMPDIR     directory where to place the output files and the default socket.
 Long option actions:
-  --getenv   <var>                get the value of the specified variable in server environment.
-  --setenv   <var>                set the specified flag to server environment.
-  --unsetenv   <var>              remove the specified flag from server environment.
-  --set_gpu_wait   <sec>          set time to wait before running the next GPU job (30 seconds by default).
-  --get_gpu_wait                  get time to wait before running the next GPU job.
+  --getenv   [var]                get the value of the specified variable in server environment.
+  --setenv   [var]                set the specified flag to server environment.
+  --unsetenv   [var]              remove the specified flag from server environment.
+  --set_gpu_free_perc   [num]     set the value of GPU memory threshold above which GPUs are considered available (90 by default).
+  --get_gpu_free_perc             get the value of GPU memory threshold above which GPUs are considered available.
   --get_label      || -a [id]     show the job label. Of the last added, if not specified.
   --full_cmd       || -F [id]     show full command. Of the last added, if not specified.
   --count_running  || -R          return the number of running jobs
