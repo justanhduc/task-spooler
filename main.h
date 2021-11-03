@@ -135,7 +135,7 @@ enum Jobstate {
 
 struct Msg {
     enum MsgTypes type;
-    int userid;
+    int uid;
 
     union {
         struct {
@@ -211,8 +211,17 @@ struct Job {
     int num_slots;
     int num_gpus;
     int wait_free_gpus;
-    int userid;
+    int uid;
 };
+
+struct Slot {
+    int max_slots;
+    int busy_slots;
+    int uid;
+    struct Slot *next;
+};
+
+extern struct Slot *firstslot;
 
 enum ExitCodes {
     EXITCODE_OK = 0,
@@ -289,7 +298,7 @@ void c_send_reminder();
 void c_show_cmd();
 
 /* jobs.c */
-void s_list(int s);
+void s_list(int s, int uid);
 
 int s_newjob(int s, struct Msg *m);
 
@@ -323,7 +332,7 @@ void s_send_state(int s, int jobid);
 
 void s_swap_jobs(int s, int jobid1, int jobid2);
 
-void s_count_running_jobs(int s, int userid);
+void s_count_running_jobs(int s, int uid);
 
 void dump_jobs_struct(FILE *out);
 
@@ -339,9 +348,9 @@ void s_send_last_id(int s);
 
 void s_send_runjob(int s, int jobid);
 
-void s_set_max_slots(int new_max_slots);
+void s_set_max_slots(int new_max_slots, int uid);
 
-void s_get_max_slots(int s);
+void s_get_max_slots(int s, int uid);
 
 int job_is_running(int jobid);
 
@@ -365,6 +374,10 @@ void dump_conns_struct(FILE *out);
 void s_request_reminder_after(int time, int jobid);
 
 void s_send_cmd(int s, int jobid);
+
+int get_max_slots_for(int uid);
+
+int get_busy_slots_for(int uid);
 
 /* server_start.c */
 int try_connect(int s);
@@ -430,7 +443,7 @@ void error_msg(const struct Msg *m, const char *str, ...);
 void warning_msg(const struct Msg *m, const char *str, ...);
 
 /* list.c */
-char *joblist_headers();
+char *joblist_headers(int max_slots, int busy_slots);
 
 char *joblist_line(const struct Job *p);
 

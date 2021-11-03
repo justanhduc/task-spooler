@@ -12,9 +12,6 @@
 
 #include "main.h"
 
-/* From jobs.c */
-extern int busy_slots;
-extern int max_slots;
 
 char *joblistdump_headers() {
     char *line;
@@ -31,7 +28,7 @@ char *joblistdump_headers() {
     return line;
 }
 
-char *joblist_headers() {
+char *joblist_headers(int max_slots, int busy_slots) {
     char *line;
 
     line = malloc(120);
@@ -96,7 +93,7 @@ static char *print_noresult(const struct Job *p) {
     char dependstr[20] = "";
     int cmd_len;
     struct passwd *pwd;
-    if ((pwd = getpwuid((uid_t) p->userid)) == NULL)
+    if ((pwd = getpwuid((uid_t) p->uid)) == NULL)
         error("Cannot get username from uid");
 
     jobstate = jstate2string(p->state);
@@ -167,7 +164,7 @@ static char *print_result(const struct Job *p) {
     char *unit = "s";
     int cmd_len;
     struct passwd *pwd;
-    if ((pwd = getpwuid((uid_t) p->userid)) == NULL)
+    if ((pwd = getpwuid((uid_t) p->uid)) == NULL)
         error("Cannot get username from uid");
 
     jobstate = jstate2string(p->state);

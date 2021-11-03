@@ -860,7 +860,7 @@ static void shuffle(int *array, size_t n) {
 }
 
 static struct Msg initialize_message() {
-    return (struct Msg) {.userid = (int) getuid()};
+    return (struct Msg) {.uid = (int) getuid()};
 }
 
 static void require_root() {

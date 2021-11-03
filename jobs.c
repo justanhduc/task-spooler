@@ -18,9 +18,6 @@ time_t last_gpu_run_time = 0;
 int time_between_gpu_runs = 30;
 static int reminder_sent = 0;
 
-/* The list will access them */
-int busy_slots = 0;
-int max_slots = 1;
 
 struct Notify {
     int socket;
@@ -47,6 +44,18 @@ int max_jobs;
 static struct Job *get_job(int jobid);
 
 void notify_errorlevel(struct Job *p);
+
+static void increase_busy_slots_for(int uid, int val) {
+    struct Slot *slot = firstslot;
+    while (slot) {
+        if (slot->uid == uid) {
+            slot->busy_slots += val;
+            return;
+        }
+        slot = slot->next;
+    }
+    error("Cannot find user with UID %d in increase_busy_slots_for", uid);
+}
 
 static void destroy_job(struct Job* p) {
     free(p->notify_errorlevel_to);
@@ -182,14 +191,14 @@ void s_kill_all_jobs(int s, int userid) {
     /* send running job PIDs */
     p = firstjob;
     while (p != 0) {
-        if (p->state == RUNNING && p->userid == userid)
+        if (p->state == RUNNING && p->uid == userid)
             send(s, &p->pid, sizeof(int), 0);
 
         p = p->next;
     }
 }
 
-void s_count_running_jobs(int s, int userid) {
+void s_count_running_jobs(int s, int uid) {
     int count = 0;
     struct Job *p;
     struct Msg m;
@@ -197,7 +206,7 @@ void s_count_running_jobs(int s, int userid) {
     /* Count running jobs */
     p = firstjob;
     while (p != 0) {
-        if (p->state == RUNNING && p->userid == userid)
+        if (p->state == RUNNING && p->uid == uid)
             ++count;
 
         p = p->next;
@@ -345,12 +354,12 @@ const char *jstate2string(enum Jobstate s) {
     return jobstate;
 }
 
-void s_list(int s) {
+void s_list(int s, int uid) {
     struct Job *p;
     char *buffer;
 
     /* Times:   0.00/0.00/0.00 - 4+4+4+2 = 14*/
-    buffer = joblist_headers();
+    buffer = joblist_headers(get_max_slots_for(uid), get_busy_slots_for(uid));
     send_list_line(s, buffer);
     free(buffer);
 
@@ -436,7 +445,7 @@ int s_newjob(int s, struct Msg *m) {
     int res;
 
     p = newjobptr();
-    p->userid = m->userid;
+    p->uid = m->uid;
 
     p->jobid = jobids++;
     p->num_gpus = m->u.newjob.gpus;
@@ -624,14 +633,6 @@ void s_removejob(int jobid) {
 int next_run_job() {
     struct Job *p;
 
-    const int free_slots = max_slots - busy_slots;
-
-    /* busy_slots may be bigger than the maximum slots,
-     * if the user was running many jobs, and suddenly
-     * trimmed the maximum slots down. */
-    if (free_slots <= 0)
-        return -1;
-
     /* If there are no jobs to run... */
     if (firstjob == 0)
         return -1;
@@ -692,9 +693,12 @@ int next_run_job() {
                 if (ready != 1)
                     continue;
             }
-
+            const int max_slots = get_max_slots_for(p->uid);
+            const int busy_slots = get_busy_slots_for(p->uid);
+            const int free_slots = max_slots - busy_slots;
             if (free_slots >= p->num_slots) {
-                busy_slots = busy_slots + p->num_slots;
+//                busy_slots = busy_slots + p->num_slots;
+                increase_busy_slots_for(p->uid, p->num_slots);
                 if (p->num_gpus)
                     time(&last_gpu_run_time);
                 return p->jobid;
@@ -783,19 +787,22 @@ static int in_notify_list(int jobid) {
 
 void job_finished(const struct Result *result, int jobid) {
     struct Job *p;
-
-    if (busy_slots <= 0)
-        error("Wrong state in the server. busy_slots = %i instead of greater than 0", busy_slots);
+    int busy_slots;
 
     p = findjob(jobid);
     if (p == 0)
         error("on jobid %i finished, it doesn't exist", jobid);
 
+    busy_slots = get_busy_slots_for(p->uid);
+    if (busy_slots <= 0)
+        error("Wrong state in the server. busy_slots = %i instead of greater than 0", busy_slots);
+
     /* The job may be not only in running state, but also in other states, as
      * we call this to clean up the jobs list in case of the client closing the
      * connection. */
     if (p->state == RUNNING)
-        busy_slots = busy_slots - p->num_slots;
+//        busy_slots = busy_slots - p->num_slots;
+        increase_busy_slots_for(p->uid, -p->num_slots);
 
     /* Mark state */
     if (result->skipped)
@@ -895,37 +902,17 @@ void s_send_runjob(int s, int jobid) {
 }
 
 void s_job_info(int s, int jobid) {
-    struct Job *p = 0;
+    struct Job *p = firstjob;
     struct Msg m;
 
-    if (jobid == -1) {
-        /* This means that we want the job info of the running task, or that
-         * of the last job run */
-        if (busy_slots > 0) {
-            p = firstjob;
-            if (p == 0)
-                error("Internal state WAITING, but job not run."
-                      "firstjob = %x", firstjob);
-        } else {
-            p = first_finished_job;
-            if (p == 0) {
-                send_list_line(s, "No jobs.\n");
-                return;
-            }
-            while (p->next != 0)
-                p = p->next;
-        }
-    } else {
-        p = firstjob;
+    while (p != 0 && p->jobid != jobid)
+        p = p->next;
+
+    /* Look in finished jobs if needed */
+    if (p == 0) {
+        p = first_finished_job;
         while (p != 0 && p->jobid != jobid)
             p = p->next;
-
-        /* Look in finished jobs if needed */
-        if (p == 0) {
-            p = first_finished_job;
-            while (p != 0 && p->jobid != jobid)
-                p = p->next;
-        }
     }
 
     if (p == 0) {
@@ -978,30 +965,11 @@ void s_send_output(int s, int jobid) {
     struct Job *p = 0;
     struct Msg m;
 
-    if (jobid == -1) {
-        /* This means that we want the output info of the running task, or that
-         * of the last job run */
-        if (busy_slots > 0) {
-            p = firstjob;
-            if (p == 0)
-                error("Internal state WAITING, but job not run."
-                      "firstjob = %x", firstjob);
-        } else {
-            p = first_finished_job;
-            if (p == 0) {
-                send_list_line(s, "No jobs.\n");
-                return;
-            }
-            while (p->next != 0)
-                p = p->next;
-        }
-    } else {
-        p = get_job(jobid);
-        if (p != 0 && p->state != RUNNING
-            && p->state != FINISHED
-            && p->state != SKIPPED)
-            p = 0;
-    }
+    p = get_job(jobid);
+    if (p != 0 && p->state != RUNNING
+        && p->state != FINISHED
+        && p->state != SKIPPED)
+        p = 0;
 
     if (p == 0) {
         char tmp[50];
@@ -1301,38 +1269,18 @@ void s_wait_job(int s, int jobid) {
 }
 
 void s_wait_running_job(int s, int jobid) {
-    struct Job *p = 0;
+    struct Job *p = firstjob;
 
     /* The job finding algorithm should be similar to that of
      * s_send_output, because this will be used by "-t" and "-c" */
-    if (jobid == -1) {
-        /* This means that we want the output info of the running task, or that
-         * of the last job run */
-        if (busy_slots > 0) {
-            p = firstjob;
-            if (p == 0)
-                error("Internal state WAITING, but job not run."
-                      "firstjob = %x", firstjob);
-        } else {
-            p = first_finished_job;
-            if (p == 0) {
-                send_list_line(s, "No jobs.\n");
-                return;
-            }
-            while (p->next != 0)
-                p = p->next;
-        }
-    } else {
-        p = firstjob;
+    while (p != 0 && p->jobid != jobid)
+        p = p->next;
+
+    /* Look in finished jobs if needed */
+    if (p == 0) {
+        p = first_finished_job;
         while (p != 0 && p->jobid != jobid)
             p = p->next;
-
-        /* Look in finished jobs if needed */
-        if (p == 0) {
-            p = first_finished_job;
-            while (p != 0 && p->jobid != jobid)
-                p = p->next;
-        }
     }
 
     if (p == 0) {
@@ -1351,19 +1299,28 @@ void s_wait_running_job(int s, int jobid) {
         add_to_notify_list(s, p->jobid);
 }
 
-void s_set_max_slots(int new_max_slots) {
-    if (new_max_slots > 0)
-        max_slots = new_max_slots;
+void s_set_max_slots(int new_max_slots, int uid) {
+    if (new_max_slots > 0) {
+        struct Slot* slot = firstslot;
+        while (slot) {
+            if (slot->uid == uid) {
+                slot->max_slots = new_max_slots;
+                return;
+            }
+            slot = slot->next;
+        }
+        warning("Cannot find user with UID %d", uid);
+    }
     else
         warning("Received new_max_slots=%i", new_max_slots);
 }
 
-void s_get_max_slots(int s) {
+void s_get_max_slots(int s, int uid) {
     struct Msg m;
 
     /* Message */
     m.type = GET_MAX_SLOTS_OK;
-    m.u.max_slots = max_slots;
+    m.u.max_slots = get_max_slots_for(uid);
 
     send_msg(s, &m);
 }
@@ -1547,7 +1504,7 @@ void joblist_dump(int fd) {
     free(buffer);
 
     /* We reuse the headers from the list */
-    buffer = joblist_headers();
+    buffer = joblist_headers(0, 0);
     write(fd, "# ", 2);
     write(fd, buffer, strlen(buffer));
 

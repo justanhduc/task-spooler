@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/select.h>
+#include <pwd.h>
 
 #ifdef linux
 
@@ -41,6 +42,8 @@ enum Break {
 
 /* Prototypes */
 static void server_loop(int ls);
+
+struct Slot* firstslot = 0;
 
 static enum Break
 client_read(int index);
@@ -100,15 +103,60 @@ static void sigterm_handler(int n) {
     exit(1);
 }
 
-static void set_default_maxslots() {
-    char *str;
+static struct Slot *make_slot(int userid) {
+    struct Slot *slot = malloc(sizeof(struct Slot));
+    slot->uid = userid;
+    slot->max_slots = 1;
+    slot->busy_slots = 0;
+    slot->next = 0;
+    return slot;
+}
 
-    str = getenv("TS_SLOTS");
-    if (str != NULL) {
-        int slots;
-        slots = abs(atoi(str));
-        s_set_max_slots(slots);
+int get_max_slots_for(int uid) {
+    struct Slot *slot = firstslot;
+    while (slot) {
+        if (slot->uid == uid)
+            return slot->max_slots;
+        slot = slot->next;
     }
+    return -1;
+}
+
+int get_busy_slots_for(int uid) {
+    struct Slot *slot = firstslot;
+    while (slot) {
+        if (slot->uid == uid)
+            return slot->busy_slots;
+        slot = slot->next;
+    }
+    return -1;
+}
+
+static void set_default_maxslots() {
+    struct passwd* entry = getpwent();
+    struct Slot *slot;
+
+    errno = 0; // so we can distinguish errors from no more entries
+    if (!entry)
+        if (errno)
+            error("Error reading password database");
+
+    firstslot = make_slot((int) entry->pw_uid);
+    slot = firstslot;
+    while (1) {
+        errno = 0; // so we can distinguish errors from no more entries
+        entry = getpwent();
+        if (!entry) {
+            if (errno) {
+                error("Error reading password database");
+                return;
+            }
+            break;
+        }
+        slot->next = make_slot((int) entry->pw_uid);
+        slot = slot->next;
+    }
+    endpwent();
 }
 
 static void install_sigterm_handler() {
@@ -383,11 +431,11 @@ client_read(int index) {
         }
             break;
         case KILL_ALL:
-            s_kill_all_jobs(s, m.userid);
+            s_kill_all_jobs(s, m.uid);
             break;
         case LIST:
             term_width = m.u.term_width;
-            s_list(s);
+            s_list(s, m.uid);
             /* We must actively close, meaning End of Lines */
             close(s);
             remove_connection(index);
@@ -449,16 +497,16 @@ client_read(int index) {
             s_wait_running_job(s, m.u.jobid);
             break;
         case COUNT_RUNNING:
-            s_count_running_jobs(s, m.userid);
+            s_count_running_jobs(s, m.uid);
             break;
         case URGENT:
             s_move_urgent(s, m.u.jobid);
             break;
         case SET_MAX_SLOTS:
-            s_set_max_slots(m.u.max_slots);
+            s_set_max_slots(m.u.max_slots, m.uid);
             break;
         case GET_MAX_SLOTS:
-            s_get_max_slots(s);
+            s_get_max_slots(s, m.uid);
             break;
         case SWAP_JOBS:
             s_swap_jobs(s, m.u.swap.jobid1,
