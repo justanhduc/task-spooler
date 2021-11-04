@@ -91,15 +91,15 @@ int strtok_int(char* str, char* delim, int* ids) {
 }
 
 static struct option longOptions[] = {
-        {"get_label",     optional_argument, NULL, 'a'},
-        {"count_running", no_argument,       NULL, 'R'},
-        {"last_queue_id", no_argument,       NULL, 'q'},
-        {"gpus",          required_argument, NULL, 'G'},
-        {"gpu_indices",   required_argument, NULL, 'g'},
-        {"full_cmd",      optional_argument, NULL, 'F'},
-        {"getenv",        required_argument, NULL, 0},
-        {"setenv",        required_argument, NULL, 0},
-        {"unsetenv",      required_argument, NULL, 0},
+        {"get_label",         optional_argument, NULL, 'a'},
+        {"count_running",     no_argument,       NULL, 'R'},
+        {"last_queue_id",     no_argument,       NULL, 'q'},
+        {"gpus",              required_argument, NULL, 'G'},
+        {"gpu_indices",       required_argument, NULL, 'g'},
+        {"full_cmd",          optional_argument, NULL, 'F'},
+        {"getenv",            required_argument, NULL, 0},
+        {"setenv",            required_argument, NULL, 0},
+        {"unsetenv",          required_argument, NULL, 0},
         {"set_gpu_free_perc", required_argument, NULL, 0},
         {"get_gpu_free_perc", no_argument,       NULL, 0},
         {NULL, 0,                            NULL, 0}
