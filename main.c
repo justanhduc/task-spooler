@@ -4,6 +4,13 @@
 
     Please find the license in the provided COPYING file.
 */
+#define TS_VERSION_FALLBACK "1.3.0"
+
+/* from https://github.com/LLNL/lbann/issues/117
+ * and https://gcc.gnu.org/onlinedocs/cpp/Stringizing.html#Stringizing */
+#define TS_MAKE_STR(x) _TS_MAKE_STR(x)
+#define _TS_MAKE_STR(x) #x
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,9 +34,18 @@ int term_width;
 static char getopt_env[] = "POSIXLY_CORRECT=YES";
 static char *old_getopt_env;
 
-static char version[] = "Task Spooler v1.2 - a task queue system for the unix user.\n"
-                        "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell";
+static char version[1024];
 
+static void init_version() {
+#ifdef TS_VERSION
+    char *ts_version = TS_MAKE_STR(TS_VERSION);
+    sprintf(version, "Task Spooler %s - a task queue system for the unix user.\n"
+                     "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell", ts_version);
+#else
+    sprintf(version, "Task Spooler %s - a task queue system for the unix user.\n"
+                     "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell", TS_VERSION_FALLBACK);
+#endif
+}
 
 static void default_command_line() {
     command_line.request = c_LIST;
@@ -486,6 +502,7 @@ static void get_terminal_width() {
 int main(int argc, char **argv) {
     int errorlevel = 0;
 
+    init_version();
     get_terminal_width();
     process_type = CLIENT;
 
