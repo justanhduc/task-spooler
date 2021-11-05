@@ -22,9 +22,6 @@ TARGET=ts
 INSTALL=install -c
 
 GIT_REPO=$(shell git rev-parse --is-inside-work-tree)
-ifdef GIT_REPO
-GIT_VERSION=$(shell echo $(shell git describe --dirty --always --tags) | tr - +)
-endif
 
 all: $(TARGET)
 
@@ -36,7 +33,10 @@ $(TARGET): $(OBJECTS)
 
 # Dependencies
 main.o: main.c main.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -DTS_VERSION=$(GIT_VERSION) -c $< -o $@
+ifeq ($(GIT_REPO), true)
+	GIT_VERSION=$$(echo $$(git describe --dirty --always --tags) | tr - +); \
+	$(CC) $(CFLAGS) $(CPPFLAGS) -DTS_VERSION=$${GIT_VERSION} -c $< -o $@
+endif
 server_start.o: server_start.c main.h
 server.o: server.c main.h
 client.o: client.c main.h
