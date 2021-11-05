@@ -4,6 +4,13 @@
 
     Please find the license in the provided COPYING file.
 */
+#define TS_VERSION_FALLBACK "1.3.0"
+
+/* from https://github.com/LLNL/lbann/issues/117
+ * and https://gcc.gnu.org/onlinedocs/cpp/Stringizing.html#Stringizing */
+#define TS_MAKE_STR(x) _TS_MAKE_STR(x)
+#define _TS_MAKE_STR(x) #x
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,9 +35,18 @@ int term_width;
 static char getopt_env[] = "POSIXLY_CORRECT=YES";
 static char *old_getopt_env;
 
-static char version[] = "Task Spooler v1.2 - a task queue system for the unix user.\n"
-                        "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell";
+static char version[1024];
 
+static void init_version() {
+#ifdef TS_VERSION
+    char *ts_version = TS_MAKE_STR(TS_VERSION);
+    sprintf(version, "Task Spooler %s - a task queue system for the unix user.\n"
+                     "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell", ts_version);
+#else
+    sprintf(version, "Task Spooler %s - a task queue system for the unix user.\n"
+                     "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell", TS_VERSION_FALLBACK);
+#endif
+}
 
 static void default_command_line() {
     command_line.request = c_LIST;
@@ -446,7 +462,7 @@ static void print_help(const char *cmd) {
     printf("  --unsetenv   [var]              remove the specified flag from server environment.\n");
     printf("  --set_gpu_free_perc   [num]     set the value of GPU memory threshold above which GPUs are considered available (90 by default).\n");
     printf("  --get_gpu_free_perc             get the value of GPU memory threshold above which GPUs are considered available.\n");
-    printf("  --unsetenv   <var>              remove the specified flag from server environment.\n");
+    printf("  --unsetenv   [var]              remove the specified flag from server environment.\n");
     printf("  --get_label      || -a [id]     show the job label. Of the last added, if not specified.\n");
     printf("  --full_cmd       || -F [id]     show full command. Of the last added, if not specified.\n");
     printf("  --count_running  || -R          return the number of running jobs\n");
@@ -516,6 +532,7 @@ static void get_terminal_width() {
 int main(int argc, char **argv) {
     int errorlevel = 0;
 
+    init_version();
     get_terminal_width();
     process_type = CLIENT;
 

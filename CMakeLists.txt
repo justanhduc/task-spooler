@@ -7,6 +7,19 @@ set(CMAKE_CUDA_COMPILER $ENV{CUDA_HOME}/bin/nvcc)
 enable_language(CUDA)
 include_directories($ENV{CUDA_HOME}/include)
 
+# VERSIONING
+execute_process(
+        COMMAND git rev-parse --is-inside-work-tree
+        OUTPUT_VARIABLE GIT_REPO OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if (GIT_REPO)
+    execute_process (
+            COMMAND bash -c "echo $(git describe --dirty --always --tags) | tr - +"
+            OUTPUT_VARIABLE git_version
+    )
+    add_definitions(-DTS_VERSION=${git_version})
+endif()
+
 set(target ts)
 add_executable(
         ${target}
