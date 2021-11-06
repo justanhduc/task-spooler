@@ -440,6 +440,8 @@ char *joblistdump_torun(const struct Job *p);
 
 char *joblistdump_headers();
 
+char *time_rep(float* t);
+
 /* print.c */
 int fd_nprintf(int fd, int maxsize, const char *fmt, ...);
 

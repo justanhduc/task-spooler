@@ -890,15 +890,17 @@ void s_job_info(int s, int jobid) {
     if (p->state == RUNNING) {
         fd_nprintf(s, 100, "Start time: %s",
                    ctime(&p->info.start_time.tv_sec));
-        fd_nprintf(s, 100, "Time running: %fs\n",
-                   pinfo_time_until_now(&p->info));
+        float t = pinfo_time_until_now(&p->info);
+        char *unit = time_rep(&t);
+        fd_nprintf(s, 100, "Time running: %f%s\n", t, unit);
     } else if (p->state == FINISHED) {
         fd_nprintf(s, 100, "Start time: %s",
                    ctime(&p->info.start_time.tv_sec));
         fd_nprintf(s, 100, "End time: %s",
                    ctime(&p->info.end_time.tv_sec));
-        fd_nprintf(s, 100, "Time run: %fs\n",
-                   pinfo_time_run(&p->info));
+        float t = pinfo_time_run(&p->info);
+        char *unit = time_rep(&t);
+        fd_nprintf(s, 100, "Time run: %f%s\n", t, unit);
     }
 }
 
