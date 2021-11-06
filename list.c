@@ -156,7 +156,7 @@ static char *print_result(const struct Job *p) {
     /* 20 chars should suffice for a string like "[int,int,..]&& " */
     char dependstr[20] = "";
     float real_ms = p->result.real_ms;
-    char *unit = "s";
+    char *unit = time_rep(&real_ms);
     int cmd_len;
 
     jobstate = jstate2string(p->state);
@@ -187,21 +187,6 @@ static char *print_result(const struct Job *p) {
     line = (char *) malloc(maxlen);
     if (line == NULL)
         error("Malloc for %i failed.\n", maxlen);
-
-    if (real_ms > 60) {
-        real_ms /= 60;
-        unit = "m";
-
-        if (real_ms > 60) {
-            real_ms /= 60;
-            unit = "h";
-
-            if (real_ms > 24) {
-                real_ms /= 24;
-                unit = "d";
-            }
-        }
-    }
 
     cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
     if (p->label)
@@ -255,4 +240,25 @@ char *joblistdump_torun(const struct Job *p) {
     snprintf(line, maxlen, "ts %s\n", p->command);
 
     return line;
+}
+
+char *time_rep(float *t) {
+    float time_in_sec = *t;
+    char *unit = "s";
+    if (time_in_sec > 60) {
+        time_in_sec /= 60;
+        unit = "m";
+
+        if (time_in_sec > 60) {
+            time_in_sec /= 60;
+            unit = "h";
+
+            if (time_in_sec > 24) {
+                time_in_sec /= 24;
+                unit = "d";
+            }
+        }
+    }
+    *t = time_in_sec;
+    return unit;
 }
