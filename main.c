@@ -456,8 +456,8 @@ static void print_help(const char *cmd) {
     printf("  -d           the job will be run after the last job ends.\n");
     printf("  -D <id,...>  the job will be run after the job of given IDs ends.\n");
     printf("  -W <id,...>  the job will be run after the job of given IDs ends well (exit code 0).\n");
-    printf("  -L <lab>     name this task with a label, to be distinguished on listing.\n");
-    printf("  -N <num>     number of slots required by the job (1 default).\n");
+    printf("  -L [label]   name this task with a label, to be distinguished on listing.\n");
+    printf("  -N [num]     number of slots required by the job (1 default).\n");
 }
 
 static void print_version() {
