@@ -15,14 +15,14 @@ extern int busy_slots;
 extern int max_slots;
 
 static char *shorten(char *line, int len) {
+    char *newline = (char *) malloc((len + 1) * sizeof(char));
     if (strlen(line) <= len)
-        return line;
+        strcpy(newline, line);
     else {
-        char *newline = (char *) malloc((len + 1) * sizeof(char));
         snprintf(newline, len - 4, "%s", line);
         strcat(newline, "...");
-        return newline;
     }
+    return newline;
 }
 
 char *joblistdump_headers() {
@@ -123,7 +123,9 @@ static char *print_noresult(const struct Job *p) {
         error("Malloc for %i failed.\n", maxlen);
 
     cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
-    if (p->label)
+    if (p->label) {
+        char *label = shorten(p->label, 20);
+        char *cmd = shorten(p->command, cmd_len);
         snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %-5d %s[%s]%s\n",
                  p->jobid,
                  jobstate,
@@ -132,9 +134,13 @@ static char *print_noresult(const struct Job *p) {
                  "",
                  p->num_gpus,
                  dependstr,
-                 shorten(p->label, 20),
-                 shorten(p->command, cmd_len));
-    else
+                 label,
+                 cmd);
+        free(label);
+        free(cmd);
+    }
+    else {
+        char *cmd = shorten(p->command, cmd_len);
         snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %-5d %s%s\n",
                  p->jobid,
                  jobstate,
@@ -143,7 +149,9 @@ static char *print_noresult(const struct Job *p) {
                  "",
                  p->num_gpus,
                  dependstr,
-                 shorten(p->command, cmd_len));
+                 cmd);
+        free(cmd);
+    }
 
     return line;
 }
@@ -189,7 +197,9 @@ static char *print_result(const struct Job *p) {
         error("Malloc for %i failed.\n", maxlen);
 
     cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
-    if (p->label)
+    if (p->label) {
+        char *label = shorten(p->label, 20);
+        char *cmd = shorten(p->command, cmd_len);
         snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %-5d %s[%s]%s\n",
                  p->jobid,
                  jobstate,
@@ -199,9 +209,13 @@ static char *print_result(const struct Job *p) {
                  unit,
                  p->num_gpus,
                  dependstr,
-                 shorten(p->label, 20),
-                 shorten(p->command, cmd_len));
-    else
+                 label,
+                 cmd);
+        free(label);
+        free(cmd);
+    }
+    else {
+        char *cmd = shorten(p->command, cmd_len);
         snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %-5d %s%s\n",
                  p->jobid,
                  jobstate,
@@ -211,7 +225,9 @@ static char *print_result(const struct Job *p) {
                  unit,
                  p->num_gpus,
                  dependstr,
-                 shorten(p->command, cmd_len));
+                 cmd);
+        free(cmd);
+    }
 
     return line;
 }
