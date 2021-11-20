@@ -121,6 +121,8 @@ static struct option longOptions[] = {
         {"get_gpu_free_perc", no_argument,       NULL, 0},
         {"get_logdir",        no_argument,       NULL, 0},
         {"set_logdir",        required_argument, NULL, 0},
+        {"set_gpu_wait",      required_argument, NULL, 0},
+        {"get_gpu_wait",      no_argument,       NULL, 0},
         {NULL, 0,                            NULL, 0}
 };
 
@@ -158,6 +160,14 @@ void parse_opts(int argc, char **argv) {
                 } else if (strcmp(longOptions[optionIdx].name, "set_logdir") == 0) {
                     command_line.request = c_SET_LOGDIR;
                     command_line.label = optarg; /* reuse this variable */
+                } else if (strcmp(longOptions[optionIdx].name, "set_gpu_wait") == 0) {
+                    printf("Due to some internal changes, this option has no functionality "
+                           "and will be removed in the next release!\n");
+                    exit(0);
+                } else if (strcmp(longOptions[optionIdx].name, "get_gpu_wait") == 0) {
+                    printf("Due to some internal changes, this option has no functionality "
+                           "and will be removed in the next release!\n");
+                    exit(0);
                 } else
                     error("Wrong option %s.", longOptions[optionIdx].name);
                 break;
