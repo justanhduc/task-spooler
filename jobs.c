@@ -393,14 +393,25 @@ void s_list(int s) {
     }
 }
 
+static void init_job(struct Job *p) {
+    p->next = 0;
+    p->output_filename = 0;
+    p->command = 0;
+    p->depend_on = 0;
+    p->gpu_ids = 0;
+    p->label = 0;
+    p->notify_errorlevel_to_size = 0;
+    p->notify_errorlevel_to = 0;
+    p->dependency_errorlevel = 0;
+    pinfo_init(&p->info);
+}
+
 static struct Job *newjobptr() {
     struct Job *p;
 
     if (firstjob == 0) {
         firstjob = (struct Job *) malloc(sizeof(*firstjob));
-        firstjob->next = 0;
-        firstjob->output_filename = 0;
-        firstjob->command = 0;
+        init_job(firstjob);
         return firstjob;
     }
 
@@ -409,10 +420,7 @@ static struct Job *newjobptr() {
         p = p->next;
 
     p->next = (struct Job *) malloc(sizeof(*p));
-    p->next->next = 0;
-    p->next->output_filename = 0;
-    p->next->command = 0;
-
+    init_job(p->next);
     return p->next;
 }
 
@@ -463,7 +471,6 @@ int s_newjob(int s, struct Msg *m) {
     else
         p->state = HOLDING_CLIENT;
 
-    p->gpu_ids = 0;
     p->wait_free_gpus = m->u.newjob.wait_free_gpus;
     if (!p->wait_free_gpus)
         p->gpu_ids = recv_ints(s, &p->num_gpus);
@@ -475,16 +482,11 @@ int s_newjob(int s, struct Msg *m) {
     p->num_slots = m->u.newjob.num_slots;
     p->store_output = m->u.newjob.store_output;
     p->should_keep_finished = m->u.newjob.should_keep_finished;
-    p->notify_errorlevel_to = 0;
-    p->notify_errorlevel_to_size = 0;
-    p->do_depend = m->u.newjob.do_depend;
-    p->depend_on = 0;
 
     /* this error level here is used internally to decide whether a job should be run or not
      * so it only matters whether the error level is 0 or not.
      * thus, summing the absolute error levels of all dependencies is sufficient.*/
-    p->dependency_errorlevel = 0;
-    if (m->u.newjob.do_depend) {
+    if (m->u.newjob.depend_on_size) {
         int *depend_on;
         depend_on = recv_ints(s, &p->depend_on_size);
 
@@ -567,12 +569,9 @@ int s_newjob(int s, struct Msg *m) {
     }
 
     /* if dependency list is empty after removing invalid dependencies, make it independent */
-    if (p->do_depend && p->depend_on_size == 0) {
+    if (p->depend_on_size == 0)
         p->depend_on = 0;
-        p->do_depend = 0;
-    }
 
-    pinfo_init(&p->info);
     pinfo_set_enqueue_time(&p->info);
 
     /* load the command */
@@ -585,7 +584,6 @@ int s_newjob(int s, struct Msg *m) {
         error("wrong bytes received");
 
     /* load the label */
-    p->label = 0;
     if (m->u.newjob.label_size > 0) {
         char *ptr;
         ptr = (char *) malloc(m->u.newjob.label_size);
@@ -697,7 +695,7 @@ int next_run_job() {
                 memcpy(p->gpu_ids, gpu_ids, p->num_gpus * sizeof(int));
             }
 
-            if (p->do_depend) {
+            if (p->depend_on_size) {
                 int ready = 1;
                 for (int i = 0; i < p->depend_on_size; i++) {
                     struct Job *do_depend_job = get_job(p->depend_on[i]);

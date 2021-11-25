@@ -100,7 +100,6 @@ struct CommandLine {
     int should_keep_finished;
     int send_output_by_mail;
     int gzip;
-    int do_depend;
     int *depend_on; /* -1 means depend on previous */
     int depend_on_size;
     int max_slots; /* How many jobs to run at once */
@@ -155,7 +154,7 @@ struct Msg {
             int should_keep_finished;
             int label_size;
             int env_size;
-            int do_depend;
+            int depend_on_size;
             int wait_enqueuing;
             int num_slots;
             int gpus;
@@ -210,7 +209,6 @@ struct Job {
     int store_output;
     int pid;
     int should_keep_finished;
-    int do_depend;
     int *depend_on;
     int depend_on_size;
     int *notify_errorlevel_to;

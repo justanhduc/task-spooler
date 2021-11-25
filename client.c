@@ -75,7 +75,7 @@ void c_new_job() {
     else
         m.u.newjob.label_size = 0;
     m.u.newjob.store_output = command_line.store_output;
-    m.u.newjob.do_depend = command_line.do_depend;
+    m.u.newjob.depend_on_size = command_line.depend_on_size;
     m.u.newjob.should_keep_finished = command_line.should_keep_finished;
     m.u.newjob.command_size = strlen(new_command) + 1; /* add null */
     m.u.newjob.wait_enqueuing = command_line.wait_enqueuing;
@@ -91,7 +91,7 @@ void c_new_job() {
         send_ints(server_socket, command_line.gpu_nums, command_line.gpus);
 
     /* send dependencies */
-    if (command_line.do_depend)
+    if (command_line.depend_on_size)
         send_ints(server_socket, command_line.depend_on, command_line.depend_on_size);
 
     /* Send the command */
@@ -144,7 +144,7 @@ int c_wait_server_commands() {
 
             freeGpuList = recv_ints(server_socket, &num_gpus);
             result.skipped = 0;
-            if (command_line.do_depend && command_line.require_elevel && m.u.last_errorlevel != 0) {
+            if (command_line.depend_on_size && command_line.require_elevel && m.u.last_errorlevel != 0) {
                 result.errorlevel = -1;
                 result.user_ms = 0.f;
                 result.system_ms = 0.f;
