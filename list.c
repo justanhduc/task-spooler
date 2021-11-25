@@ -101,7 +101,7 @@ static char *print_noresult(const struct Job *p) {
 
     if (p->label)
         maxlen += 3 + strlen(p->label);
-    if (p->do_depend) {
+    if (p->depend_on_size) {
         maxlen += sizeof(dependstr);
         int pos = 0;
         if (p->depend_on[0] == -1)
@@ -175,7 +175,7 @@ static char *print_result(const struct Job *p) {
 
     if (p->label)
         maxlen += 3 + strlen(p->label);
-    if (p->do_depend) {
+    if (p->depend_on_size) {
         maxlen += sizeof(dependstr);
         int pos = 0;
         if (p->depend_on[0] == -1)
