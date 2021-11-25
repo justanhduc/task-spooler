@@ -49,7 +49,7 @@ char* logdir;
 
 static struct Job *get_job(int jobid);
 
-void notify_errorlevel(struct Job *p);
+static void notify_errorlevel(struct Job *p);
 
 static void shuffle(int *array, size_t n) {
     if (n > 1) {
@@ -401,6 +401,10 @@ static struct Job *newjobptr() {
         firstjob->next = 0;
         firstjob->output_filename = 0;
         firstjob->command = 0;
+        firstjob->depend_on = 0;
+        firstjob->gpu_ids = 0;
+        firstjob->label = 0;
+        firstjob->notify_errorlevel_to = 0;
         return firstjob;
     }
 
@@ -412,7 +416,10 @@ static struct Job *newjobptr() {
     p->next->next = 0;
     p->next->output_filename = 0;
     p->next->command = 0;
-
+    p->next->depend_on = 0;
+    p->next->gpu_ids = 0;
+    p->next->label = 0;
+    p->next->notify_errorlevel_to = 0;
     return p->next;
 }
 
@@ -463,7 +470,6 @@ int s_newjob(int s, struct Msg *m) {
     else
         p->state = HOLDING_CLIENT;
 
-    p->gpu_ids = 0;
     p->wait_free_gpus = m->u.newjob.wait_free_gpus;
     if (!p->wait_free_gpus)
         p->gpu_ids = recv_ints(s, &p->num_gpus);
@@ -475,10 +481,8 @@ int s_newjob(int s, struct Msg *m) {
     p->num_slots = m->u.newjob.num_slots;
     p->store_output = m->u.newjob.store_output;
     p->should_keep_finished = m->u.newjob.should_keep_finished;
-    p->notify_errorlevel_to = 0;
     p->notify_errorlevel_to_size = 0;
     p->do_depend = m->u.newjob.do_depend;
-    p->depend_on = 0;
 
     /* this error level here is used internally to decide whether a job should be run or not
      * so it only matters whether the error level is 0 or not.
@@ -585,7 +589,6 @@ int s_newjob(int s, struct Msg *m) {
         error("wrong bytes received");
 
     /* load the label */
-    p->label = 0;
     if (m->u.newjob.label_size > 0) {
         char *ptr;
         ptr = (char *) malloc(m->u.newjob.label_size);
