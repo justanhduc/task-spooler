@@ -128,8 +128,6 @@ enum Process_type {
 extern struct CommandLine command_line;
 extern enum Process_type process_type;
 extern int server_socket; /* Used in the client */
-extern int *used_gpus;  /* Used in both client and server */
-extern int num_total_gpus;
 extern char* logdir;
 extern int term_width;
 
@@ -506,3 +504,15 @@ int tail_file(const char *fname, int last_lines);
 int *getGpuList(int *num);
 
 void initGPU();
+
+void broadcastUsedGpus(int num, const int *list);
+
+void broadcastFreeGpus(int num, const int *list);
+
+int isInUse(int id);
+
+void setFreePercentage(int percent);
+
+int getFreePercentage();
+
+void cleanupGpu();
