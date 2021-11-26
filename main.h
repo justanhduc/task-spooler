@@ -118,7 +118,6 @@ struct CommandLine {
     int gpus;
     int *gpu_nums;
     int wait_free_gpus;
-    int gpu_wait_time;
     char *logfile;
 };
 
@@ -188,7 +187,6 @@ struct Msg {
         int version;
         int count_running;
         char *label;
-        int gpu_wait_time;
         int term_width;
     } u;
 };
