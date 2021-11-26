@@ -10,9 +10,9 @@
 
 #define TS_VISIBLE_DEVICES "TS_VISIBLE_DEVICES"
 
-extern int free_percentage;
-int *used_gpus;
-int num_total_gpus;
+static int free_percentage = 90;
+static int num_total_gpus;
+static int *used_gpus = 0;
 
 void initGPU() {
     unsigned int nDevices;
@@ -105,4 +105,30 @@ int * getGpuList(int *num) {
         if (NVML_SUCCESS != result)
             error("Failed to shutdown NVML: %s", nvmlErrorString(result));
         return NULL;
+}
+
+void broadcastUsedGpus(int num, const int *list) {
+    for (int i = 0; i < num; i++)
+        used_gpus[list[i]] = 1;
+}
+
+void broadcastFreeGpus(int num, const int *list) {
+    for (int i = 0; i < num; i++)
+        used_gpus[list[i]] = 0;
+}
+
+int isInUse(int id) {
+    return used_gpus[id];
+}
+
+void setFreePercentage(int percent) {
+    free_percentage = percent;
+}
+
+int getFreePercentage() {
+    return free_percentage;
+}
+
+void cleanupGpu() {
+    free(used_gpus);
 }

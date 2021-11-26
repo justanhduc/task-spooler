@@ -15,14 +15,9 @@
 
 #include "main.h"
 
-int *used_gpus;
-int num_total_gpus;
-
 /* The list will access them */
 int busy_slots = 0;
 int max_slots = 1;
-
-int free_percentage = 90;
 
 struct Notify {
     int socket;
@@ -683,7 +678,7 @@ int next_run_job() {
                 int *gpu_ids = (int*) malloc(p->num_gpus * sizeof(int));
                 while (i < p->num_gpus && j < numFree) {
                     /* if the prospective GPUs are in used, select the next one */
-                    if (!used_gpus[freeGpuList[j]])
+                    if (!isInUse(freeGpuList[j]))
                         gpu_ids[i++] = freeGpuList[j];
                     j++;
                 }
@@ -717,8 +712,7 @@ int next_run_job() {
             if (free_slots >= p->num_slots) {
                 busy_slots = busy_slots + p->num_slots;
                 if (p->num_gpus)
-                    for (int i = 0; i < p->num_gpus; ++i)
-                        used_gpus[p->gpu_ids[i]] = 1;
+                    broadcastUsedGpus(p->num_gpus, p->gpu_ids);
                 return p->jobid;
             }
         }
@@ -814,8 +808,7 @@ void job_finished(const struct Result *result, int jobid) {
         error("on jobid %i finished, it doesn't exist", jobid);
 
     /* Recycle GPUs */
-    for (int i = 0; i < p->num_gpus; ++i)
-        used_gpus[p->gpu_ids[i]] = 0;
+    broadcastFreeGpus(p->num_gpus, p->gpu_ids);
 
     /* The job may be not only in running state, but also in other states, as
      * we call this to clean up the jobs list in case of the client closing the
@@ -1639,7 +1632,7 @@ void s_unset_env(int s, int size) {
 
 void s_set_free_percentage(int new_percentage) {
     if (new_percentage > 0)
-        free_percentage = new_percentage;
+        setFreePercentage(new_percentage);
     else
         warning("Received new_percentage=%i", new_percentage);
 }
@@ -1647,7 +1640,7 @@ void s_set_free_percentage(int new_percentage) {
 void s_get_free_percentage(int s) {
     struct Msg m;
     m.type = GET_FREE_PERC;
-    m.u.size = free_percentage;
+    m.u.size = getFreePercentage();
     send_msg(s, &m);
 }
 

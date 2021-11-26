@@ -71,8 +71,6 @@ static int max_descriptors;
 /* in jobs.c */
 extern int max_jobs;
 
-int *used_gpus;
-
 static void s_send_version(int s) {
     struct Msg m;
 
@@ -320,7 +318,7 @@ static void end_server(int ls) {
     /* This comes from the parent, in the fork after server_main.
      * This is the last use of path in this process.*/
     free(path);
-    free(used_gpus);
+    cleanupGpu();
 }
 
 static void remove_connection(int index) {
