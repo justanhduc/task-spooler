@@ -702,9 +702,11 @@ int next_run_job() {
                 /* some GPUs might already be claimed by other jobs, but the system still reports as free -> skip */
                 if (i < p->num_gpus) {
                     p = p->next;
+                    free(gpu_ids);
                     continue;
                 }
                 memcpy(p->gpu_ids, gpu_ids, p->num_gpus * sizeof(int));
+                free(gpu_ids);
             }
 
             if (p->depend_on_size) {
