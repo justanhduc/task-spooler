@@ -132,7 +132,7 @@ void parse_opts(int argc, char **argv) {
 
     /* Parse options */
     while (1) {
-        c = getopt_long(argc, argv, ":RTVhKzClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:G:W:g:O:",
+        c = getopt_long(argc, argv, ":RTVhKzCQlnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:G:W:g:O:",
                         longOptions, &optionIdx);
 
         if (c == -1)
@@ -183,6 +183,9 @@ void parse_opts(int argc, char **argv) {
                 break;
             case 'l':
                 command_line.request = c_LIST;
+                break;
+            case 'Q':
+                command_line.request = c_SMI;
                 break;
             case 'h':
                 command_line.request = c_SHOW_HELP;
@@ -586,6 +589,12 @@ int main(int argc, char **argv) {
             if (!command_line.need_server)
                 error("The command %i needs the server", command_line.request);
             c_list_jobs();
+            c_wait_server_lines();
+            break;
+        case c_SMI:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_smi();
             c_wait_server_lines();
             break;
         case c_KILL_SERVER:

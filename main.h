@@ -20,6 +20,7 @@ enum MsgTypes {
     RUNJOB_OK,
     ENDJOB,
     LIST,
+    SMI,
     LIST_LINE,
     CLEAR_FINISHED,
     ASK_OUTPUT,
@@ -62,6 +63,7 @@ enum Request {
     c_TAIL,
     c_KILL_SERVER,
     c_LIST,
+    c_SMI,
     c_CLEAR_FINISHED,
     c_SHOW_HELP,
     c_SHOW_VERSION,
@@ -220,6 +222,16 @@ struct Job {
     int wait_free_gpus;
 };
 
+struct GPU{
+    int total_mem;
+    int free_mem;
+    int used_mem;
+    char* name;
+    int usage;
+    int visible;
+    int available;
+};
+
 enum ExitCodes {
     EXITCODE_OK = 0,
     EXITCODE_UNKNOWN_ERROR = -1,
@@ -234,6 +246,8 @@ int strtok_int(char* str, char* delim, int* ids);
 void c_new_job();
 
 void c_list_jobs();
+
+void c_smi();
 
 void c_shutdown_server();
 
@@ -309,6 +323,8 @@ char* get_logdir();
 
 /* jobs.c */
 void s_list(int s);
+
+void s_smi(int s);
 
 int s_newjob(int s, struct Msg *m);
 
@@ -509,10 +525,16 @@ void broadcastUsedGpus(int num, const int *list);
 
 void broadcastFreeGpus(int num, const int *list);
 
-int isInUse(int id);
+int isAvailable(int id);
 
 void setFreePercentage(int percent);
 
 int getFreePercentage();
 
 void cleanupGpu();
+
+char *smiHeader();
+
+char *smiForId(int id);
+
+int numGpus();

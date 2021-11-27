@@ -678,7 +678,7 @@ int next_run_job() {
                 int *gpu_ids = (int*) malloc(p->num_gpus * sizeof(int));
                 while (i < p->num_gpus && j < numFree) {
                     /* if the prospective GPUs are in used, select the next one */
-                    if (!isInUse(freeGpuList[j]))
+                    if (isAvailable(freeGpuList[j]))
                         gpu_ids[i++] = freeGpuList[j];
                     j++;
                 }
@@ -1651,4 +1651,17 @@ void s_get_logdir(int s) {
 void s_set_logdir(const char* path) {
     logdir = realloc(logdir, strlen(path) + 1);
     strcpy(logdir, path);
+}
+
+void s_smi(int s) {
+    char *buffer;
+
+    buffer = smiHeader();
+    send_list_line(s, buffer);
+    free(buffer);
+    for (int i = 0; i < numGpus(); i++) {
+        buffer = smiForId(i);
+        send_list_line(s, buffer);
+        free(buffer);
+    }
 }

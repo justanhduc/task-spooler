@@ -404,6 +404,12 @@ client_read(int index) {
             close(s);
             remove_connection(index);
             break;
+        case SMI:
+            s_smi(s);
+            /* We must actively close, meaning End of Lines */
+            close(s);
+            remove_connection(index);
+            break;
         case INFO:
             s_job_info(s, m.u.jobid);
             close(s);

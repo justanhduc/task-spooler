@@ -203,6 +203,13 @@ void c_list_jobs() {
     send_msg(server_socket, &m);
 }
 
+void c_smi() {
+    struct Msg m;
+
+    m.type = SMI;
+    send_msg(server_socket, &m);
+}
+
 /* Exits if wrong */
 void c_check_version() {
     struct Msg m;
