@@ -12,7 +12,7 @@ ts \- task spooler. A simple unix batch system
 .BI "ts [" actions "] [" options "] [" command... ]
 .sp
 Actions:
-.BI "[\-KClhVTRq]
+.BI "[\-KClQhVTRq]
 .BI "[\-t ["id ]]
 .BI "[\-c ["id ]]
 .BI "[\-p ["id ]]
@@ -183,6 +183,9 @@ Show the list of jobs - to be run, running and finished - for the current queue.
 This is the default behaviour if
 .B ts
 is called without options.
+.TP
+.B "\-Q"
+query GPUs and show a minimalistic NVIDIA-SMI.
 .TP
 .B "\-q/--last_queue_id"
 Show the job ID of the last added.

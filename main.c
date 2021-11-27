@@ -482,9 +482,10 @@ static void print_help(const char *cmd) {
     printf("  --gpus           || -G [num]    number of GPUs required by the job (1 default).\n");
     printf("  --gpu_indices    || -g <id,...> the job will be on these GPU indices without checking whether they are free.\n");
     printf("Actions:\n");
-    printf("  -K           kill the task spooler server\n");
-    printf("  -C           clear the list of finished jobs\n");
-    printf("  -l           show the job list (default action)\n");
+    printf("  -K           kill the task spooler server.\n");
+    printf("  -C           clear the list of finished jobs.\n");
+    printf("  -l           show the job list (default action).\n");
+    printf("  -Q           query GPUs and show a minimalistic NVIDIA-SMI.\n");
     printf("  -S [num]     get/set the number of max simultaneous jobs of the server.\n");
     printf("  -t [id]      \"tail -n 10 -f\" the output of the job. Last run if not specified.\n");
     printf("  -c [id]      like -t, but shows all the lines. Last run if not specified.\n");
