@@ -90,9 +90,9 @@ static void queryGpu() {
         if (result != 0)
             warning("Failed to get name of device %u: %s\n", i, nvmlErrorString(result));
 
-        gpuList[i].total_mem = (int) mem.total;
-        gpuList[i].used_mem = (int) mem.used;
-        gpuList[i].free_mem = (int) mem.free;
+        gpuList[i].total_mem = mem.total / (1024. * 1024. * 1024.);
+        gpuList[i].used_mem = mem.used / (1024. * 1024. * 1024.);
+        gpuList[i].free_mem = mem.free / (1024. * 1024. * 1024.);
         gpuList[i].usage = (int) util.gpu;
     }
     getVisibleGpus();
@@ -136,7 +136,7 @@ int getFreePercentage() {
     return free_percentage;
 }
 
-static float round(float num) {
+static double round(double num) {
     int numInt = (int) num;
     if (num - numInt >= .5)
         numInt++;
@@ -186,7 +186,7 @@ char *smiForId(int id) {
              gpuList[id].name,
              gpuList[id].visible,
              gpuList[id].available,
-             gpuList[id].total_mem / (1024. * 1024 * 1024),
+             gpuList[id].total_mem,
              memProgBar,
              (int) memPercent,
              utilProgBar,

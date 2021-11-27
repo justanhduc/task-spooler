@@ -223,9 +223,9 @@ struct Job {
 };
 
 struct GPU{
-    int total_mem;
-    int free_mem;
-    int used_mem;
+    double total_mem;
+    double free_mem;
+    double used_mem;
     char* name;
     int usage;
     int visible;
