@@ -163,7 +163,7 @@ char *smiHeader() {
     char *line;
 
     line = malloc(110);
-    snprintf(line, 110, "%-4s %-30s %-7s %-10s %-15s %-15s\n",
+    snprintf(line, 110, "%-4s %-24s %-7s %-10s %-15s %-15s\n",
              "ID",
              "Name",
              "Status",
@@ -181,7 +181,7 @@ char *smiForId(int id) {
 
     queryGpu();
     line = malloc(110);
-    snprintf(line, 110, "%-4d %-30s %d/%-5d %-10.2f %s %-4d %s %-4d\n",
+    snprintf(line, 110, "%-4d %-24s %d/%-5d %-10.2f %s %-4d %s %-4d\n",
              id,
              gpuList[id].name,
              gpuList[id].visible,
