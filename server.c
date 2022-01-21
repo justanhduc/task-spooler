@@ -233,7 +233,12 @@ static void server_loop(int ls) {
     int maxfd;
     int keep_loop = 1;
     int newjob;
+    struct timeval tv;
+    int res;
 
+    /* wait up to 30 secs before checking whether a job can run */
+    tv.tv_sec = 30;
+    tv.tv_usec = 0;
     while (keep_loop) {
         FD_ZERO(&readset);
         maxfd = 0;
@@ -248,28 +253,30 @@ static void server_loop(int ls) {
             if (client_cs[i].socket > maxfd)
                 maxfd = client_cs[i].socket;
         }
-        select(maxfd + 1, &readset, NULL, NULL, NULL);
-        if (FD_ISSET(ls, &readset)) {
-            int cs;
-            cs = accept(ls, NULL, NULL);
-            if (cs == -1)
-                error("Accepting from %i", ls);
-            client_cs[nconnections].hasjob = 0;
-            client_cs[nconnections].socket = cs;
-            ++nconnections;
-        }
-        for (i = 0; i < nconnections; ++i) {
-            if (FD_ISSET(client_cs[i].socket, &readset)) {
-                enum Break b;
-                b = client_read(i);
-                /* Check if we should break */
-                if (b == CLOSE) {
-                    warning("Closing");
-                    /* On unknown message, we close the client,
-                       or it may hang waiting for an answer */
-                    clean_after_client_disappeared(client_cs[i].socket, i);
-                } else if (b == BREAK)
-                    keep_loop = 0;
+        res = select(maxfd + 1, &readset, NULL, NULL, &tv);
+        if (res != -1) {
+            if (FD_ISSET(ls, &readset)) {
+                int cs;
+                cs = accept(ls, NULL, NULL);
+                if (cs == -1)
+                    error("Accepting from %i", ls);
+                client_cs[nconnections].hasjob = 0;
+                client_cs[nconnections].socket = cs;
+                ++nconnections;
+            }
+            for (i = 0; i < nconnections; ++i) {
+                if (FD_ISSET(client_cs[i].socket, &readset)) {
+                    enum Break b;
+                    b = client_read(i);
+                    /* Check if we should break */
+                    if (b == CLOSE) {
+                        warning("Closing");
+                        /* On unknown message, we close the client,
+                           or it may hang waiting for an answer */
+                        clean_after_client_disappeared(client_cs[i].socket, i);
+                    } else if (b == BREAK)
+                        keep_loop = 0;
+                }
             }
         }
 
