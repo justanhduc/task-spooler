@@ -236,7 +236,10 @@ static void server_loop(int ls) {
     struct timeval tv;
     int res;
 
-    /* wait up to 30 secs before checking whether a job can run */
+    /* Wait up to 30 secs before checking whether a job can run.
+     * This is needed for GPU jobs because if GPUs are occupied and
+     * released outside of `ts`, `ts` will not notice until new commands
+     * from users come. */
     tv.tv_sec = 30;
     tv.tv_usec = 0;
     while (keep_loop) {
