@@ -30,6 +30,9 @@ void initGPU() {
     num_total_gpus = (int) nDevices;
     used_gpus = (int *) malloc(num_total_gpus * sizeof(int));
     memset(used_gpus, 0, num_total_gpus * sizeof(int));  /* 0 is not in used, 1 is in used */
+    result = nvmlShutdown();
+    if (NVML_SUCCESS != result)
+        error("Failed to shutdown NVML: %s", nvmlErrorString(result));
     return;
 
     Error:
