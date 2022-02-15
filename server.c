@@ -231,16 +231,16 @@ static void server_loop(int ls) {
     int maxfd;
     int keep_loop = 1;
     int newjob;
-    struct timeval tv;
     int res;
-
-    /* Wait up to 30 secs before checking whether a job can run.
-     * This is needed for GPU jobs because if GPUs are occupied and
-     * released outside of `ts`, `ts` will not notice until new commands
-     * from users come. */
-    tv.tv_sec = 30;
-    tv.tv_usec = 0;
     while (keep_loop) {
+        struct timeval tv;
+        /* Wait up to 30 secs before checking whether a job can run.
+         * This is needed for GPU jobs because if GPUs are occupied and
+         * released outside of `ts`, `ts` will not notice until new commands
+         * from users come. */
+        tv.tv_sec = 30;
+        tv.tv_usec = 0;
+
         FD_ZERO(&readset);
         maxfd = 0;
         /* If we can accept more connections, go on.
@@ -256,14 +256,10 @@ static void server_loop(int ls) {
         }
 
         /* timeout mode if there are queued GPU jobs only */
-        if (s_count_allocating_jobs() > 0) {
-            debug("TIMEOUT mode");
+        if (s_count_allocating_jobs() > 0)
             res = select(maxfd + 1, &readset, NULL, NULL, &tv);
-        }
-        else {
-            debug("no TIMEOUT mode");
+        else
             res = select(maxfd + 1, &readset, NULL, NULL, NULL);
-        }
 
         if (res != -1) {
             if (FD_ISSET(ls, &readset)) {
