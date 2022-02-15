@@ -234,7 +234,7 @@ int s_count_allocating_jobs() {
     p = firstjob;
     while (p != 0) {
         if (p->state == ALLOCATING)
-            ++count;
+            count++;
 
         p = p->next;
     }

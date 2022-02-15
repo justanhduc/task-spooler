@@ -256,7 +256,13 @@ static void server_loop(int ls) {
             if (client_cs[i].socket > maxfd)
                 maxfd = client_cs[i].socket;
         }
-        res = select(maxfd + 1, &readset, NULL, NULL, &tv);
+
+        /* timeout mode if there are queued GPU jobs only */
+        if (s_count_allocating_jobs() > 0)
+            res = select(maxfd + 1, &readset, NULL, NULL, &tv);
+        else
+            res = select(maxfd + 1, &readset, NULL, NULL, NULL);
+
         if (res != -1) {
             if (FD_ISSET(ls, &readset)) {
                 int cs;

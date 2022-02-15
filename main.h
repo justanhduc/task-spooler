@@ -350,6 +350,8 @@ void s_swap_jobs(int s, int jobid1, int jobid2);
 
 void s_count_running_jobs(int s);
 
+int s_count_allocating_jobs();
+
 void dump_jobs_struct(FILE *out);
 
 void dump_notifies_struct(FILE *out);
