@@ -40,7 +40,6 @@ static struct Notify *first_notify = 0;
 
 /* server will access them */
 int max_jobs;
-char* logdir;
 
 static struct Job *get_job(int jobid);
 
