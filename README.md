@@ -217,6 +217,10 @@ Options adding jobs:
 * To Sergio Ballestrero, who sent code and motivated the development of a multislot version of ts.
 * To GNU, an ugly but working and helpful ol' UNIX implementation. 
 
+**Software**
+
+Memory checks with [Valgrind](https://valgrind.org/).
+
 ## Related projects
 
 [Messenger](https://github.com/justanhduc/messenger)

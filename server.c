@@ -39,7 +39,7 @@ enum Break {
     CLOSE
 };
 
-char* logdir;
+char* logdir = 0;
 
 /* Prototypes */
 static void server_loop(int ls);
@@ -72,7 +72,7 @@ static int max_descriptors;
 extern int max_jobs;
 
 static void s_send_version(int s) {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     m.type = VERSION;
     m.u.version = PROTOCOL_VERSION;
@@ -314,6 +314,7 @@ static void end_server(int ls) {
     /* This comes from the parent, in the fork after server_main.
      * This is the last use of path in this process.*/
     free(path);
+    free(logdir);
     cleanupGpu();
 }
 
@@ -364,7 +365,7 @@ clean_after_client_disappeared(int socket, int index) {
 
 static enum Break
 client_read(int index) {
-    struct Msg m;
+    struct Msg m = default_msg();
     int s;
     int res;
 
@@ -548,7 +549,7 @@ static void s_runjob(int jobid, int index) {
 
 static void s_newjob_ok(int index) {
     int s;
-    struct Msg m;
+    struct Msg m = default_msg();
 
     if (!client_cs[index].hasjob)
         error("Run job of the client %i which doesn't have any job", index);
@@ -563,7 +564,7 @@ static void s_newjob_ok(int index) {
 
 static void s_newjob_nok(int index) {
     int s;
-    struct Msg m;
+    struct Msg m = default_msg();
 
     if (!client_cs[index].hasjob)
         error("Run job of the client %i which doesn't have any job", index);

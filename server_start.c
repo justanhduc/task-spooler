@@ -18,7 +18,7 @@
 
 #include "main.h"
 
-extern int server_socket;
+int server_socket;
 
 static char *socket_path;
 static int should_check_owner = 0;
@@ -151,6 +151,7 @@ int ensure_server_up() {
     /* Good connection */
     if (res == 0) {
         try_check_ownership();
+        free(socket_path);
         return 1;
     }
 

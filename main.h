@@ -230,6 +230,10 @@ enum ExitCodes {
 /* main.c */
 int strtok_int(char* str, char* delim, int* ids);
 
+struct Msg default_msg();
+
+struct Result default_result();
+
 /* client.c */
 void c_new_job();
 

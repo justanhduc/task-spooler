@@ -28,7 +28,6 @@ extern int optind, opterr, optopt;
 
 /* Globals */
 struct CommandLine command_line;
-int server_socket;
 int term_width;
 
 /* Globals for the environment of getopt */
@@ -64,8 +63,21 @@ static void default_command_line() {
     command_line.num_slots = 1;
     command_line.require_elevel = 0;
     command_line.gpus = 0;
+    command_line.gpu_nums = NULL;
     command_line.wait_free_gpus = 1;
-    command_line.logfile = 0;
+    command_line.logfile = NULL;
+}
+
+struct Msg default_msg() {
+    struct Msg m;
+    memset(&m, 0, sizeof(struct Msg));
+    return m;
+}
+
+struct Result default_result() {
+    struct Result result;
+    memset(&result, 0, sizeof(struct Result));
+    return result;
 }
 
 void get_command(int index, int argc, char **argv) {
@@ -723,7 +735,8 @@ int main(int argc, char **argv) {
     if (command_line.need_server) {
         close(server_socket);
     }
-    free(command_line.depend_on);
+    free(command_line.gpu_nums);
+    free(command_line.logfile);
 
     return errorlevel;
 }

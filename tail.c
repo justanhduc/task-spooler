@@ -210,6 +210,6 @@ int tail_file(const char *fname, int last_lines)
     } while((!endfile_reached || waiting_end) && could_write);
 
     close(fd);
-
+    free((char*) fname);
     return end_res;
 }
