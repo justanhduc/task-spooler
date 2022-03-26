@@ -20,6 +20,7 @@ enum MsgTypes {
     RUNJOB_OK,
     ENDJOB,
     LIST,
+    LIST_GPU,
     LIST_LINE,
     CLEAR_FINISHED,
     ASK_OUTPUT,
@@ -62,6 +63,7 @@ enum Request {
     c_TAIL,
     c_KILL_SERVER,
     c_LIST,
+    c_LIST_GPU,
     c_CLEAR_FINISHED,
     c_SHOW_HELP,
     c_SHOW_VERSION,
@@ -239,6 +241,8 @@ void c_new_job();
 
 void c_list_jobs();
 
+void c_list_gpu_jobs();
+
 void c_shutdown_server();
 
 void c_wait_server_lines();
@@ -313,6 +317,8 @@ char* get_logdir();
 
 /* jobs.c */
 void s_list(int s);
+
+void s_list_gpu(int s);
 
 int s_newjob(int s, struct Msg *m);
 
@@ -465,11 +471,15 @@ void warning_msg(const struct Msg *m, const char *str, ...);
 /* list.c */
 char *joblist_headers();
 
+char *jobgpulist_header();
+
 char *joblist_line(const struct Job *p);
 
 char *joblistdump_torun(const struct Job *p);
 
 char *joblistdump_headers();
+
+char *jobgpulist_line(const struct Job *p);
 
 char *time_rep(float* t);
 

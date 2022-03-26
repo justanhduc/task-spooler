@@ -125,6 +125,7 @@ static struct option longOptions[] = {
         {"gpus",              required_argument, NULL, 'G'},
         {"gpu_indices",       required_argument, NULL, 'g'},
         {"full_cmd",          optional_argument, NULL, 'F'},
+        {"lg",                optional_argument, NULL, 0},
         {"getenv",            required_argument, NULL, 0},
         {"setenv",            required_argument, NULL, 0},
         {"unsetenv",          required_argument, NULL, 0},
@@ -171,6 +172,8 @@ void parse_opts(int argc, char **argv) {
                 } else if (strcmp(longOptions[optionIdx].name, "set_logdir") == 0) {
                     command_line.request = c_SET_LOGDIR;
                     command_line.label = optarg; /* reuse this variable */
+                } else if (strcmp(longOptions[optionIdx].name, "lg") == 0) {
+                    command_line.request = c_LIST_GPU;
                 } else if (strcmp(longOptions[optionIdx].name, "set_gpu_wait") == 0) {
                     printf("Due to some internal changes, this option has no functionality "
                            "and will be removed in the next release!\n");
@@ -475,6 +478,7 @@ static void print_help(const char *cmd) {
     printf("  TS_SLOTS   amount of jobs which can run at once, read on server start.\n");
     printf("  TMPDIR     directory where to place the output files and the default socket.\n");
     printf("Long option actions:\n");
+    printf("  --lg                            list all jobs running on GPUs and the corresponding GPU IDs.\n");
     printf("  --getenv   [var]                get the value of the specified variable in server environment.\n");
     printf("  --setenv   [var]                set the specified flag to server environment.\n");
     printf("  --unsetenv   [var]              remove the specified flag from server environment.\n");
@@ -598,6 +602,12 @@ int main(int argc, char **argv) {
             if (!command_line.need_server)
                 error("The command %i needs the server", command_line.request);
             c_list_jobs();
+            c_wait_server_lines();
+            break;
+        case c_LIST_GPU:
+            if (!command_line.need_server)
+                error("The command %i needs the server", command_line.request);
+            c_list_gpu_jobs();
             c_wait_server_lines();
             break;
         case c_KILL_SERVER:

@@ -58,6 +58,10 @@ char *joblist_headers() {
     return line;
 }
 
+char *jobgpulist_header() {
+    return "ID   GPU-IDs\n";
+}
+
 static int max(int a, int b) {
     return a > b ? a : b;
 }
@@ -230,6 +234,18 @@ static char *print_result(const struct Job *p) {
     }
 
     return line;
+}
+
+static char *print_gpu(const struct Job *p) {
+    char *line = malloc(1024);
+    char *gpuIDs = ints_to_chars(p->gpu_ids, p->num_gpus, " ");
+    sprintf(line, "%-4i %s\n", p->jobid, gpuIDs);
+    free(gpuIDs);
+    return line;
+}
+
+char *jobgpulist_line(const struct Job *p) {
+    return print_gpu(p);
 }
 
 char *joblist_line(const struct Job *p) {

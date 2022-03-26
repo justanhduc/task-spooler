@@ -206,6 +206,12 @@ void c_list_jobs() {
     send_msg(server_socket, &m);
 }
 
+void c_list_gpu_jobs() {
+    struct Msg m = default_msg();
+    m.type = LIST_GPU;
+    send_msg(server_socket, &m);
+}
+
 /* Exits if wrong */
 void c_check_version() {
     struct Msg m = default_msg();

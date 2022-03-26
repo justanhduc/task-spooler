@@ -421,6 +421,11 @@ client_read(int index) {
             close(s);
             remove_connection(index);
             break;
+        case LIST_GPU:
+            s_list_gpu(s);
+            close(s);
+            remove_connection(index);
+            break;
         case INFO:
             s_job_info(s, m.u.jobid);
             close(s);

@@ -388,6 +388,22 @@ void s_list(int s) {
     }
 }
 
+void s_list_gpu(int s) {
+    struct Job *p = firstjob;
+    char* buffer;
+
+    buffer = jobgpulist_header();
+    send_list_line(s, buffer);
+    while (p != 0) {
+        if (p->state == RUNNING && p->num_gpus) {
+            buffer = jobgpulist_line(p);
+            send_list_line(s, buffer);
+            free(buffer);
+        }
+        p = p->next;
+    }
+}
+
 static void init_job(struct Job *p) {
     p->next = 0;
     p->output_filename = 0;
