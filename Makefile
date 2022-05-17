@@ -1,4 +1,5 @@
 PREFIX?=/usr/local
+PREFIX_LOCAL=~
 GLIBCFLAGS=-D_XOPEN_SOURCE=500 -D__STRICT_ANSI__
 CPPFLAGS+=$(GLIBCFLAGS)
 CFLAGS?=-pedantic -ansi -Wall -g -O0 -std=c11
@@ -62,7 +63,17 @@ install: $(TARGET)
 	$(INSTALL) -d $(PREFIX)/share/man/man1
 	$(INSTALL) -m 644 $(TARGET).1 $(PREFIX)/share/man/man1
 
+install-local: $(TARGET)
+	$(INSTALL) -d $(PREFIX_LOCAL)/bin
+	$(INSTALL) ts $(PREFIX_LOCAL)/bin
+	$(INSTALL) -d $(PREFIX_LOCAL)/.local/share/man/man1
+	$(INSTALL) -m 644 $(TARGET).1 $(PREFIX_LOCAL)/.local/share/man/man1
+
 .PHONY: uninstall
 uninstall:
 	rm -f $(PREFIX)/bin/$(TARGET)
 	rm -f $(PREFIX)/share/man/man1/$(TARGET).1
+
+uninstall-local:
+	rm -f $(PREFIX_LOCAL)/bin/$(TARGET)
+	rm -f $(PREFIX_LOCAL)/.local/share/man/man1/$(TARGET).1
