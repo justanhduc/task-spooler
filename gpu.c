@@ -14,10 +14,16 @@ static int free_percentage = 90;
 static int num_total_gpus;
 static int *used_gpus = 0;
 
+static void set_cuda_env() {
+    unsetenv("CUDA_VISIBLE_DEVICES");
+    setenv("CUDA_DEVICE_ORDER", "PCI_BUS_I", 1);
+}
+
 void initGPU() {
     unsigned int nDevices;
     nvmlReturn_t result;
 
+    set_cuda_env();
     result = nvmlInit();
     if (NVML_SUCCESS != result)
         error("Failed to initialize NVML: %s", nvmlErrorString(result));
@@ -48,6 +54,7 @@ static int getVisibleGpus(int *visibility) {
         char* visFlag = malloc(strlen(tmp) + 1);
         strcpy(visFlag, tmp);
         int num = strtok_int(visFlag, ",", visibility);
+        free(visFlag);
         return num;
     }
 
@@ -76,6 +83,9 @@ int * getGpuList(int *num) {
 
     gpuList = (int *) malloc(numVis * sizeof(int));
     for (i = 0; i < numVis; i++) {
+        if (visible[i] >= num_total_gpus)
+            continue;
+
         nvmlMemory_t mem;
         nvmlDevice_t dev;
         result = nvmlDeviceGetHandleByIndex_v2(visible[i], &dev);
@@ -93,6 +103,7 @@ int * getGpuList(int *num) {
         if (mem.free > free_percentage / 100. * mem.total)
             gpuList[count++] = visible[i];
     }
+    free(visible);
     *num = count;
     result = nvmlShutdown();
     if (NVML_SUCCESS != result)
