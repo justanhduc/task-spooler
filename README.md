@@ -62,6 +62,16 @@ to use Makefile. If Task Spooler has already been installed, and you want to rei
 ./reinstall
 ```
 
+#### Local installation
+To install without sudo privilege, one can use the following command
+```
+make install-local
+```
+
+Note that, the installation will create a `bin` folder in `$HOME` if it does not exist. 
+To use `ts` anywhere, `$HOME/bin` needs to be added to `$PATH` if it hasn't been done already.
+To use `man`, you may also need to add `$HOME/.local/share/man` to `$MANPATH`.
+
 #### Common problems
 * Cannot find CUDA: Did you set a `CUDA_HOME` flag?
 * `/usr/bin/ld: cannot find -lnvidia-ml`: This lib lies in `$CUDA_HOME/lib64/stubs`. 
