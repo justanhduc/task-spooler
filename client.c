@@ -100,7 +100,6 @@ void c_new_job() {
 
     free(new_command);
     free(myenv);
-    free(command_line.depend_on);
 }
 
 int c_wait_newjob_ok() {
