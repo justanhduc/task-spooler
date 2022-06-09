@@ -220,6 +220,7 @@ static void run_child(int fd_send_filename, const char* tmpdir) {
         namesize = strlen(outfname_full) + 1;
         write(fd_send_filename, (char *) &namesize, sizeof(namesize));
         write(fd_send_filename, outfname_full, namesize);
+        free(outfname_full);
     }
     /* Times */
     gettimeofday(&starttv, NULL);
@@ -261,6 +262,7 @@ int run_job(struct Result *res) {
             /* Not reachable, if the 'exec' of the command
              * works. Thus, command exists, etc. */
             fprintf(stderr, "ts could not run the command\n");
+            free((char*) tmpdir);
             exit(-1);
             /* To avoid a compiler warning */
             errorlevel = 0;
@@ -274,7 +276,7 @@ int run_job(struct Result *res) {
             run_parent(p[0], pid, res);
             break;
     }
-
+    free((char*) tmpdir);
     return errorlevel;
 }
 

@@ -55,7 +55,7 @@ char *build_command_string() {
 }
 
 void c_new_job() {
-    struct Msg m;
+    struct Msg m = default_msg();
     char *new_command;
     char *myenv;
 
@@ -100,10 +100,11 @@ void c_new_job() {
 
     free(new_command);
     free(myenv);
+    free(command_line.depend_on);
 }
 
 int c_wait_newjob_ok() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
 
     res = recv_msg(server_socket, &m);
@@ -120,7 +121,7 @@ int c_wait_newjob_ok() {
 }
 
 int c_wait_server_commands() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
 
     while (1) {
@@ -133,7 +134,7 @@ int c_wait_server_commands() {
         if (res != sizeof(m))
             error("Error in wait_server_commands");
         if (m.type == RUNJOB) {
-            struct Result result;
+            struct Result result = default_result();
             result.skipped = 0;
             /* These will send RUNJOB_OK */
             if (command_line.do_depend && command_line.require_elevel && m.u.last_errorlevel != 0)
@@ -155,7 +156,7 @@ int c_wait_server_commands() {
 }
 
 void c_wait_server_lines() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
 
     while (1) {
@@ -178,7 +179,7 @@ void c_wait_server_lines() {
 }
 
 void c_list_jobs() {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     m.type = LIST;
     m.u.term_width = term_width;
@@ -187,7 +188,7 @@ void c_list_jobs() {
 
 /* Exits if wrong */
 void c_check_version() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
 
     m.type = GET_VERSION;
@@ -216,7 +217,7 @@ void c_check_version() {
 }
 
 void c_show_info() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
 
     m.type = INFO;
@@ -261,7 +262,7 @@ void c_show_info() {
 }
 
 void c_show_last_id() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
 
     m.type = LAST_ID;
@@ -281,7 +282,7 @@ void c_show_last_id() {
 }
 
 void c_send_runjob_ok(const char *ofname, int pid) {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     /* Prepare the message */
     m.type = RUNJOB_OK;
@@ -303,7 +304,7 @@ void c_send_runjob_ok(const char *ofname, int pid) {
 }
 
 static void c_end_of_job(const struct Result *res) {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     m.type = ENDJOB;
     m.u.result = *res; /* struct copy */
@@ -312,21 +313,21 @@ static void c_end_of_job(const struct Result *res) {
 }
 
 void c_shutdown_server() {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     m.type = KILL_SERVER;
     send_msg(server_socket, &m);
 }
 
 void c_clear_finished() {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     m.type = CLEAR_FINISHED;
     send_msg(server_socket, &m);
 }
 
 static char *get_output_file(int *pid) {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
     char *string = 0;
 
@@ -433,7 +434,7 @@ void c_kill_job() {
 }
 
 void c_kill_all_jobs() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
 
     /* Send the request */
@@ -460,7 +461,7 @@ void c_kill_all_jobs() {
 }
 
 void c_remove_job() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
     char *string = 0;
 
@@ -492,7 +493,7 @@ void c_remove_job() {
 }
 
 int c_wait_job_recv() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
     char *string = 0;
 
@@ -522,7 +523,7 @@ int c_wait_job_recv() {
 }
 
 static void c_wait_job_send() {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     /* Send the request */
     m.type = WAITJOB;
@@ -531,7 +532,7 @@ static void c_wait_job_send() {
 }
 
 static void c_wait_running_job_send() {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     /* Send the request */
     m.type = WAIT_RUNNING_JOB;
@@ -552,7 +553,7 @@ int c_wait_running_job() {
 }
 
 void c_send_max_slots(int max_slots) {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     /* Send the request */
     m.type = SET_MAX_SLOTS;
@@ -561,7 +562,7 @@ void c_send_max_slots(int max_slots) {
 }
 
 void c_get_max_slots() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
 
     /* Send the request */
@@ -583,7 +584,7 @@ void c_get_max_slots() {
 }
 
 void c_move_urgent() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
     char *string = 0;
 
@@ -618,7 +619,7 @@ void c_move_urgent() {
 }
 
 void c_get_state() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
     char *string = 0;
 
@@ -654,7 +655,7 @@ void c_get_state() {
 }
 
 void c_swap_jobs() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
     char *string = 0;
 
@@ -690,7 +691,7 @@ void c_swap_jobs() {
 }
 
 void c_get_count_running() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
 
     /* Send the request */
@@ -715,7 +716,7 @@ void c_get_count_running() {
 }
 
 void c_show_label() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
     char *string = 0;
 
@@ -748,7 +749,7 @@ void c_show_label() {
 }
 
 void c_show_cmd() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
     char *string = 0;
 
@@ -778,7 +779,7 @@ void c_show_cmd() {
 }
 
 char* get_logdir() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
     char *string = 0;
 
@@ -795,8 +796,10 @@ char* get_logdir() {
         case LIST_LINE:
             string = (char *) malloc(m.u.size);
             res = recv_bytes(server_socket, string, m.u.size);
-            if (res != m.u.size)
+            if (res != m.u.size) {
+                free(string);
                 error("Error in get_logdir - line size");
+            }
 
             return string;
         default:
@@ -813,7 +816,7 @@ void c_get_logdir() {
 }
 
 void c_set_logdir() {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     /* Send the request */
     m.type = SET_LOGDIR;
@@ -823,7 +826,7 @@ void c_set_logdir() {
 }
 
 void c_get_env() {
-    struct Msg m;
+    struct Msg m = default_msg();
     int res;
     char *string = 0;
 
@@ -858,7 +861,7 @@ void c_get_env() {
 }
 
 void c_set_env() {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     /* Send the request */
     m.type = SET_ENV;
@@ -868,7 +871,7 @@ void c_set_env() {
 }
 
 void c_unset_env() {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     /* Send the request */
     m.type = UNSET_ENV;

@@ -66,6 +66,18 @@ static void default_command_line() {
     command_line.logfile = 0;
 }
 
+struct Msg default_msg() {
+    struct Msg m;
+    memset(&m, 0, sizeof(struct Msg));
+    return m;
+}
+
+struct Result default_result() {
+    struct Result result;
+    memset(&result, 0, sizeof(struct Result));
+    return result;
+}
+
 void get_command(int index, int argc, char **argv) {
     command_line.command.array = &(argv[index]);
     command_line.command.num = argc - index;

@@ -56,7 +56,7 @@ static void destroy_job(struct Job* p) {
 }
 
 static void send_list_line(int s, const char *str) {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     /* Message */
     m.type = LIST_LINE;
@@ -69,7 +69,7 @@ static void send_list_line(int s, const char *str) {
 }
 
 static void send_urgent_ok(int s) {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     /* Message */
     m.type = URGENT_OK;
@@ -78,7 +78,7 @@ static void send_urgent_ok(int s) {
 }
 
 static void send_swap_jobs_ok(int s) {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     /* Message */
     m.type = SWAP_JOBS_OK;
@@ -189,7 +189,7 @@ void s_kill_all_jobs(int s) {
 void s_count_running_jobs(int s) {
     int count = 0;
     struct Job *p;
-    struct Msg m;
+    struct Msg m = default_msg();
 
     /* Count running jobs */
     p = firstjob;
@@ -812,7 +812,7 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
 }
 
 void s_send_runjob(int s, int jobid) {
-    struct Msg m;
+    struct Msg m = default_msg();
     struct Job *p;
 
     p = findjob(jobid);
@@ -832,7 +832,7 @@ void s_send_runjob(int s, int jobid) {
 
 void s_job_info(int s, int jobid) {
     struct Job *p = 0;
-    struct Msg m;
+    struct Msg m = default_msg();
 
     if (jobid == -1) {
         /* This means that we want the job info of the running task, or that
@@ -904,7 +904,7 @@ void s_job_info(int s, int jobid) {
 }
 
 void s_send_last_id(int s) {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     m.type = LAST_ID;
     m.u.jobid = jobids - 1;
@@ -913,7 +913,7 @@ void s_send_last_id(int s) {
 
 void s_send_output(int s, int jobid) {
     struct Job *p = 0;
-    struct Msg m;
+    struct Msg m = default_msg();
 
     if (jobid == -1) {
         /* This means that we want the output info of the running task, or that
@@ -991,7 +991,7 @@ void notify_errorlevel(struct Job *p) {
  * removed */
 int s_remove_job(int s, int *jobid) {
     struct Job *p = 0;
-    struct Msg m;
+    struct Msg m = default_msg();
     struct Job *before_p = 0;
 
     if (*jobid == -1) {
@@ -1092,7 +1092,7 @@ static void add_to_notify_list(int s, int jobid) {
 }
 
 static void send_waitjob_ok(int s, int errorlevel) {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     m.type = WAITJOB_OK;
     m.u.result.errorlevel = errorlevel;
@@ -1296,7 +1296,7 @@ void s_set_max_slots(int new_max_slots) {
 }
 
 void s_get_max_slots(int s) {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     /* Message */
     m.type = GET_MAX_SLOTS_OK;
@@ -1368,7 +1368,7 @@ void s_swap_jobs(int s, int jobid1, int jobid2) {
 }
 
 static void send_state(int s, enum Jobstate state) {
-    struct Msg m;
+    struct Msg m = default_msg();
 
     m.type = ANSWER_STATE;
     m.u.state = state;
@@ -1514,7 +1514,7 @@ void s_get_env(int s, int size) {
         error("Receiving environment variable name");
 
     char *val = getenv(var);
-    struct Msg m;
+    struct Msg m = default_msg();
     m.type = LIST_LINE;
     m.u.size = val ? strlen(val) + 1 : 0;
     send_msg(s, &m);

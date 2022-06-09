@@ -213,6 +213,13 @@ enum ExitCodes {
 };
 
 
+/* main.c */
+
+struct Msg default_msg();
+
+struct Result default_result();
+
+
 /* client.c */
 void c_new_job();
 
