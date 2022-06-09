@@ -27,7 +27,6 @@ extern int optind, opterr, optopt;
 
 /* Globals */
 struct CommandLine command_line;
-int server_socket;
 int term_width;
 
 /* Globals for the environment of getopt */
@@ -49,6 +48,7 @@ static void init_version() {
 
 static void default_command_line() {
     command_line.request = c_LIST;
+    command_line.plain_list = 0;
     command_line.need_server = 0;
     command_line.store_output = 1;
     command_line.should_go_background = 1;
@@ -121,6 +121,7 @@ static struct option longOptions[] = {
         {"count_running", no_argument,       NULL, 'R'},
         {"last_queue_id", no_argument,       NULL, 'q'},
         {"full_cmd",      optional_argument, NULL, 'F'},
+        {"plain",           no_argument,       NULL, 0},
         {"get_logdir",    no_argument,       NULL, 0},
         {"set_logdir",    required_argument, NULL, 0},
         {"getenv",        required_argument, NULL, 0},
@@ -158,6 +159,9 @@ void parse_opts(int argc, char **argv) {
                 } else if (strcmp(longOptions[optionIdx].name, "unsetenv") == 0) {
                     command_line.request = c_UNSET_ENV;
                     command_line.label = optarg;  /* reuse this var */
+                } else if (strcmp(longOptions[optionIdx].name, "plain") == 0) {
+                    command_line.request = c_LIST;
+                    command_line.plain_list = 1;
                 } else
                     error("Wrong option %s.", longOptions[optionIdx].name);
                 break;

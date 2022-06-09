@@ -86,6 +86,7 @@ enum Request {
 
 struct CommandLine {
     enum Request request;
+    int plain_list;
     int need_server;
     int store_output;
     int stderr_apart;
@@ -172,7 +173,10 @@ struct Msg {
         int version;
         int count_running;
         char *label;
-        int term_width;
+        struct {
+            int plain_list;
+            int term_width;
+        } list;
     } u;
 };
 
@@ -295,6 +299,8 @@ void c_unset_env();
 
 /* jobs.c */
 void s_list(int s);
+
+void s_list_plain(int s);
 
 int s_newjob(int s, struct Msg *m);
 
@@ -442,6 +448,8 @@ void warning_msg(const struct Msg *m, const char *str, ...);
 char *joblist_headers();
 
 char *joblist_line(const struct Job *p);
+
+char *joblist_line_plain(const struct Job *p);
 
 char *joblistdump_torun(const struct Job *p);
 

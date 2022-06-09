@@ -353,6 +353,32 @@ void s_list(int s) {
     }
 }
 
+void s_list_plain(int s) {
+    struct Job *p;
+    char *buffer;
+
+    /* Show Queued or Running jobs */
+    p = firstjob;
+    while (p != 0) {
+        if (p->state != HOLDING_CLIENT) {
+            buffer = joblist_line_plain(p);
+            send_list_line(s, buffer);
+            free(buffer);
+        }
+        p = p->next;
+    }
+
+    p = first_finished_job;
+
+    /* Show Finished jobs */
+    while (p != 0) {
+        buffer = joblist_line_plain(p);
+        send_list_line(s, buffer);
+        free(buffer);
+        p = p->next;
+    }
+}
+
 static struct Job *newjobptr() {
     struct Job *p;
 

@@ -18,6 +18,8 @@
 
 #include "main.h"
 
+int server_socket;
+
 static char *socket_path;
 static int should_check_owner = 0;
 
