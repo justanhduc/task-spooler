@@ -455,6 +455,7 @@ static void print_help(const char *cmd) {
     printf("  --last_queue_id  || -q          show the job ID of the last added.\n");
     printf("  --get_logdir                    get the path containing log files.\n");
     printf("  --set_logdir [path]             set the path containing log files.\n");
+    printf("  --plain                         list jobs in plain tab-separated texts.\n");
     printf("Actions:\n");
     printf("  -K           kill the task spooler server\n");
     printf("  -C           clear the list of finished jobs\n");

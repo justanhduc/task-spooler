@@ -32,6 +32,7 @@ Actions:
 .BI "[\--unsetenv ["var ]]
 .BI "[\--get_logdir]
 .BI "[\--set_logdir ["path ]]
+.BI "[\--plain]
 
 .sp
 Options:
@@ -165,6 +166,9 @@ Show the list of jobs - to be run, running and finished - for the current queue.
 This is the default behaviour if
 .B ts
 is called without options.
+.TP
+.B "\--plain"
+Show the list of jobs - to be run, running and finished - for the current queue in tab-separated plain texts.
 .TP
 .B "\-q/--last_queue_id"
 Show the job ID of the last added.

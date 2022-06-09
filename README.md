@@ -136,6 +136,7 @@ Long option actions:
   --last_queue_id  || -q          show the job ID of the last added.
   --get_logdir                    get the path containing log files.
   --set_logdir <path>             set the path containing log files. 
+  --plain                         list jobs in plain tab-separated texts. 
 Actions:
   -K       kill the task spooler server
   -C       clear the list of finished jobs
@@ -185,6 +186,10 @@ Options adding jobs:
 * To Pascal Bleser, for the SuSE packages.
 * To Sergio Ballestrero, who sent code and motivated the development of a multislot version of ts.
 * To GNU, an ugly but working and helpful ol' UNIX implementation. 
+
+**Software**
+
+Memory checks with [Valgrind](https://valgrind.org/).
 
 ## Related projects
 
