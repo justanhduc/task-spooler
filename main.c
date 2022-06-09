@@ -56,7 +56,7 @@ static void default_command_line() {
     command_line.gzip = 0;
     command_line.send_output_by_mail = 0;
     command_line.label = 0;
-    command_line.do_depend = 0;
+    command_line.depend_on_size = 0;
     command_line.depend_on = NULL; /* -1 means depend on previous */
     command_line.max_slots = 1;
     command_line.wait_enqueuing = 1;
@@ -183,7 +183,6 @@ void parse_opts(int argc, char **argv) {
                 command_line.request = c_SHOW_HELP;
                 break;
             case 'd':
-                command_line.do_depend = 1;
                 command_line.depend_on = (int*) malloc(sizeof(int));
                 command_line.depend_on_size = 1;
                 command_line.depend_on[0] = -1;
@@ -273,12 +272,10 @@ void parse_opts(int argc, char **argv) {
                 }
                 break;
             case 'D':
-                command_line.do_depend = 1;
                 command_line.depend_on = (int*) malloc(strlen(optarg) * sizeof(int));
                 command_line.depend_on_size = strtok_int(optarg, ",", command_line.depend_on);
                 break;
             case 'W':
-                command_line.do_depend = 1;
                 command_line.depend_on = (int*) malloc(strlen(optarg) * sizeof(int));
                 command_line.depend_on_size = strtok_int(optarg, ",", command_line.depend_on);
                 command_line.require_elevel = 1;
