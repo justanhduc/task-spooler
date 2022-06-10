@@ -181,6 +181,7 @@ Actions:
   -K          kill the task spooler server
   -C          clear the list of finished jobs
   -l          show the job list (default action)
+  -g          list all jobs running on GPUs and the corresponding GPU IDs
   -S [num]    get/set the number of max simultaneous jobs of the server.
   -t [id]     \"tail -n 10 -f\" the output of the job. Last run if not specified.
   -c [id]     like -t, but shows all the lines. Last run if not specified.
