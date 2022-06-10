@@ -505,7 +505,7 @@ int s_newjob(int s, struct Msg *m) {
         int idx = 0;
         for (int i = 0; i < p->depend_on_size; i++) {
             /* filter out dependencies that are current jobs */
-            if (depend_on[i] == p->jobid)
+            if (depend_on[i] >= p->jobid)
                 continue;
 
             p->depend_on = (int*) realloc(p->depend_on, (idx + 1) * sizeof(int));
