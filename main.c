@@ -125,7 +125,6 @@ static struct option longOptions[] = {
         {"gpus",              required_argument, NULL, 'G'},
         {"gpu_indices",       required_argument, NULL, 'g'},
         {"full_cmd",          optional_argument, NULL, 'F'},
-        {"lg",                optional_argument, NULL, 0},
         {"getenv",            required_argument, NULL, 0},
         {"setenv",            required_argument, NULL, 0},
         {"unsetenv",          required_argument, NULL, 0},
@@ -172,8 +171,6 @@ void parse_opts(int argc, char **argv) {
                 } else if (strcmp(longOptions[optionIdx].name, "set_logdir") == 0) {
                     command_line.request = c_SET_LOGDIR;
                     command_line.label = optarg; /* reuse this variable */
-                } else if (strcmp(longOptions[optionIdx].name, "lg") == 0) {
-                    command_line.request = c_LIST_GPU;
                 } else if (strcmp(longOptions[optionIdx].name, "set_gpu_wait") == 0) {
                     printf("Due to some internal changes, this option has no functionality "
                            "and will be removed in the next release!\n");
@@ -392,6 +389,9 @@ void parse_opts(int argc, char **argv) {
                         command_line.request = c_SHOW_CMD;
                         command_line.jobid = -1;
                         break;
+                    case 'g':
+                        command_line.request = c_LIST_GPU;
+                        break;
                     default:
                         fprintf(stderr, "Option %c missing argument.\n",
                                 optopt);
@@ -478,7 +478,6 @@ static void print_help(const char *cmd) {
     printf("  TS_SLOTS   amount of jobs which can run at once, read on server start.\n");
     printf("  TMPDIR     directory where to place the output files and the default socket.\n");
     printf("Long option actions:\n");
-    printf("  --lg                            list all jobs running on GPUs and the corresponding GPU IDs.\n");
     printf("  --getenv   [var]                get the value of the specified variable in server environment.\n");
     printf("  --setenv   [var]                set the specified flag to server environment.\n");
     printf("  --unsetenv   [var]              remove the specified flag from server environment.\n");
@@ -498,6 +497,7 @@ static void print_help(const char *cmd) {
     printf("  -K           kill the task spooler server\n");
     printf("  -C           clear the list of finished jobs\n");
     printf("  -l           show the job list (default action)\n");
+    printf("  -g           list all jobs running on GPUs and the corresponding GPU IDs.\n");
     printf("  -S [num]     get/set the number of max simultaneous jobs of the server.\n");
     printf("  -t [id]      \"tail -n 10 -f\" the output of the job. Last run if not specified.\n");
     printf("  -c [id]      like -t, but shows all the lines. Last run if not specified.\n");
