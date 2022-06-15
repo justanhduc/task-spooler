@@ -493,7 +493,7 @@ static void print_help(const char *cmd) {
     printf("Long option adding jobs:\n");
     printf("  --gpus           || -G [num]    number of GPUs required by the job (1 default).\n");
     printf("  --gpu_indices    || -g <id,...> the job will be on these GPU indices without checking whether they are free.\n");
-    printf("Actions:\n");
+    printf("Actions (can be performed only one at a time):\n");
     printf("  -K           kill the task spooler server\n");
     printf("  -C           clear the list of finished jobs\n");
     printf("  -l           show the job list (default action)\n");
