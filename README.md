@@ -177,7 +177,7 @@ Long option actions:
 Long option adding jobs:
   --gpus           || -G [num]    number of GPUs required by the job (1 default).
   --gpu_indices    || -g <id,...> the job will be on these GPU indices without checking whether they are free.
-Actions:
+Actions (can be performed only one at a time):
   -K          kill the task spooler server
   -C          clear the list of finished jobs
   -l          show the job list (default action)
