@@ -47,70 +47,16 @@ At the end, after some time using and developing ts, it can do something more:
 
 ## Setup
 
-### Install Task Spooler
-
-First, clone the repository
-
-```
-git clone https://github.com/justanhduc/task-spooler
-```
-
-To setup Task Spooler with GPU support, one needs to set a `CUDA_HOME` environment variable.
-Otherwise, if you need only the CPU version, perform a checkout first
-
-```
-git checkout cpu-only
-```
-
-Then, simple run the provided script
-
-```
-./install_cmake
-```
-to use CMake, or 
-```
-./install_make
-```
-to use Makefile. If Task Spooler has already been installed, and you want to reinstall, execute 
-
-```
-./reinstall
-```
-
-#### Local installation
-To install without sudo privilege, one can use the following command
-```
-make install-local
-```
-
-Note that, the installation will create a `bin` folder in `$HOME` if it does not exist. 
-To use `ts` anywhere, `$HOME/bin` needs to be added to `$PATH` if it hasn't been done already.
-To use `man`, you may also need to add `$HOME/.local/share/man` to `$MANPATH`.
-
-#### Common problems
-* Cannot find CUDA: Did you set a `CUDA_HOME` flag?
-* `/usr/bin/ld: cannot find -lnvidia-ml`: This lib lies in `$CUDA_HOME/lib64/stubs`. 
-Please append this path to `LD_LIBRARY_PATH`.
-Sometimes, this problem persists even after adding the lib path.
-Then one can add `-L$(CUDA_HOME)/lib64/stubs` to [this line](./Makefile#L29) in the Makefile.
-* list.c:22:5: error: implicitly declaring library function 'snprintf' with type 'int (char *, unsigned long, const char *, ...)': Please remove `-D_XOPEN_SOURCE=500 -D__STRICT_ANSI__` in the Makefile as reported [here](https://github.com/justanhduc/task-spooler/issues/4).
-
-
-### Uinstall Task Spooler
-
-```
-./uninstall
-```
-Why would you want to do that anyway?
+See the installation steps in [INSTALL.md](INSTALL.md).
 
 ## Known issues
 
-- This is not an issue, but when multiple consecutive GPU jobs are queued, 
+- ~~This is not an issue, but when multiple consecutive GPU jobs are queued, 
   after the first job runs, there is a small delay for the next GPU job to run
   in order to ensure that the same GPUs are not claimed by different jobs.
   There was an issue causing this delay significantly longer as reported in [`#2`](https://github.com/justanhduc/task-spooler/issues/2)
   but has been fixed in [176d0b76](https://github.com/justanhduc/task-spooler/commit/176d0b76).
-  To avoid the delay, you can use `-g` to indicate the exact GPU IDs for the job.
+  To avoid the delay, you can use `-g` to indicate the exact GPU IDs for the job.~~
 
 
 ## Mailing list
