@@ -104,16 +104,6 @@ static void set_default_maxslots() {
   }
 }
 
-static const char *get_user_path() {
-  char *str;
-  str = getenv("TS_SLOTS");
-  if (str != NULL) {
-    return str;
-  } else {
-    return "/home/kylin/task-spooler/user.txt";
-  }
-}
-
 static void set_socket_model(const char *path) { chmod(path, 0777); }
 
 static void initialize_log_dir() {
@@ -207,6 +197,12 @@ void server_main(int notify_fd, char *_path) {
   res = listen(ls, 0);
   if (res == -1)
     error("Error listening.");
+
+  for (int i = 0; i < USER_MAX; i++) {
+    user_busy[i] = 0;
+    user_jobs[i] = 0;
+    user_queue[i] = 0;
+  }
 
   read_user_file(get_user_path());
   set_socket_model(_path);
@@ -368,6 +364,10 @@ static enum Break client_read(int index) {
 
   /* Process message */
   switch (m.type) {
+  case REFRESH_USERS:
+    if (m.uid == getuid())
+      read_user_file(get_user_path());
+    break;
   case KILL_SERVER:
     if (m.uid == getuid())
       return BREAK; /* break in the parent*/
@@ -405,6 +405,7 @@ static enum Break client_read(int index) {
       s_list_plain(s);
     else
       s_list(s);
+    s_user_status(s);
     /* We must actively close, meaning End of Lines */
     close(s);
     remove_connection(index);
@@ -414,7 +415,7 @@ static enum Break client_read(int index) {
     if (m.u.list.plain_list)
       s_list_plain(s);
     else
-      s_list(s);
+      s_list_all(s);
     s_user_status_all(s);
     /* We must actively close, meaning End of Lines */
     close(s);

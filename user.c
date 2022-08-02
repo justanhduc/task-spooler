@@ -1,11 +1,21 @@
+#include "user.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
-
-#include "user.h"
 
 void send_list_line(int s, const char *str);
 void error(const char *str, ...);
+
+const char *get_user_path() {
+  char *str;
+  str = getenv("TS_USER_PATH");
+  if (str == NULL || strlen(str) == 0) {
+    return "/home/kylin/task-spooler/user.txt";
+  } else {
+    return str;
+  }
+}
 
 void read_user_file(const char *path) {
   server_uid = getuid();
@@ -26,14 +36,15 @@ void read_user_file(const char *path) {
 
     int res = sscanf(line, "%d %256s %d", &user_UID[user_number],
                      user_name[user_number], &user_max_slots[user_number]);
-    if (res != 3)
+    if (res != 3) {
       printf("error in read %s at line %s", path, line);
-    else {
+      exit(0);
+    } else {
       // printf("%d %s %d\n", user_ID[user_number], user_name[user_number],
       //       user_slot[user_number]);
-      user_busy[user_number] = 0;
-      user_jobs[user_number] = 0;
-      user_queue[user_number] = 0;
+      // user_busy[user_number] = 0;
+      // user_jobs[user_number] = 0;
+      // user_queue[user_number] = 0;
       user_number++;
     }
   }

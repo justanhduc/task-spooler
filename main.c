@@ -142,7 +142,7 @@ void parse_opts(int argc, char **argv) {
   /* Parse options */
   while (1) {
     c = getopt_long(argc, argv,
-                    ":ARTVhKzClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:W:O:",
+                    ":AXRTVhKzClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:W:O:",
                     longOptions, &optionIdx);
 
     if (c == -1)
@@ -176,6 +176,9 @@ void parse_opts(int argc, char **argv) {
       break;
     case 'T':
       command_line.request = c_KILL_ALL;
+      break;
+    case 'X':
+      command_line.request = c_REFRESH_USER;
       break;
     case 'k':
       command_line.request = c_KILL_JOB;
@@ -573,6 +576,9 @@ int main(int argc, char **argv) {
   }
 
   switch (command_line.request) {
+  case c_REFRESH_USER:
+    c_refresh_user();
+    break;
   case c_SHOW_VERSION:
     print_version();
     break;

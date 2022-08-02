@@ -16,6 +16,7 @@ enum MsgTypes {
   LIST,
   LIST_ALL,
   LIST_LINE,
+  REFRESH_USERS,
   CLEAR_FINISHED,
   ASK_OUTPUT,
   ANSWER_OUTPUT,
@@ -56,6 +57,7 @@ enum Request {
   c_KILL_SERVER,
   c_LIST,
   c_LIST_ALL,
+  c_REFRESH_USER,
   c_CLEAR_FINISHED,
   c_SHOW_HELP,
   c_SHOW_VERSION,
@@ -478,6 +480,8 @@ int tail_file(const char *fname, int last_lines);
 /* user.c */
 void read_user_file(const char *path);
 int get_user_id(int id);
+void c_refresh_user();
+const char *get_user_path();
 
 /* jobs.c */
 void s_user_status_all(int s);

@@ -269,6 +269,14 @@ void c_show_info() {
   }
 }
 
+void c_refresh_user() {
+  struct Msg m = default_msg();
+  // int res;
+
+  m.type = REFRESH_USERS;
+  send_msg(server_socket, &m);
+}
+
 void c_show_last_id() {
   struct Msg m = default_msg();
   int res;
