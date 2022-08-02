@@ -48,9 +48,10 @@ char *joblist_headers() {
   char *line;
 
   line = malloc(100);
-  snprintf(line, 100, "%-4s %-10s %-20s %-8s %-6s %s [run=%i/%i]\n", "ID",
-           "State", "Output", "E-Level", "Time", "Command", busy_slots,
-           max_slots);
+  snprintf(line, 100,
+           "%-4s %-7s %-7s %-6s %-10s %6s  %-20s   %s [run=%i/%i %.2f%%]\n",
+           "ID", "State", "Proc.", "User", "Label", "Time", "Command", "Log",
+           busy_slots, max_slots, 100.0 * busy_slots / max_slots);
 
   return line;
 }
@@ -71,7 +72,8 @@ static const char *ofilename_shown(const struct Job *p) {
          * problems */
         output_filename = "(...)";
       else
-        output_filename = shorten(p->output_filename, 20);
+        output_filename =
+            p->output_filename; // shorten(p->output_filename, 20);
     }
   } else
     output_filename = "stdout";
@@ -119,13 +121,17 @@ static char *print_noresult(const struct Job *p) {
 
   struct timeval starttv = p->info.start_time;
   struct timeval endtv;
-  gettimeofday(&endtv, NULL);
-  float real_ms = endtv.tv_sec - starttv.tv_sec +
-                  ((float)(endtv.tv_usec - starttv.tv_usec) / 1000000.);
+  float real_ms;
+  char *unit;
   if (p->state == QUEUED) {
     real_ms = 0;
+    unit = " ";
+  } else {
+    gettimeofday(&endtv, NULL);
+    real_ms = endtv.tv_sec - starttv.tv_sec +
+              ((float)(endtv.tv_usec - starttv.tv_usec) / 1000000.);
+    unit = time_rep(&real_ms);
   }
-  char *unit = time_rep(&real_ms);
 
   line = (char *)malloc(maxlen);
   if (line == NULL)
@@ -134,8 +140,8 @@ static char *print_noresult(const struct Job *p) {
   cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
   char *cmd = shorten(p->command, cmd_len);
   if (p->label) {
-    char *label = shorten(p->label, 20);
-    snprintf(line, maxlen, "%-4i %-10s %-3i %-10s %s %5.2f%s   %s  |  %-20s\n",
+    char *label = shorten(p->label, 10);
+    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-20s | %s\n",
              p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
              output_filename);
     free(label);
@@ -143,7 +149,7 @@ static char *print_noresult(const struct Job *p) {
   } else {
     char *cmd = shorten(p->command, cmd_len);
     char *label = "(..)";
-    snprintf(line, maxlen, "%-4i %-10s %-3i %-10s %s %5.2f%s   %s  |  %-20s\n",
+    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-20s | %s\n",
              p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
              output_filename);
     free(cmd);
@@ -199,8 +205,8 @@ static char *print_result(const struct Job *p) {
   cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
   char *cmd = shorten(p->command, cmd_len);
   if (p->label) {
-    char *label = shorten(p->label, 20);
-    snprintf(line, maxlen, "%-4i %-10s %-3i %-10s %s %5.2f%s   %s  |  %-20s\n",
+    char *label = shorten(p->label, 10);
+    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-20s | %s\n",
              p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
              output_filename);
     free(label);
@@ -208,7 +214,7 @@ static char *print_result(const struct Job *p) {
   } else {
     char *cmd = shorten(p->command, cmd_len);
     char *label = "(..)";
-    snprintf(line, maxlen, "%-4i %-10s %-3i %-10s %s %5.2f%s   %s  |  %-20s\n",
+    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-20s | %s\n",
              p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
              output_filename);
     free(cmd);

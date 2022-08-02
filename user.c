@@ -1,4 +1,5 @@
 #include "user.h"
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,6 +57,7 @@ void read_user_file(const char *path) {
 
 void s_user_status_all(int s) {
   char buffer[256];
+  send_list_line(s, "\n");
   for (size_t i = 0; i < user_number; i++) {
     snprintf(buffer, 256, "[%04d] %3d/%d %20s %d\n", user_UID[i], user_busy[i],
              user_max_slots[i], user_name[i], user_jobs[user_number]);
@@ -67,7 +69,6 @@ void s_user_status_all(int s) {
 
 void s_user_status(int s, int i) {
   char buffer[256];
-
   snprintf(buffer, 256, "[%04d] %3d/%d %20s %d\n", user_UID[i], user_busy[i],
            user_max_slots[i], user_name[i], user_jobs[user_number]);
   send_list_line(s, buffer);

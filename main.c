@@ -67,7 +67,7 @@ static void default_command_line() {
   command_line.stderr_apart = 0;
   command_line.num_slots = 1;
   command_line.require_elevel = 0;
-  command_line.logfile = 0;
+  command_line.logfile = NULL;
 }
 
 struct Msg default_msg() {
