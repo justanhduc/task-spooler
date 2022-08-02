@@ -18,7 +18,8 @@ OBJECTS=main.o \
 	print.o \
 	info.o \
 	env.o \
-	tail.o
+	tail.o \
+	user.o
 TARGET=ts
 INSTALL=install -c
 
@@ -38,6 +39,7 @@ ifeq ($(GIT_REPO), true)
 	GIT_VERSION=$$(echo $$(git describe --dirty --always --tags) | tr - +); \
 	$(CC) $(CFLAGS) $(CPPFLAGS) -DTS_VERSION=$${GIT_VERSION} -c $< -o $@
 endif
+user.o: user.c
 server_start.o: server_start.c main.h
 server.o: server.c main.h
 client.o: client.c main.h
@@ -52,7 +54,7 @@ list.o: list.c main.h
 tail.o: tail.c main.h
 
 clean:
-	rm -f *.o $(TARGET)
+	rm -f *.o $(TARGET); killall ts;
 
 install: $(TARGET)
 	$(INSTALL) -d $(PREFIX)/bin

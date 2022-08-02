@@ -4,409 +4,364 @@
 
     Please find the license in the provided COPYING file.
 */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+
 #include "main.h"
+#include "user.h"
 
 /* From jobs.c */
 extern int busy_slots;
 extern int max_slots;
 
 static char *shorten(char *line, int len) {
-    char *newline = (char *) malloc((len + 1) * sizeof(char));
-    if (strlen(line) <= len)
-        strcpy(newline, line);
-    else {
-        snprintf(newline, len - 4, "%s", line);
-        strcat(newline, "...");
-    }
-    return newline;
+  char *newline = (char *)malloc((len + 1) * sizeof(char));
+  if (strlen(line) <= len)
+    strcpy(newline, line);
+  else {
+    snprintf(newline, len - 4, "%s", line);
+    strcat(newline, "...");
+  }
+  return newline;
 }
 
 char *joblistdump_headers() {
-    char *line;
+  char *line;
 
-    line = malloc(600);
-    snprintf(line, 600, "#!/bin/sh\n# - task spooler (ts) job dump\n"
-                        "# This file has been created because a SIGTERM killed\n"
-                        "# your queue server.\n"
-                        "# The finished commands are listed first.\n"
-                        "# The commands running or to be run are stored as you would\n"
-                        "# probably run them. Take care - some quotes may have got"
-                        " broken\n\n");
+  line = malloc(600);
+  snprintf(line, 600,
+           "#!/bin/sh\n# - task spooler (ts) job dump\n"
+           "# This file has been created because a SIGTERM killed\n"
+           "# your queue server.\n"
+           "# The finished commands are listed first.\n"
+           "# The commands running or to be run are stored as you would\n"
+           "# probably run them. Take care - some quotes may have got"
+           " broken\n\n");
 
-    return line;
+  return line;
 }
 
 char *joblist_headers() {
-    char *line;
+  char *line;
 
-    line = malloc(100);
-    snprintf(line, 100, "%-4s %-10s %-20s %-8s %-6s %s [run=%i/%i]\n",
-             "ID",
-             "State",
-             "Output",
-             "E-Level",
-             "Time",
-             "Command",
-             busy_slots,
-             max_slots);
+  line = malloc(100);
+  snprintf(line, 100, "%-4s %-10s %-20s %-8s %-6s %s [run=%i/%i]\n", "ID",
+           "State", "Output", "E-Level", "Time", "Command", busy_slots,
+           max_slots);
 
-    return line;
+  return line;
 }
 
-static int max(int a, int b) {
-    return a > b ? a : b;
-}
+static int max(int a, int b) { return a > b ? a : b; }
 
 static const char *ofilename_shown(const struct Job *p) {
-    const char *output_filename;
+  const char *output_filename;
 
-    if (p->state == SKIPPED) {
-        output_filename = "(no output)";
-    } else if (p->store_output) {
-        if (p->state == QUEUED) {
-            output_filename = "(file)";
-        } else {
-            if (p->output_filename == 0)
-                /* This may happen due to concurrency
-                 * problems */
-                output_filename = "(...)";
-            else
-                output_filename = shorten(p->output_filename, 20);
-        }
-    } else
-        output_filename = "stdout";
+  if (p->state == SKIPPED) {
+    output_filename = "(no output)";
+  } else if (p->store_output) {
+    if (p->state == QUEUED) {
+      output_filename = "(file)";
+    } else {
+      if (p->output_filename == 0)
+        /* This may happen due to concurrency
+         * problems */
+        output_filename = "(...)";
+      else
+        output_filename = shorten(p->output_filename, 20);
+    }
+  } else
+    output_filename = "stdout";
 
-    return output_filename;
+  return output_filename;
 }
 
 static char *print_noresult(const struct Job *p) {
-    const char *jobstate;
-    const char *output_filename;
-    int maxlen;
-    char *line;
-    /* 20 chars should suffice for a string like "[int,int,..]&& " */
-    char dependstr[20] = "";
-    int cmd_len;
+  const char *jobstate;
+  const char *output_filename;
+  int maxlen;
+  char *line;
+  /* 20 chars should suffice for a string like "[int,int,..]&& " */
+  char dependstr[20] = "";
+  int cmd_len;
 
-    jobstate = jstate2string(p->state);
-    output_filename = ofilename_shown(p);
+  jobstate = jstate2string(p->state);
+  output_filename = ofilename_shown(p);
 
-    maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1
-             + 25 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
+  char *uname = user_name[p->user_id];
+  maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1 + 25 + 1 + strlen(p->command) + 20 +
+           strlen(uname) + 2; /* 20 is the margin for errors */
 
-    if (p->label)
-        maxlen += 3 + strlen(p->label);
-    if (p->depend_on_size) {
-        maxlen += sizeof(dependstr);
-        int pos = 0;
-        if (p->depend_on[0] == -1)
-            pos += snprintf(&dependstr[pos], sizeof(dependstr), "[ ");
-        else
-            pos += snprintf(&dependstr[pos], sizeof(dependstr), "[%i", p->depend_on[0]);
+  if (p->label)
+    maxlen += 3 + strlen(p->label);
+  if (p->depend_on_size) {
+    maxlen += sizeof(dependstr);
+    int pos = 0;
+    if (p->depend_on[0] == -1)
+      pos += snprintf(&dependstr[pos], sizeof(dependstr), "[ ");
+    else
+      pos +=
+          snprintf(&dependstr[pos], sizeof(dependstr), "[%i", p->depend_on[0]);
 
-        for (int i = 1; i < p->depend_on_size; i++) {
-            if (p->depend_on[i] == -1)
-                pos += snprintf(&dependstr[pos], sizeof(dependstr), ", ");
-            else
-                pos += snprintf(&dependstr[pos], sizeof(dependstr), ",%i", p->depend_on[i]);
-        }
-        pos += snprintf(&dependstr[pos], sizeof(dependstr), "]&& ");
+    for (int i = 1; i < p->depend_on_size; i++) {
+      if (p->depend_on[i] == -1)
+        pos += snprintf(&dependstr[pos], sizeof(dependstr), ", ");
+      else
+        pos += snprintf(&dependstr[pos], sizeof(dependstr), ",%i",
+                        p->depend_on[i]);
     }
+    pos += snprintf(&dependstr[pos], sizeof(dependstr), "]&& ");
+  }
 
-    line = (char *) malloc(maxlen);
-    if (line == NULL)
-        error("Malloc for %i failed.\n", maxlen);
+  line = (char *)malloc(maxlen);
+  if (line == NULL)
+    error("Malloc for %i failed.\n", maxlen);
 
-    cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
-    if (p->label) {
-        char *label = shorten(p->label, 20);
-        char *cmd = shorten(p->command, cmd_len);
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %s[%s]%s\n",
-                 p->jobid,
-                 jobstate,
-                 output_filename,
-                 "",
-                 "",
-                 dependstr,
-                 label,
-                 cmd);
-        free(label);
-        free(cmd);
-    }
-    else {
-        char *cmd = shorten(p->command, cmd_len);
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %s%s\n",
-                 p->jobid,
-                 jobstate,
-                 output_filename,
-                 "",
-                 "",
-                 dependstr,
-                 cmd);
-        free(cmd);
-    }
+  cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
+  if (p->label) {
+    char *label = shorten(p->label, 20);
+    char *cmd = shorten(p->command, cmd_len);
+    snprintf(line, maxlen, "%-4i %-10s %-10s %-20s %-8s %6s %s[%s]%s\n",
+             p->jobid, jobstate, uname, output_filename, "", "", dependstr,
+             label, cmd);
+    free(label);
+    free(cmd);
+  } else {
+    char *cmd = shorten(p->command, cmd_len);
+    snprintf(line, maxlen, "%-4i %-10s %-10s %-20s %-8s %6s %s%s\n", p->jobid,
+             jobstate, uname, output_filename, "", "", dependstr, cmd);
+    free(cmd);
+  }
 
-    return line;
+  return line;
 }
 
 static char *print_result(const struct Job *p) {
-    const char *jobstate;
-    int maxlen;
-    char *line;
-    const char *output_filename;
-    /* 20 chars should suffice for a string like "[int,int,..]&& " */
-    char dependstr[20] = "";
-    float real_ms = p->result.real_ms;
-    char *unit = time_rep(&real_ms);
-    int cmd_len;
+  const char *jobstate;
+  int maxlen;
+  char *line;
+  const char *output_filename;
+  /* 20 chars should suffice for a string like "[int,int,..]&& " */
+  char dependstr[20] = "";
+  float real_ms = p->result.real_ms;
+  char *unit = time_rep(&real_ms);
+  int cmd_len;
 
-    jobstate = jstate2string(p->state);
-    output_filename = ofilename_shown(p);
+  jobstate = jstate2string(p->state);
+  output_filename = ofilename_shown(p);
 
-    maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1
-             + 25 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
+  char *uname = user_name[p->user_id];
 
-    if (p->label)
-        maxlen += 3 + strlen(p->label);
-    if (p->depend_on_size) {
-        maxlen += sizeof(dependstr);
-        int pos = 0;
-        if (p->depend_on[0] == -1)
-            pos += snprintf(&dependstr[pos], sizeof(dependstr), "[ ");
-        else
-            pos += snprintf(&dependstr[pos], sizeof(dependstr), "[%i", p->depend_on[0]);
+  maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1 + 25 + 1 + strlen(p->command) + 20 +
+           strlen(uname) + 2; /* 20 is the margin for errors */
 
-        for (int i = 1; i < p->depend_on_size; i++) {
-            if (p->depend_on[i] == -1)
-                pos += snprintf(&dependstr[pos], sizeof(dependstr), ", ");
-            else
-                pos += snprintf(&dependstr[pos], sizeof(dependstr), ",%i", p->depend_on[i]);
-        }
-        pos += snprintf(&dependstr[pos], sizeof(dependstr), "]&& ");
+  if (p->label)
+    maxlen += 3 + strlen(p->label);
+  if (p->depend_on_size) {
+    maxlen += sizeof(dependstr);
+    int pos = 0;
+    if (p->depend_on[0] == -1)
+      pos += snprintf(&dependstr[pos], sizeof(dependstr), "[ ");
+    else
+      pos +=
+          snprintf(&dependstr[pos], sizeof(dependstr), "[%i", p->depend_on[0]);
+
+    for (int i = 1; i < p->depend_on_size; i++) {
+      if (p->depend_on[i] == -1)
+        pos += snprintf(&dependstr[pos], sizeof(dependstr), ", ");
+      else
+        pos += snprintf(&dependstr[pos], sizeof(dependstr), ",%i",
+                        p->depend_on[i]);
     }
+    pos += snprintf(&dependstr[pos], sizeof(dependstr), "]&& ");
+  }
 
-    line = (char *) malloc(maxlen);
-    if (line == NULL)
-        error("Malloc for %i failed.\n", maxlen);
+  line = (char *)malloc(maxlen);
+  if (line == NULL)
+    error("Malloc for %i failed.\n", maxlen);
 
-    cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
-    if (p->label) {
-        char *label = shorten(p->label, 20);
-        char *cmd = shorten(p->command, cmd_len);
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %s[%s]%s\n",
-                 p->jobid,
-                 jobstate,
-                 output_filename,
-                 p->result.errorlevel,
-                 real_ms,
-                 unit,
-                 dependstr,
-                 label,
-                 cmd);
-        free(label);
-        free(cmd);
-    }
-    else {
-        char *cmd = shorten(p->command, cmd_len);
-        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %s%s\n",
-                 p->jobid,
-                 jobstate,
-                 output_filename,
-                 p->result.errorlevel,
-                 real_ms,
-                 unit,
-                 dependstr,
-                 cmd);
-        free(cmd);
-    }
+  cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
+  if (p->label) {
+    char *label = shorten(p->label, 20);
+    char *cmd = shorten(p->command, cmd_len);
+    snprintf(line, maxlen, "%-4i %-10s %-10s %-20s %-8i %5.2f%s %s[%s]%s\n",
+             p->jobid, jobstate, uname, output_filename, p->result.errorlevel,
+             real_ms, unit, dependstr, label, cmd);
+    free(label);
+    free(cmd);
+  } else {
+    char *cmd = shorten(p->command, cmd_len);
+    snprintf(line, maxlen, "%-4i %-10s %-10s %-20s %-8i %5.2f%s %s%s\n",
+             p->jobid, jobstate, uname, output_filename, p->result.errorlevel,
+             real_ms, unit, dependstr, cmd);
+    free(cmd);
+  }
 
-    return line;
+  return line;
 }
 
 static char *plainprint_noresult(const struct Job *p) {
-    const char *jobstate;
-    const char *output_filename;
-    int maxlen;
-    char *line;
-    /* 20 chars should suffice for a string like "[int,int,..]&& " */
-    char dependstr[20] = "";
+  const char *jobstate;
+  const char *output_filename;
+  int maxlen;
+  char *line;
+  /* 20 chars should suffice for a string like "[int,int,..]&& " */
+  char dependstr[20] = "";
 
-    jobstate = jstate2string(p->state);
-    output_filename = ofilename_shown(p);
+  jobstate = jstate2string(p->state);
+  output_filename = ofilename_shown(p);
+  char *uname = user_name[p->user_id];
+  maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1 + 25 + 1 + strlen(p->command) + 20 +
+           strlen(uname) + 2; /* 20 is the margin for errors */
 
-    maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1
-             + 25 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
+  if (p->label)
+    maxlen += 3 + strlen(p->label);
 
-    if (p->label)
-        maxlen += 3 + strlen(p->label);
-
-    if (p->depend_on_size) {
-        maxlen += sizeof(dependstr);
-        int pos = 0;
-        if (p->depend_on[0] == -1)
-            pos += snprintf(&dependstr[pos], sizeof(dependstr), "[ ");
-        else
-            pos += snprintf(&dependstr[pos], sizeof(dependstr), "[%i", p->depend_on[0]);
-
-        for (int i = 1; i < p->depend_on_size; i++) {
-            if (p->depend_on[i] == -1)
-                pos += snprintf(&dependstr[pos], sizeof(dependstr), ", ");
-            else
-                pos += snprintf(&dependstr[pos], sizeof(dependstr), ",%i", p->depend_on[i]);
-        }
-        pos += snprintf(&dependstr[pos], sizeof(dependstr), "]&& ");
-    }
-
-    line = (char *) malloc(maxlen);
-    if (line == NULL)
-        error("Malloc for %i failed.\n", maxlen);
-
-    if (p->label)
-        snprintf(line, maxlen, "%i\t%s\t%s\t%s\t%s\t%s\t[%s]\t%s\n",
-                 p->jobid,
-                 jobstate,
-                 output_filename,
-                 "",
-                 "",
-                 dependstr,
-                 p->label,
-                 p->command);
+  if (p->depend_on_size) {
+    maxlen += sizeof(dependstr);
+    int pos = 0;
+    if (p->depend_on[0] == -1)
+      pos += snprintf(&dependstr[pos], sizeof(dependstr), "[ ");
     else
-        snprintf(line, maxlen, "%i\t%s\t%s\t%s\t%s\t%s\t\t%s\n",
-                 p->jobid,
-                 jobstate,
-                 output_filename,
-                 "",
-                 "",
-                 dependstr,
-                 p->command);
+      pos +=
+          snprintf(&dependstr[pos], sizeof(dependstr), "[%i", p->depend_on[0]);
 
-    return line;
+    for (int i = 1; i < p->depend_on_size; i++) {
+      if (p->depend_on[i] == -1)
+        pos += snprintf(&dependstr[pos], sizeof(dependstr), ", ");
+      else
+        pos += snprintf(&dependstr[pos], sizeof(dependstr), ",%i",
+                        p->depend_on[i]);
+    }
+    pos += snprintf(&dependstr[pos], sizeof(dependstr), "]&& ");
+  }
+
+  line = (char *)malloc(maxlen);
+  if (line == NULL)
+    error("Malloc for %i failed.\n", maxlen);
+
+  if (p->label)
+    snprintf(line, maxlen, "%i\t%s\t%s\t%s\t%s\t%s\t[%s]\t%s\n", p->jobid,
+             jobstate, output_filename, "", "", dependstr, p->label,
+             p->command);
+  else
+    snprintf(line, maxlen, "%i\t%s\t%s\t%s\t%s\t%s\t\t%s\n", p->jobid, jobstate,
+             output_filename, "", "", dependstr, p->command);
+
+  return line;
 }
 
 static char *plainprint_result(const struct Job *p) {
-    const char *jobstate;
-    int maxlen;
-    char *line;
-    const char *output_filename;
-    /* 20 chars should suffice for a string like "[int,int,..]&& " */
-    char dependstr[20] = "";
-    float real_ms = p->result.real_ms;
-    char *unit = time_rep(&real_ms);
+  const char *jobstate;
+  int maxlen;
+  char *line;
+  const char *output_filename;
+  /* 20 chars should suffice for a string like "[int,int,..]&& " */
+  char dependstr[20] = "";
+  float real_ms = p->result.real_ms;
+  char *unit = time_rep(&real_ms);
 
-    jobstate = jstate2string(p->state);
-    output_filename = ofilename_shown(p);
+  jobstate = jstate2string(p->state);
+  output_filename = ofilename_shown(p);
 
-    maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1
-             + 25 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
+  maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1 + 25 + 1 + strlen(p->command) +
+           20; /* 20 is the margin for errors */
 
-    if (p->label)
-        maxlen += 3 + strlen(p->label);
+  if (p->label)
+    maxlen += 3 + strlen(p->label);
 
-    if (p->depend_on_size) {
-        maxlen += sizeof(dependstr);
-        int pos = 0;
-        if (p->depend_on[0] == -1)
-            pos += snprintf(&dependstr[pos], sizeof(dependstr), "[ ");
-        else
-            pos += snprintf(&dependstr[pos], sizeof(dependstr), "[%i", p->depend_on[0]);
-
-        for (int i = 1; i < p->depend_on_size; i++) {
-            if (p->depend_on[i] == -1)
-                pos += snprintf(&dependstr[pos], sizeof(dependstr), ", ");
-            else
-                pos += snprintf(&dependstr[pos], sizeof(dependstr), ",%i", p->depend_on[i]);
-        }
-        pos += snprintf(&dependstr[pos], sizeof(dependstr), "]&& ");
-    }
-
-    line = (char *) malloc(maxlen);
-    if (line == NULL)
-        error("Malloc for %i failed.\n", maxlen);
-
-    if (p->label)
-        snprintf(line, maxlen, "%i\t%s\t%s\t%i\t%.2f\t%s\t%s\t[%s]\t%s\n",
-                 p->jobid,
-                 jobstate,
-                 output_filename,
-                 p->result.errorlevel,
-                 real_ms,
-                 unit,
-                 dependstr,
-                 p->label,
-                 p->command);
+  if (p->depend_on_size) {
+    maxlen += sizeof(dependstr);
+    int pos = 0;
+    if (p->depend_on[0] == -1)
+      pos += snprintf(&dependstr[pos], sizeof(dependstr), "[ ");
     else
-        snprintf(line, maxlen, "%i\t%s\t%s\t%i\t%.2f\t%s\t%s\t\t%s\n",
-                 p->jobid,
-                 jobstate,
-                 output_filename,
-                 p->result.errorlevel,
-                 real_ms,
-                 unit,
-                 dependstr,
-                 p->command);
+      pos +=
+          snprintf(&dependstr[pos], sizeof(dependstr), "[%i", p->depend_on[0]);
 
-    return line;
+    for (int i = 1; i < p->depend_on_size; i++) {
+      if (p->depend_on[i] == -1)
+        pos += snprintf(&dependstr[pos], sizeof(dependstr), ", ");
+      else
+        pos += snprintf(&dependstr[pos], sizeof(dependstr), ",%i",
+                        p->depend_on[i]);
+    }
+    pos += snprintf(&dependstr[pos], sizeof(dependstr), "]&& ");
+  }
+
+  line = (char *)malloc(maxlen);
+  if (line == NULL)
+    error("Malloc for %i failed.\n", maxlen);
+
+  if (p->label)
+    snprintf(line, maxlen, "%i\t%s\t%s\t%i\t%.2f\t%s\t%s\t[%s]\t%s\n", p->jobid,
+             jobstate, output_filename, p->result.errorlevel, real_ms, unit,
+             dependstr, p->label, p->command);
+  else
+    snprintf(line, maxlen, "%i\t%s\t%s\t%i\t%.2f\t%s\t%s\t\t%s\n", p->jobid,
+             jobstate, output_filename, p->result.errorlevel, real_ms, unit,
+             dependstr, p->command);
+
+  return line;
 }
 
 char *joblist_line(const struct Job *p) {
-    char *line;
+  char *line;
 
-    if (p->state == FINISHED)
-        line = print_result(p);
-    else
-        line = print_noresult(p);
+  if (p->state == FINISHED)
+    line = print_result(p);
+  else
+    line = print_noresult(p);
 
-    return line;
+  return line;
 }
 
 char *joblist_line_plain(const struct Job *p) {
-    char *line;
+  char *line;
 
-    if (p->state == FINISHED)
-        line = plainprint_result(p);
-    else
-        line = plainprint_noresult(p);
+  if (p->state == FINISHED)
+    line = plainprint_result(p);
+  else
+    line = plainprint_noresult(p);
 
-    return line;
+  return line;
 }
 
 char *joblistdump_torun(const struct Job *p) {
-    int maxlen;
-    char *line;
+  int maxlen;
+  char *line;
 
-    maxlen = 10 + strlen(p->command) + 20; /* 20 is the margin for errors */
+  maxlen = 10 + strlen(p->command) + 20; /* 20 is the margin for errors */
 
-    line = (char *) malloc(maxlen);
-    if (line == NULL)
-        error("Malloc for %i failed.\n", maxlen);
+  line = (char *)malloc(maxlen);
+  if (line == NULL)
+    error("Malloc for %i failed.\n", maxlen);
 
-    snprintf(line, maxlen, "ts %s\n", p->command);
+  snprintf(line, maxlen, "ts %s\n", p->command);
 
-    return line;
+  return line;
 }
 
 char *time_rep(float *t) {
-    float time_in_sec = *t;
-    char *unit = "s";
+  float time_in_sec = *t;
+  char *unit = "s";
+  if (time_in_sec > 60) {
+    time_in_sec /= 60;
+    unit = "m";
+
     if (time_in_sec > 60) {
-        time_in_sec /= 60;
-        unit = "m";
+      time_in_sec /= 60;
+      unit = "h";
 
-        if (time_in_sec > 60) {
-            time_in_sec /= 60;
-            unit = "h";
-
-            if (time_in_sec > 24) {
-                time_in_sec /= 24;
-                unit = "d";
-            }
-        }
+      if (time_in_sec > 24) {
+        time_in_sec /= 24;
+        unit = "d";
+      }
     }
-    *t = time_in_sec;
-    return unit;
+  }
+  *t = time_in_sec;
+  return unit;
 }

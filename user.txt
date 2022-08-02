@@ -1,0 +1,3 @@
+#uid user maxslot
+1000    Kylin 3
+2    user  100

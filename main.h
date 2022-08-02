@@ -4,223 +4,212 @@
 
     Please find the license in the provided COPYING file.
 */
-enum {
-    CMD_LEN = 500,
-    PROTOCOL_VERSION = 730
-};
+enum { CMD_LEN = 500, PROTOCOL_VERSION = 730 };
 
 enum MsgTypes {
-    KILL_SERVER,
-    NEWJOB,
-    NEWJOB_OK,
-    RUNJOB,
-    RUNJOB_OK,
-    ENDJOB,
-    LIST,
-    LIST_LINE,
-    CLEAR_FINISHED,
-    ASK_OUTPUT,
-    ANSWER_OUTPUT,
-    REMOVEJOB,
-    REMOVEJOB_OK,
-    WAITJOB,
-    WAIT_RUNNING_JOB,
-    WAITJOB_OK,
-    URGENT,
-    URGENT_OK,
-    GET_STATE,
-    ANSWER_STATE,
-    SWAP_JOBS,
-    SWAP_JOBS_OK,
-    INFO,
-    INFO_DATA,
-    SET_MAX_SLOTS,
-    GET_MAX_SLOTS,
-    GET_MAX_SLOTS_OK,
-    GET_VERSION,
-    VERSION,
-    NEWJOB_NOK,
-    COUNT_RUNNING,
-    GET_LABEL,
-    LAST_ID,
-    KILL_ALL,
-    GET_CMD,
-    GET_LOGDIR,
-    SET_LOGDIR,
-    GET_ENV,
-    SET_ENV,
-    UNSET_ENV
+  KILL_SERVER,
+  NEWJOB,
+  NEWJOB_OK,
+  RUNJOB,
+  RUNJOB_OK,
+  ENDJOB,
+  LIST,
+  LIST_ALL,
+  LIST_LINE,
+  CLEAR_FINISHED,
+  ASK_OUTPUT,
+  ANSWER_OUTPUT,
+  REMOVEJOB,
+  REMOVEJOB_OK,
+  WAITJOB,
+  WAIT_RUNNING_JOB,
+  WAITJOB_OK,
+  URGENT,
+  URGENT_OK,
+  GET_STATE,
+  ANSWER_STATE,
+  SWAP_JOBS,
+  SWAP_JOBS_OK,
+  INFO,
+  INFO_DATA,
+  SET_MAX_SLOTS,
+  GET_MAX_SLOTS,
+  GET_MAX_SLOTS_OK,
+  GET_VERSION,
+  VERSION,
+  NEWJOB_NOK,
+  COUNT_RUNNING,
+  GET_LABEL,
+  LAST_ID,
+  KILL_ALL,
+  GET_CMD,
+  GET_LOGDIR,
+  SET_LOGDIR,
+  GET_ENV,
+  SET_ENV,
+  UNSET_ENV
 };
 
 enum Request {
-    c_QUEUE,
-    c_TAIL,
-    c_KILL_SERVER,
-    c_LIST,
-    c_CLEAR_FINISHED,
-    c_SHOW_HELP,
-    c_SHOW_VERSION,
-    c_CAT,
-    c_SHOW_OUTPUT_FILE,
-    c_SHOW_PID,
-    c_REMOVEJOB,
-    c_WAITJOB,
-    c_URGENT,
-    c_GET_STATE,
-    c_SWAP_JOBS,
-    c_INFO,
-    c_SET_MAX_SLOTS,
-    c_GET_MAX_SLOTS,
-    c_KILL_JOB,
-    c_COUNT_RUNNING,
-    c_GET_LABEL,
-    c_LAST_ID,
-    c_KILL_ALL,
-    c_SHOW_CMD,
-    c_GET_LOGDIR,
-    c_SET_LOGDIR,
-    c_GET_ENV,
-    c_SET_ENV,
-    c_UNSET_ENV
+  c_QUEUE,
+  c_TAIL,
+  c_KILL_SERVER,
+  c_LIST,
+  c_LIST_ALL,
+  c_CLEAR_FINISHED,
+  c_SHOW_HELP,
+  c_SHOW_VERSION,
+  c_CAT,
+  c_SHOW_OUTPUT_FILE,
+  c_SHOW_PID,
+  c_REMOVEJOB,
+  c_WAITJOB,
+  c_URGENT,
+  c_GET_STATE,
+  c_SWAP_JOBS,
+  c_INFO,
+  c_SET_MAX_SLOTS,
+  c_GET_MAX_SLOTS,
+  c_KILL_JOB,
+  c_COUNT_RUNNING,
+  c_GET_LABEL,
+  c_LAST_ID,
+  c_KILL_ALL,
+  c_SHOW_CMD,
+  c_GET_LOGDIR,
+  c_SET_LOGDIR,
+  c_GET_ENV,
+  c_SET_ENV,
+  c_UNSET_ENV
 };
 
 struct CommandLine {
-    enum Request request;
-    int plain_list;
-    int need_server;
-    int store_output;
-    int stderr_apart;
-    int should_go_background;
-    int should_keep_finished;
-    int send_output_by_mail;
-    int gzip;
-    int *depend_on; /* -1 means depend on previous */
-    int depend_on_size;
-    int max_slots; /* How many jobs to run at once */
-    int jobid; /* When queuing a job, main.c will fill it automatically from
-                  the server answer to NEWJOB */
-    int jobid2;
-    int wait_enqueuing;
-    struct {
-        char **array;
-        int num;
-    } command;
-    char *label;
-    int num_slots; /* Slots for the job to use. Default 1 */
-    int require_elevel;  /* whether requires error level of dependencies or not */
-    char *logfile;
+  enum Request request;
+  int plain_list;
+  int need_server;
+  int store_output;
+  int stderr_apart;
+  int should_go_background;
+  int should_keep_finished;
+  int send_output_by_mail;
+  int gzip;
+  int *depend_on; /* -1 means depend on previous */
+  int depend_on_size;
+  int max_slots; /* How many jobs to run at once */
+  int jobid;     /* When queuing a job, main.c will fill it automatically from
+                    the server answer to NEWJOB */
+  int jobid2;
+  int wait_enqueuing;
+  struct {
+    char **array;
+    int num;
+  } command;
+  char *label;
+  int num_slots;      /* Slots for the job to use. Default 1 */
+  int require_elevel; /* whether requires error level of dependencies or not */
+  char *logfile;
 };
 
-enum ProcessType {
-    CLIENT,
-    SERVER
-};
+enum ProcessType { CLIENT, SERVER };
 
 extern struct CommandLine command_line;
 extern enum ProcessType process_type;
 extern int server_socket; /* Used in the client */
-extern char* logdir;
+extern char *logdir;
 extern int term_width;
 
 struct Msg;
 
-enum Jobstate {
-    QUEUED,
-    RUNNING,
-    FINISHED,
-    SKIPPED,
-    HOLDING_CLIENT
-};
+enum Jobstate { QUEUED, RUNNING, FINISHED, SKIPPED, HOLDING_CLIENT };
 
 struct Msg {
-    enum MsgTypes type;
-
-    union {
-        struct {
-            int command_size;
-            int store_output;
-            int should_keep_finished;
-            int label_size;
-            int env_size;
-            int depend_on_size;
-            int wait_enqueuing;
-            int num_slots;
-        } newjob;
-        struct {
-            int ofilename_size;
-            int store_output;
-            int pid;
-        } output;
-        int jobid;
-        struct Result {
-            int errorlevel;
-            int died_by_signal;
-            int signal;
-            float user_ms;
-            float system_ms;
-            float real_ms;
-            int skipped;
-        } result;
-        int size;
-        enum Jobstate state;
-        struct {
-            int jobid1;
-            int jobid2;
-        } swap;
-        int last_errorlevel;
-        int max_slots;
-        int version;
-        int count_running;
-        char *label;
-        struct {
-            int plain_list;
-            int term_width;
-        } list;
-    } u;
+  enum MsgTypes type;
+  int uid;
+  union {
+    struct {
+      int command_size;
+      int store_output;
+      int should_keep_finished;
+      int label_size;
+      int env_size;
+      int depend_on_size;
+      int wait_enqueuing;
+      int num_slots;
+    } newjob;
+    struct {
+      int ofilename_size;
+      int store_output;
+      int pid;
+    } output;
+    int jobid;
+    struct Result {
+      int errorlevel;
+      int died_by_signal;
+      int signal;
+      float user_ms;
+      float system_ms;
+      float real_ms;
+      int skipped;
+    } result;
+    int size;
+    enum Jobstate state;
+    struct {
+      int jobid1;
+      int jobid2;
+    } swap;
+    int last_errorlevel;
+    int max_slots;
+    int version;
+    int count_running;
+    char *label;
+    struct {
+      int plain_list;
+      int term_width;
+    } list;
+  } u;
 };
 
 struct Procinfo {
-    char *ptr;
-    int nchars;
-    int allocchars;
-    struct timeval enqueue_time;
-    struct timeval start_time;
-    struct timeval end_time;
+  char *ptr;
+  int nchars;
+  int allocchars;
+  struct timeval enqueue_time;
+  struct timeval start_time;
+  struct timeval end_time;
 };
 
 struct Job {
-    struct Job *next;
-    int jobid;
-    char *command;
-    enum Jobstate state;
-    struct Result result; /* Defined in msg.h */
-    char *output_filename;
-    int store_output;
-    int pid;
-    int should_keep_finished;
-    int *depend_on;
-    int depend_on_size;
-    int *notify_errorlevel_to;
-    int notify_errorlevel_to_size;
-    int dependency_errorlevel;
-    char *label;
-    struct Procinfo info;
-    int num_slots;
+  struct Job *next;
+  int jobid;
+  char *command;
+  enum Jobstate state;
+  struct Result result; /* Defined in msg.h */
+  char *output_filename;
+  int store_output;
+  int pid;
+  int user_id;
+  int should_keep_finished;
+  int *depend_on;
+  int depend_on_size;
+  int *notify_errorlevel_to;
+  int notify_errorlevel_to_size;
+  int dependency_errorlevel;
+  char *label;
+  struct Procinfo info;
+  int num_slots;
 };
 
 enum ExitCodes {
-    EXITCODE_OK = 0,
-    EXITCODE_UNKNOWN_ERROR = -1,
-    EXITCODE_QUEUE_FULL = 2
+  EXITCODE_OK = 0,
+  EXITCODE_UNKNOWN_ERROR = -1,
+  EXITCODE_QUEUE_FULL = 2
 };
-
-
+int client_uid;
 /* main.c */
 
 struct Msg default_msg();
 
 struct Result default_result();
-
 
 /* client.c */
 void c_new_job();
@@ -287,7 +276,7 @@ void c_get_logdir();
 
 void c_set_logdir();
 
-char* get_logdir();
+char *get_logdir();
 
 void c_get_env();
 
@@ -316,7 +305,7 @@ void s_process_runjob_ok(int jobid, char *oname, int pid);
 
 void s_send_output(int socket, int jobid);
 
-int s_remove_job(int s, int *jobid);
+int s_remove_job(int s, int *jobid, int client_uid);
 
 void s_remove_notification(int s);
 
@@ -364,7 +353,7 @@ void s_kill_all_jobs(int s);
 
 void s_get_logdir(int s);
 
-void s_set_logdir(const char*);
+void s_set_logdir(const char *);
 
 void s_get_env(int s, int size);
 
@@ -453,7 +442,7 @@ char *joblistdump_torun(const struct Job *p);
 
 char *joblistdump_headers();
 
-char *time_rep(float* t);
+char *time_rep(float *t);
 
 /* print.c */
 int fd_nprintf(int fd, int maxsize, const char *fmt, ...);
@@ -485,3 +474,14 @@ char *get_environment();
 
 /* tail.c */
 int tail_file(const char *fname, int last_lines);
+
+/* user.c */
+void read_user_file(const char *path);
+int get_user_id(int id);
+
+/* jobs.c */
+void s_user_status_all(int s);
+void s_user_status(int s, int i);
+
+/* client.c */
+void c_list_jobs_all();
