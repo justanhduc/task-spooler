@@ -487,6 +487,6 @@ const char *get_user_path();
 /* jobs.c */
 void s_user_status_all(int s);
 void s_user_status(int s, int i);
-
+void s_refresh_users(int s);
 /* client.c */
 void c_list_jobs_all();

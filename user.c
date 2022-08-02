@@ -23,7 +23,6 @@ void read_user_file(const char *path) {
   if (server_uid != 0) {
     error("the service is not run as root!");
   }
-  user_number = 0;
   FILE *fp;
   fp = fopen(path, "r");
   if (fp == NULL)
@@ -31,23 +30,39 @@ void read_user_file(const char *path) {
   char *line = NULL;
   size_t len = 0;
   size_t read;
+  int UID, slots;
+  char name[USER_NAME_WIDTH];
+
+  int i_number = 0;
   while ((read = getline(&line, &len, fp)) != -1) {
     if (line[0] == '#')
       continue;
 
-    int res = sscanf(line, "%d %256s %d", &user_UID[user_number],
-                     user_name[user_number], &user_max_slots[user_number]);
+    int res = sscanf(line, "%d %256s %d", &UID, name, &slots);
     if (res != 3) {
       printf("error in read %s at line %s", path, line);
       exit(0);
     } else {
+      if (user_max_slots[i_number] != 0 && user_UID[i_number] != UID) {
+        i_number++;
+        continue;
+      }
+
+      user_UID[i_number] = UID;
+      user_max_slots[i_number] = slots;
+      strncpy(user_name[i_number], name, USER_NAME_WIDTH);
+
       // printf("%d %s %d\n", user_ID[user_number], user_name[user_number],
       //       user_slot[user_number]);
       // user_busy[user_number] = 0;
       // user_jobs[user_number] = 0;
       // user_queue[user_number] = 0;
-      user_number++;
+      i_number++;
     }
+  }
+
+  if (i_number > user_number) {
+    user_number = i_number;
   }
 
   fclose(fp);

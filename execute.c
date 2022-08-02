@@ -139,12 +139,16 @@ static void run_child(int fd_send_filename, const char *tmpdir) {
   int outfd;
   int err;
   struct timeval starttv;
+  char *label = "ts_out";
+  if (command_line.logfile) {
+    label = command_line.logfile;
+  } else if (command_line.label) {
+    label = command_line.label;
+  }
 
-  if (command_line.label) {
-    outfname = malloc(1 + strlen(command_line.label) + strlen(".XXXXXX") + 1);
-    sprintf(outfname, "/%s.XXXXXX", command_line.label);
-  } else
-    outfname = "/ts-out.XXXXXX";
+  outfname = malloc(1 + strlen(label) + strlen(".XXXXXX") + 1);
+
+  sprintf(outfname, "/%s.XXXXXX", label);
 
   if (command_line.store_output) {
     /* Prepare path */

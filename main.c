@@ -581,7 +581,13 @@ int main(int argc, char **argv) {
 
   switch (command_line.request) {
   case c_REFRESH_USER:
-    c_refresh_user();
+    if (client_uid == 0) {
+      c_refresh_user();
+      c_wait_server_lines();
+    } else {
+      printf("Only the root can shutdown the task-spooler server\n");
+    }
+
     break;
   case c_SHOW_VERSION:
     print_version();

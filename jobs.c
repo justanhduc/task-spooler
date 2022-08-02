@@ -995,6 +995,11 @@ void s_send_last_id(int s) {
   send_msg(s, &m);
 }
 
+void s_refresh_users(int s) {
+  read_user_file(get_user_path());
+  send_list_line(s, "refresh the list success!\n");
+}
+
 void s_send_output(int s, int jobid) {
   struct Job *p = 0;
   struct Msg m = default_msg();

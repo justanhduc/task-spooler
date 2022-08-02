@@ -198,6 +198,7 @@ void server_main(int notify_fd, char *_path) {
   if (res == -1)
     error("Error listening.");
 
+  user_number = 0;
   for (int i = 0; i < USER_MAX; i++) {
     user_busy[i] = 0;
     user_jobs[i] = 0;
@@ -365,8 +366,10 @@ static enum Break client_read(int index) {
   /* Process message */
   switch (m.type) {
   case REFRESH_USERS:
-    if (m.uid == getuid())
-      read_user_file(get_user_path());
+    if (m.uid == getuid()) {
+      s_refresh_users(s);
+    }
+    close(s);
     break;
   case KILL_SERVER:
     if (m.uid == getuid())

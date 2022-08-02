@@ -329,7 +329,20 @@ static void c_end_of_job(const struct Result *res) {
 }
 
 void c_shutdown_server() {
+
   struct Msg m = default_msg();
+  if (m.uid != 0) {
+    printf("Only the root can shutdown the ts server\n");
+    return;
+  }
+  char buf[10];
+  printf("Do you want to kill the taskspooler server? (Yes/n) ");
+  scanf("%3s", buf);
+  if (strcmp(buf, "Yes") != 0) {
+    return;
+  } else {
+    printf("Kill the server!\n");
+  }
 
   m.type = KILL_SERVER;
   send_msg(server_socket, &m);
