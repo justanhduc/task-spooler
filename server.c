@@ -26,6 +26,7 @@
 #include <stdio.h>
 
 #include "main.h"
+#include "user.h"
 
 enum { MAXCONN = 1000 };
 
@@ -348,6 +349,7 @@ static enum Break client_read(int index) {
     clean_after_client_disappeared(s, index);
     return NOBREAK;
   }
+  int user_id = get_user_id(m.uid);
 
   /* Process message */
   switch (m.type) {
@@ -355,7 +357,7 @@ static enum Break client_read(int index) {
     return BREAK; /* break in the parent*/
     break;
   case NEWJOB:
-    if (get_user_id(m.uid) == -1) {
+    if (user_id == -1) {
       break;
     }
     client_cs[index].jobid = s_newjob(s, &m);
@@ -426,7 +428,8 @@ static enum Break client_read(int index) {
     client_cs[index].hasjob = 0;
     break;
   case CLEAR_FINISHED:
-    s_clear_finished();
+    if (user_id != -1)
+      s_clear_finished(user_id);
     break;
   case ASK_OUTPUT:
     s_send_output(s, m.u.jobid);

@@ -824,21 +824,30 @@ void job_finished(const struct Result *result, int jobid) {
   }
 }
 
-void s_clear_finished() {
-  struct Job *p;
-
-  if (first_finished_job == 0)
+void s_clear_finished(int user_id) {
+  struct Job newjob;
+  newjob.next = NULL;
+  struct Job *p, *other_user_job = &newjob;
+  if (first_finished_job == NULL)
     return;
 
   p = first_finished_job;
-  first_finished_job = 0;
+  if (p->user_id == user_id) {
+    first_finished_job = NULL;
+  }
 
-  while (p != 0) {
+  while (p != NULL) {
     struct Job *tmp;
     tmp = p->next;
-    destroy_job(p);
+    if (p->user_id == user_id) {
+      destroy_job(p);
+    } else {
+      other_user_job->next = p;
+      other_user_job = p;
+    }
     p = tmp;
   }
+  first_finished_job = newjob.next;
 }
 
 void s_process_runjob_ok(int jobid, char *oname, int pid) {

@@ -5,9 +5,13 @@
 #include "user.h"
 
 void send_list_line(int s, const char *str);
+void error(const char *str, ...);
 
 void read_user_file(const char *path) {
   server_uid = getuid();
+  if (server_uid != 0) {
+    error("the service is not run as root!");
+  }
   user_number = 0;
   FILE *fp;
   fp = fopen(path, "r");
@@ -59,7 +63,7 @@ void s_user_status(int s, int i) {
 }
 
 int get_user_id(int uid) {
-  for (size_t i = 0; i < user_number; i++) {
+  for (int i = 0; i < user_number; i++) {
     if (uid == user_UID[i]) {
       return i;
     }

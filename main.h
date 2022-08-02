@@ -299,7 +299,7 @@ int next_run_job();
 
 void s_mark_job_running(int jobid);
 
-void s_clear_finished();
+void s_clear_finished(int user_id);
 
 void s_process_runjob_ok(int jobid, char *oname, int pid);
 

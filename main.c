@@ -73,6 +73,7 @@ static void default_command_line() {
 struct Msg default_msg() {
   struct Msg m;
   memset(&m, 0, sizeof(struct Msg));
+  m.uid = getuid();
   return m;
 }
 
