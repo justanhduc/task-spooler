@@ -27,7 +27,7 @@ static int fork_server();
 
 void create_socket_path(char **path) {
   char *tmpdir;
-  char userid[20];
+  char userid[20] = "root";
   int size;
 
   /* As a priority, TS_SOCKET mandates over the path creation */
@@ -51,7 +51,7 @@ void create_socket_path(char **path) {
   if (tmpdir == NULL)
     tmpdir = "/tmp";
 
-  sprintf(userid, "%u", (unsigned int)getuid());
+  // sprintf(userid, "%u", (unsigned int)getuid());
 
   /* Calculate the size */
   size = strlen(tmpdir) + strlen("/socket-ts.") + strlen(userid) + 1;
@@ -88,8 +88,8 @@ static void try_check_ownership() {
   if (res != 0)
     error("Cannot state the socket %s.", socket_path);
 
-  if (socketstat.st_uid != getuid())
-    error("The uid %i does not own the socket %s.", getuid(), socket_path);
+  // if (socketstat.st_uid != getuid())
+  //  error("The uid %i does not own the socket %s.", getuid(), socket_path);
 }
 
 void wait_server_up(int fd) {
@@ -138,7 +138,6 @@ void notify_parent(int fd) {
 int ensure_server_up() {
   int res;
   int notify_fd;
-  read_user_file("./user.txt");
   server_socket = socket(AF_UNIX, SOCK_STREAM, 0);
   if (server_socket == -1)
     error("getting the server socket");
@@ -171,7 +170,6 @@ int ensure_server_up() {
     fprintf(stderr, "The server didn't come up.\n");
     exit(-1);
   }
-
   free(socket_path);
 
   /* Good connection on the second time */

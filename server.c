@@ -17,13 +17,13 @@
 #include <libgen.h>
 #include <limits.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
 #include <sys/un.h>
 #include <unistd.h>
-
-#include <stdio.h>
 
 #include "main.h"
 #include "user.h"
@@ -103,6 +103,18 @@ static void set_default_maxslots() {
     s_set_max_slots(slots);
   }
 }
+
+static const char *get_user_path() {
+  char *str;
+  str = getenv("TS_SLOTS");
+  if (str != NULL) {
+    return str;
+  } else {
+    return "/home/kylin/task-spooler/user.txt";
+  }
+}
+
+static void set_socket_model(const char *path) { chmod(path, 0777); }
 
 static void initialize_log_dir() {
   char *tmpdir = getenv("TMPDIR") == NULL ? "/tmp" : getenv("TMPDIR");
@@ -195,6 +207,9 @@ void server_main(int notify_fd, char *_path) {
   res = listen(ls, 0);
   if (res == -1)
     error("Error listening.");
+
+  read_user_file(get_user_path());
+  set_socket_model(_path);
 
   install_sigterm_handler();
 
@@ -354,7 +369,8 @@ static enum Break client_read(int index) {
   /* Process message */
   switch (m.type) {
   case KILL_SERVER:
-    return BREAK; /* break in the parent*/
+    if (m.uid == getuid())
+      return BREAK; /* break in the parent*/
     break;
   case NEWJOB:
     if (user_id == -1) {
