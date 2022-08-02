@@ -460,6 +460,8 @@ static void print_help(const char *cmd) {
          "dies.\n");
   printf("  TS_SLOTS   amount of jobs which can run at once, read on server "
          "start.\n");
+  printf("  TS_USER_PATH  path to the user configuration file, read on server "
+         "starts.\n");
   printf("  TMPDIR     directory where to place the output files and the "
          "default socket.\n");
   printf("Long option actions:\n");
@@ -484,6 +486,8 @@ static void print_help(const char *cmd) {
   printf("  --plain                         list jobs in plain tab-separated "
          "texts.\n");
   printf("Actions:\n");
+  printf("  -A           Show all users information\n");
+  printf("  -X           Refresh the user configuration\n");
   printf("  -K           kill the task spooler server\n");
   printf("  -C           clear the list of finished jobs\n");
   printf("  -l           show the job list (default action)\n");
