@@ -93,7 +93,8 @@ static char *print_noresult(const struct Job *p) {
 
   char *uname = user_name[p->user_id];
   maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1 + 25 + 1 + strlen(p->command) + 20 +
-           strlen(uname) + 2; /* 20 is the margin for errors */
+           strlen(uname) + 240 +
+           strlen(output_filename); /* 20 is the margin for errors */
 
   if (p->label)
     maxlen += 3 + strlen(p->label);
@@ -116,23 +117,35 @@ static char *print_noresult(const struct Job *p) {
     pos += snprintf(&dependstr[pos], sizeof(dependstr), "]&& ");
   }
 
+  struct timeval starttv = p->info.start_time;
+  struct timeval endtv;
+  gettimeofday(&endtv, NULL);
+  float real_ms = endtv.tv_sec - starttv.tv_sec +
+                  ((float)(endtv.tv_usec - starttv.tv_usec) / 1000000.);
+  if (p->state == QUEUED) {
+    real_ms = 0;
+  }
+  char *unit = time_rep(&real_ms);
+
   line = (char *)malloc(maxlen);
   if (line == NULL)
     error("Malloc for %i failed.\n", maxlen);
 
   cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
+  char *cmd = shorten(p->command, cmd_len);
   if (p->label) {
     char *label = shorten(p->label, 20);
-    char *cmd = shorten(p->command, cmd_len);
-    snprintf(line, maxlen, "%-4i %-10s %-10s %-20s %-8s %6s %s[%s]%s\n",
-             p->jobid, jobstate, uname, output_filename, "", "", dependstr,
-             label, cmd);
+    snprintf(line, maxlen, "%-4i %-10s %-3i %-10s %s %5.2f%s   %s  |  %-20s\n",
+             p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
+             output_filename);
     free(label);
     free(cmd);
   } else {
     char *cmd = shorten(p->command, cmd_len);
-    snprintf(line, maxlen, "%-4i %-10s %-10s %-20s %-8s %6s %s%s\n", p->jobid,
-             jobstate, uname, output_filename, "", "", dependstr, cmd);
+    char *label = "(..)";
+    snprintf(line, maxlen, "%-4i %-10s %-3i %-10s %s %5.2f%s   %s  |  %-20s\n",
+             p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
+             output_filename);
     free(cmd);
   }
 
@@ -154,9 +167,9 @@ static char *print_result(const struct Job *p) {
   output_filename = ofilename_shown(p);
 
   char *uname = user_name[p->user_id];
-
   maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1 + 25 + 1 + strlen(p->command) + 20 +
-           strlen(uname) + 2; /* 20 is the margin for errors */
+           strlen(uname) + 240 +
+           strlen(output_filename); /* 20 is the margin for errors */
 
   if (p->label)
     maxlen += 3 + strlen(p->label);
@@ -184,19 +197,20 @@ static char *print_result(const struct Job *p) {
     error("Malloc for %i failed.\n", maxlen);
 
   cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
+  char *cmd = shorten(p->command, cmd_len);
   if (p->label) {
     char *label = shorten(p->label, 20);
-    char *cmd = shorten(p->command, cmd_len);
-    snprintf(line, maxlen, "%-4i %-10s %-10s %-20s %-8i %5.2f%s %s[%s]%s\n",
-             p->jobid, jobstate, uname, output_filename, p->result.errorlevel,
-             real_ms, unit, dependstr, label, cmd);
+    snprintf(line, maxlen, "%-4i %-10s %-3i %-10s %s %5.2f%s   %s  |  %-20s\n",
+             p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
+             output_filename);
     free(label);
     free(cmd);
   } else {
     char *cmd = shorten(p->command, cmd_len);
-    snprintf(line, maxlen, "%-4i %-10s %-10s %-20s %-8i %5.2f%s %s%s\n",
-             p->jobid, jobstate, uname, output_filename, p->result.errorlevel,
-             real_ms, unit, dependstr, cmd);
+    char *label = "(..)";
+    snprintf(line, maxlen, "%-4i %-10s %-3i %-10s %s %5.2f%s   %s  |  %-20s\n",
+             p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
+             output_filename);
     free(cmd);
   }
 

@@ -404,8 +404,8 @@ static enum Break client_read(int index) {
     if (m.u.list.plain_list)
       s_list_plain(s);
     else
-      s_list(s);
-    s_user_status(s);
+      s_list(s, user_id);
+    s_user_status(s, user_id);
     /* We must actively close, meaning End of Lines */
     close(s);
     remove_connection(index);

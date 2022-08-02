@@ -287,7 +287,8 @@ void c_set_env();
 void c_unset_env();
 
 /* jobs.c */
-void s_list(int s);
+void s_list(int s, int user_id);
+void s_list_all(int s);
 
 void s_list_plain(int s);
 
