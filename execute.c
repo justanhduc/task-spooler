@@ -143,6 +143,16 @@ static void run_child(int fd_send_filename, const char* tmpdir) {
     int outfd;
     int err;
     struct timeval starttv;
+    char *cmd;
+
+    int cmdLen = 0;
+    printf("here\n");
+    for (int i = 0; i < command_line.command.num; cmdLen += strlen(command_line.command.array[i]) + 1, i++);
+    cmd = malloc(cmdLen * sizeof(char) + 1);
+    for (int i = 0; i < command_line.command.num; i++) {
+        strcat(cmd, command_line.command.array[i]);
+        strcat(cmd, " ");
+    }
 
     if (command_line.logfile) {
         outfname = malloc(1 + strlen(command_line.logfile) + strlen(".XXXXXX") + 1);
@@ -163,17 +173,17 @@ static void run_child(int fd_send_filename, const char* tmpdir) {
         strcpy(outfname_full, tmpdir);
         strcat(outfname_full, outfname);
 
+        /* Prepare the filename */
+        outfd = mkstemp(outfname_full); /* stdout */
+        assert(outfd != -1);
+        write(outfd, cmd, strlen(cmd));
+        write(outfd, "\n", 2);
+        free(cmd);
         if (command_line.gzip) {
             int p[2];
             /* We assume that all handles are closed*/
             err = pipe(p);
             assert(err == 0);
-
-            /* gzip output goes to the filename */
-            /* This will be the handle other than 0,1,2 */
-            /* mkstemp doesn't admit adding ".gz" to the pattern */
-            outfd = mkstemp(outfname_full); /* stdout */
-            assert(outfd != -1);
 
             /* Program stdout and stderr */
             /* which go to pipe write handle */
@@ -201,8 +211,6 @@ static void run_child(int fd_send_filename, const char* tmpdir) {
              * from it */
             run_gzip(outfd, p[0]);
         } else {
-            /* Prepare the filename */
-            outfd = mkstemp(outfname_full); /* stdout */
             dup2(outfd, 1); /* stdout */
             if (command_line.stderr_apart) {
                 int errfd;
