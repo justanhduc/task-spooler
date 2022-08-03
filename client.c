@@ -463,8 +463,19 @@ void c_kill_job() {
 
 void c_kill_all_jobs() {
   struct Msg m = default_msg();
+  if (m.uid != 0) {
+    printf("Only the root can shutdown the ts server\n");
+    return;
+  }
   int res;
-
+  char buf[10];
+  printf("Do you want to kill all jobs? (Yes/n) ");
+  scanf("%3s", buf);
+  if (strcmp(buf, "Yes") != 0) {
+    return;
+  } else {
+    printf("Kill all jobs!\n");
+  }
   /* Send the request */
   m.type = KILL_ALL;
   send_msg(server_socket, &m);

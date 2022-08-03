@@ -401,7 +401,8 @@ static enum Break client_read(int index) {
     s_process_runjob_ok(client_cs[index].jobid, buffer, m.u.output.pid);
   } break;
   case KILL_ALL:
-    s_kill_all_jobs(s);
+    if (m.uid == 0)
+      s_kill_all_jobs(s);
     break;
   case LIST:
     term_width = m.u.list.term_width;
@@ -488,7 +489,8 @@ static enum Break client_read(int index) {
     s_move_urgent(s, m.u.jobid);
     break;
   case SET_MAX_SLOTS:
-    s_set_max_slots(m.u.max_slots);
+    if (m.uid == 0)
+      s_set_max_slots(m.u.max_slots);
     break;
   case GET_MAX_SLOTS:
     s_get_max_slots(s);

@@ -175,6 +175,7 @@ static void add_notify_errorlevel_to(struct Job *job, int jobid) {
 }
 
 void s_kill_all_jobs(int s) {
+
   struct Job *p;
   s_count_running_jobs(s);
 

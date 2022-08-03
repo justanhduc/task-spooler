@@ -491,12 +491,14 @@ static void print_help(const char *cmd) {
          "texts.\n");
   printf("Actions:\n");
   printf("  -A           Show all users information\n");
-  printf("  -X           Refresh the user configuration\n");
-  printf("  -K           kill the task spooler server\n");
-  printf("  -C           clear the list of finished jobs\n");
+  printf("  -X           Refresh the user configuration (only available for "
+         "root)\n");
+  printf("  -K           kill the task spooler server (only available for "
+         "root)\n");
+  printf("  -C           clear the list of finished jobs for current user\n");
   printf("  -l           show the job list (default action)\n");
   printf("  -S [num]     get/set the number of max simultaneous jobs of the "
-         "server.\n");
+         "server.  (only available for root)\n");
   printf("  -t [id]      \"tail -n 10 -f\" the output of the job. Last run if "
          "not specified.\n");
   printf("  -c [id]      like -t, but shows all the lines. Last run if not "
@@ -513,7 +515,8 @@ static void print_help(const char *cmd) {
   printf("  -w [id]      wait for a job. The last added, if not specified.\n");
   printf("  -k [id]      send SIGTERM to the job process group. The last run, "
          "if not specified.\n");
-  printf("  -T           send SIGTERM to all running job groups.\n");
+  printf("  -T           send SIGTERM to all running job groups.  (only "
+         "available for root)\n");
   printf(
       "  -u [id]      put that job first. The last added, if not specified.\n");
   printf("  -U <id-id>   swap two jobs in the queue.\n");
