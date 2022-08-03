@@ -483,10 +483,14 @@ void read_user_file(const char *path);
 int get_user_id(int id);
 void c_refresh_user();
 const char *get_user_path();
+void write_logfile(const struct Job *p);
+int get_env_jobid();
 
 /* jobs.c */
 void s_user_status_all(int s);
 void s_user_status(int s, int i);
 void s_refresh_users(int s);
+void set_jobids(int i);
+
 /* client.c */
 void c_list_jobs_all();

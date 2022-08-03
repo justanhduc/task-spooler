@@ -462,6 +462,10 @@ static void print_help(const char *cmd) {
          "start.\n");
   printf("  TS_USER_PATH  path to the user configuration file, read on server "
          "starts.\n");
+  printf("  TS_LOGFILE_PATH  path to the job log file, read on server "
+         "starts\n");
+  printf("  TS_JOBID  The first job ID (default: 1000), read on server "
+         "starts.\n");
   printf("  TMPDIR     directory where to place the output files and the "
          "default socket.\n");
   printf("Long option actions:\n");

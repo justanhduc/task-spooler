@@ -31,7 +31,7 @@ struct Notify {
 /* Globals */
 static struct Job *firstjob = 0;
 static struct Job *first_finished_job = 0;
-static int jobids = 0;
+static int jobids = 1000;
 /* This is used for dependencies from jobs
  * already out of the queue */
 static int last_errorlevel = 0; /* Before the first job, let's consider
@@ -48,6 +48,7 @@ static struct Job *get_job(int jobid);
 
 void notify_errorlevel(struct Job *p);
 
+void set_jobids(int i) { jobids = i; }
 static void destroy_job(struct Job *p) {
   free(p->notify_errorlevel_to);
   free(p->command);
@@ -893,6 +894,7 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
   p->pid = pid;
   p->output_filename = oname;
   pinfo_set_start_time(&p->info);
+  write_logfile(p);
 }
 
 void s_send_runjob(int s, int jobid) {
@@ -1125,7 +1127,11 @@ int s_remove_job(int s, int *jobid, int client_uid) {
   }
 
   // if (p == NULL || p == firstjob || user_UID[p->user_id] != client_uid) {
-  if (p == NULL || p == firstjob || user_UID[p->user_id] != client_uid) {
+  if (p != NULL && client_uid == 0) {
+    client_uid = user_UID[p->user_id];
+  }
+
+  if (p == NULL || p == firstjob || (user_UID[p->user_id] != client_uid)) {
 
     char tmp[256];
 
@@ -1140,8 +1146,8 @@ int s_remove_job(int s, int *jobid, int client_uid) {
     if (p != NULL) {
       int id = p->user_id;
       if (user_UID[id] != client_uid) {
-        snprintf(tmp, 256, "The job %i belongs to user:%s.\n", *jobid,
-                 user_name[id]);
+        snprintf(tmp, 256, "The job %i belongs to user:%s not uid:%d.\n",
+                 *jobid, user_name[id], client_uid);
       }
     }
     send_list_line(s, tmp);

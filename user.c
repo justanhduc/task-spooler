@@ -1,9 +1,13 @@
-#include "user.h"
+
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
+
+#include "main.h"
+#include "user.h"
 
 void send_list_line(int s, const char *str);
 void error(const char *str, ...);
@@ -16,6 +20,48 @@ const char *get_user_path() {
   } else {
     return str;
   }
+}
+
+int get_env_jobid() {
+  char *str;
+  str = getenv("TS_JOBID");
+  if (str == NULL || strlen(str) == 0) {
+    return 1000;
+  } else {
+    int i = atoi(str);
+    if (i < 0)
+      i = 1000;
+    return i;
+  }
+}
+
+const char *get_server_logfile() {
+  char *str;
+  str = getenv("TS_LOGFILE_PATH");
+  if (str == NULL || strlen(str) == 0) {
+    return "/home/kylin/task-spooler/log.txt";
+  } else {
+    return str;
+  }
+}
+
+void write_logfile(const struct Job *p) {
+  // char buf[1024] = "";
+  FILE *f = fopen(get_server_logfile(), "a");
+  if (f == NULL) {
+    return;
+  }
+  char buf[100];
+  time_t now = time(0);
+  strftime(buf, 100, "%Y-%m-%d %H:%M:%S", localtime(&now));
+  // snprintf(buf, 1024, "[%d] %s @ %s\n", p->jobid, p->command, date);
+  int user_id = p->user_id;
+  char *label = "..";
+  if (p->label)
+    label = p->label;
+  fprintf(f, "[%d] %s P:%d <%s> Pid: %d CMD: %s @ %s\n", p->jobid,
+          user_name[user_id], p->num_slots, label, p->pid, p->command, buf);
+  fclose(f);
 }
 
 void read_user_file(const char *path) {

@@ -205,6 +205,7 @@ void server_main(int notify_fd, char *_path) {
     user_queue[i] = 0;
   }
 
+  set_jobids(get_env_jobid());
   read_user_file(get_user_path());
   set_socket_model(_path);
 
