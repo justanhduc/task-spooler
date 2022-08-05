@@ -100,10 +100,8 @@ static void print_error(FILE *out, enum Etype type, const char *str, va_list ap)
         fprintf(out, "Error\n");
     else if (type == WARNING)
         fprintf(out, "Warning\n");
-    else if (type == DEBUG)
-        fprintf(out, "Debug\n");
     else
-        fprintf(out, "Unknown kind of error\n");
+        fprintf(out, "Debug\n");
 
     fprintf(out, " Msg: ");
 
