@@ -4,7 +4,9 @@
 
     Please find the license in the provided COPYING file.
 */
-#define TS_VERSION_FALLBACK "1.4.0"
+#ifndef TS_VERSION
+#define TS_VERSION 1.4.0
+#endif
 
 /* from https://github.com/LLNL/lbann/issues/117
  * and https://gcc.gnu.org/onlinedocs/cpp/Stringizing.html#Stringizing */
@@ -37,14 +39,9 @@ static char *old_getopt_env;
 static char version[1024];
 
 static void init_version() {
-#ifdef TS_VERSION
     char *ts_version = TS_MAKE_STR(TS_VERSION);
     sprintf(version, "Task Spooler %s - a task queue system for the unix user.\n"
                      "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell", ts_version);
-#else
-    sprintf(version, "Task Spooler %s - a task queue system for the unix user.\n"
-                     "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell", TS_VERSION_FALLBACK);
-#endif
 }
 
 static void default_command_line() {
