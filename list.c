@@ -44,6 +44,7 @@ char *joblist_headers() {
     char *line;
 
     line = malloc(100);
+#ifndef CPU
     snprintf(line, 100, "%-4s %-10s %-20s %-8s %-6s %-5s %s [run=%i/%i]\n",
              "ID",
              "State",
@@ -54,7 +55,17 @@ char *joblist_headers() {
              "Command",
              busy_slots,
              max_slots);
-
+#else
+    snprintf(line, 100, "%-4s %-10s %-20s %-8s %-6s %s [run=%i/%i]\n",
+             "ID",
+             "State",
+             "Output",
+             "E-Level",
+             "Time",
+             "Command",
+             busy_slots,
+             max_slots);
+#endif
     return line;
 }
 
@@ -130,6 +141,7 @@ static char *print_noresult(const struct Job *p) {
     if (p->label) {
         char *label = shorten(p->label, 20);
         char *cmd = shorten(p->command, cmd_len);
+#ifndef CPU
         snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %-5d %s[%s]%s\n",
                  p->jobid,
                  jobstate,
@@ -140,11 +152,23 @@ static char *print_noresult(const struct Job *p) {
                  dependstr,
                  label,
                  cmd);
+#else
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %s[%s]%s\n",
+                 p->jobid,
+                 jobstate,
+                 output_filename,
+                 "",
+                 "",
+                 dependstr,
+                 label,
+                 cmd);
+#endif
         free(label);
         free(cmd);
     }
     else {
         char *cmd = shorten(p->command, cmd_len);
+#ifndef CPU
         snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %-5d %s%s\n",
                  p->jobid,
                  jobstate,
@@ -154,6 +178,16 @@ static char *print_noresult(const struct Job *p) {
                  p->num_gpus,
                  dependstr,
                  cmd);
+#else
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8s %6s %s%s\n",
+                 p->jobid,
+                 jobstate,
+                 output_filename,
+                 "",
+                 "",
+                 dependstr,
+                 cmd);
+#endif
         free(cmd);
     }
 
@@ -204,6 +238,7 @@ static char *print_result(const struct Job *p) {
     if (p->label) {
         char *label = shorten(p->label, 20);
         char *cmd = shorten(p->command, cmd_len);
+#ifndef CPU
         snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %-5d %s[%s]%s\n",
                  p->jobid,
                  jobstate,
@@ -215,11 +250,24 @@ static char *print_result(const struct Job *p) {
                  dependstr,
                  label,
                  cmd);
+#else
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %s[%s]%s\n",
+                 p->jobid,
+                 jobstate,
+                 output_filename,
+                 p->result.errorlevel,
+                 real_ms,
+                 unit,
+                 dependstr,
+                 label,
+                 cmd);
+#endif
         free(label);
         free(cmd);
     }
     else {
         char *cmd = shorten(p->command, cmd_len);
+#ifndef CPU
         snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %-5d %s%s\n",
                  p->jobid,
                  jobstate,
@@ -230,12 +278,24 @@ static char *print_result(const struct Job *p) {
                  p->num_gpus,
                  dependstr,
                  cmd);
+#else
+        snprintf(line, maxlen, "%-4i %-10s %-20s %-8i %5.2f%s %s%s\n",
+                 p->jobid,
+                 jobstate,
+                 output_filename,
+                 p->result.errorlevel,
+                 real_ms,
+                 unit,
+                 dependstr,
+                 cmd);
+#endif
         free(cmd);
     }
 
     return line;
 }
 
+#ifndef CPU
 static char *print_gpu(const struct Job *p) {
     char *line = malloc(1024);
     char *gpuIDs = ints_to_chars(p->gpu_ids, p->num_gpus, " ");
@@ -247,6 +307,7 @@ static char *print_gpu(const struct Job *p) {
 char *jobgpulist_line(const struct Job *p) {
     return print_gpu(p);
 }
+#endif
 
 char *joblist_line(const struct Job *p) {
     char *line;

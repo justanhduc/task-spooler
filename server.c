@@ -212,7 +212,9 @@ void server_main(int notify_fd, char *_path) {
 
     notify_parent(notify_fd);
 
+#ifndef CPU
     initGPU();
+#endif
 
     server_loop(ls);
 }
@@ -315,7 +317,9 @@ static void end_server(int ls) {
      * This is the last use of path in this process.*/
     free(path);
     free(logdir);
+#ifndef CPU
     cleanupGpu();
+#endif
 }
 
 static void remove_connection(int index) {
@@ -421,11 +425,13 @@ client_read(int index) {
             close(s);
             remove_connection(index);
             break;
+#ifndef CPU
         case LIST_GPU:
             s_list_gpu(s);
             close(s);
             remove_connection(index);
             break;
+#endif
         case INFO:
             s_job_info(s, m.u.jobid);
             close(s);
@@ -510,12 +516,14 @@ client_read(int index) {
         case UNSET_ENV:
             s_unset_env(s, m.u.size);
             break;
+#ifndef CPU
         case SET_FREE_PERC:
             s_set_free_percentage(m.u.size);
             break;
         case GET_FREE_PERC:
             s_get_free_percentage(s);
             break;
+#endif
         case GET_VERSION:
             s_send_version(s);
             break;

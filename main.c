@@ -122,18 +122,20 @@ static struct option longOptions[] = {
         {"get_label",         optional_argument, NULL, 'a'},
         {"count_running",     no_argument,       NULL, 'R'},
         {"last_queue_id",     no_argument,       NULL, 'q'},
-        {"gpus",              required_argument, NULL, 'G'},
-        {"gpu_indices",       required_argument, NULL, 'g'},
         {"full_cmd",          optional_argument, NULL, 'F'},
         {"getenv",            required_argument, NULL, 0},
         {"setenv",            required_argument, NULL, 0},
         {"unsetenv",          required_argument, NULL, 0},
-        {"set_gpu_free_perc", required_argument, NULL, 0},
-        {"get_gpu_free_perc", no_argument,       NULL, 0},
         {"get_logdir",        no_argument,       NULL, 0},
         {"set_logdir",        required_argument, NULL, 0},
+#ifndef CPU
+        {"gpus",              required_argument, NULL, 'G'},
+        {"gpu_indices",       required_argument, NULL, 'g'},
+        {"set_gpu_free_perc", required_argument, NULL, 0},
+        {"get_gpu_free_perc", no_argument,       NULL, 0},
         {"set_gpu_wait",      required_argument, NULL, 0},
         {"get_gpu_wait",      no_argument,       NULL, 0},
+#endif
         {NULL, 0,                            NULL, 0}
 };
 
@@ -144,8 +146,13 @@ void parse_opts(int argc, char **argv) {
 
     /* Parse options */
     while (1) {
+#ifndef CPU
         c = getopt_long(argc, argv, ":RTVhKzClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:G:W:g:O:",
                         longOptions, &optionIdx);
+#else
+        c = getopt_long(argc, argv, ":RTVhKzClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:W:O:",
+                        longOptions, &optionIdx);
+#endif
 
         if (c == -1)
             break;
@@ -161,16 +168,17 @@ void parse_opts(int argc, char **argv) {
                 } else if (strcmp(longOptions[optionIdx].name, "unsetenv") == 0) {
                     command_line.request = c_UNSET_ENV;
                     command_line.label = optarg;  /* reuse this var */
-                } else if (strcmp(longOptions[optionIdx].name, "set_gpu_free_perc") == 0) {
-                    command_line.request = c_SET_FREE_PERC;
-                    command_line.gpus = atoi(optarg); /* reuse this var */
-                } else if (strcmp(longOptions[optionIdx].name, "get_gpu_free_perc") == 0) {
-                    command_line.request = c_GET_FREE_PERC;
                 } else if (strcmp(longOptions[optionIdx].name, "get_logdir") == 0) {
                     command_line.request = c_GET_LOGDIR;
                 } else if (strcmp(longOptions[optionIdx].name, "set_logdir") == 0) {
                     command_line.request = c_SET_LOGDIR;
                     command_line.label = optarg; /* reuse this variable */
+#ifndef CPU
+                } else if (strcmp(longOptions[optionIdx].name, "set_gpu_free_perc") == 0) {
+                    command_line.request = c_SET_FREE_PERC;
+                    command_line.gpus = atoi(optarg); /* reuse this var */
+                } else if (strcmp(longOptions[optionIdx].name, "get_gpu_free_perc") == 0) {
+                    command_line.request = c_GET_FREE_PERC;
                 } else if (strcmp(longOptions[optionIdx].name, "set_gpu_wait") == 0) {
                     printf("Due to some internal changes, this option has no functionality "
                            "and will be removed in the next release!\n");
@@ -179,6 +187,7 @@ void parse_opts(int argc, char **argv) {
                     printf("Due to some internal changes, this option has no functionality "
                            "and will be removed in the next release!\n");
                     exit(0);
+#endif
                 } else
                     error("Wrong option %s.", longOptions[optionIdx].name);
                 break;
@@ -236,6 +245,7 @@ void parse_opts(int argc, char **argv) {
             case 'm':
                 command_line.send_output_by_mail = 1;
                 break;
+#ifndef CPU
             case 'G':
                 if (optarg)
                     command_line.gpus = atoi(optarg);
@@ -247,6 +257,7 @@ void parse_opts(int argc, char **argv) {
                 command_line.gpus = strtok_int(optarg, ",", command_line.gpu_nums);
                 command_line.wait_free_gpus = 0;
                 break;
+#endif
             case 't':
                 command_line.request = c_TAIL;
                 command_line.jobid = atoi(optarg);
@@ -389,9 +400,11 @@ void parse_opts(int argc, char **argv) {
                         command_line.request = c_SHOW_CMD;
                         command_line.jobid = -1;
                         break;
+#ifndef CPU
                     case 'g':
                         command_line.request = c_LIST_GPU;
                         break;
+#endif
                     default:
                         fprintf(stderr, "Option %c missing argument.\n",
                                 optopt);

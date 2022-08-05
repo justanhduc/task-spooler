@@ -318,7 +318,9 @@ char* get_logdir();
 /* jobs.c */
 void s_list(int s);
 
+#ifndef CPU
 void s_list_gpu(int s);
+#endif
 
 int s_newjob(int s, struct Msg *m);
 
@@ -479,7 +481,9 @@ char *joblistdump_torun(const struct Job *p);
 
 char *joblistdump_headers();
 
+#ifndef CPU
 char *jobgpulist_line(const struct Job *p);
+#endif
 
 char *time_rep(float* t);
 
@@ -516,6 +520,7 @@ char *get_environment();
 /* tail.c */
 int tail_file(const char *fname, int last_lines);
 
+#ifndef CPU
 /* gpu.c */
 int *getGpuList(int *num);
 
@@ -532,3 +537,4 @@ void setFreePercentage(int percent);
 int getFreePercentage();
 
 void cleanupGpu();
+#endif

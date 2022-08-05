@@ -387,6 +387,7 @@ void s_list(int s) {
     }
 }
 
+#ifndef CPU
 void s_list_gpu(int s) {
     struct Job *p = firstjob;
     char* buffer;
@@ -402,6 +403,7 @@ void s_list_gpu(int s) {
         p = p->next;
     }
 }
+#endif
 
 static void init_job(struct Job *p) {
     p->next = 0;
@@ -671,14 +673,17 @@ int next_run_job() {
     if (firstjob == 0)
         return -1;
 
+#ifndef CPU
     /* Query GPUs */
     int numFree;
     int *freeGpuList = getGpuList(&numFree);
+#endif
 
     /* Look for a runnable task */
     p = firstjob;
     while (p != 0) {
         if (p->state == QUEUED || p->state == ALLOCATING) {
+#ifndef CPU
             if (p->num_gpus && p->wait_free_gpus) {
                 if (numFree < p->num_gpus) {
                     /* if fewer GPUs than required then next */
@@ -707,6 +712,7 @@ int next_run_job() {
                 memcpy(p->gpu_ids, gpu_ids, p->num_gpus * sizeof(int));
                 free(gpu_ids);
             }
+#endif
 
             if (p->depend_on_size) {
                 int ready = 1;
@@ -729,16 +735,20 @@ int next_run_job() {
 
             if (free_slots >= p->num_slots) {
                 busy_slots = busy_slots + p->num_slots;
+#ifndef CPU
                 if (p->num_gpus)
                     broadcastUsedGpus(p->num_gpus, p->gpu_ids);
 
                 free(freeGpuList);
+#endif
                 return p->jobid;
             }
         }
         p = p->next;
     }
+#ifndef CPU
     free(freeGpuList);
+#endif
     return -1;
 }
 
@@ -827,8 +837,10 @@ void job_finished(const struct Result *result, int jobid) {
     if (p == 0)
         error("on jobid %i finished, it doesn't exist", jobid);
 
+#ifndef CPU
     /* Recycle GPUs */
     broadcastFreeGpus(p->num_gpus, p->gpu_ids);
+#endif
 
     /* The job may be not only in running state, but also in other states, as
      * we call this to clean up the jobs list in case of the client closing the
@@ -990,9 +1002,11 @@ void s_job_info(int s, int jobid) {
     write(s, p->command, strlen(p->command));
     fd_nprintf(s, 100, "\n");
     fd_nprintf(s, 100, "Slots required: %i\n", p->num_slots);
+#ifndef CPU
     fd_nprintf(s, 100, "GPUs required: %d\n", p->num_gpus);
     fd_nprintf(s, 100, "GPU IDs: %s\n", ints_to_chars(
             p->gpu_ids, p->num_gpus ? p->num_gpus : 1, ","));
+#endif
     fd_nprintf(s, 100, "Enqueue time: %s",
                ctime(&p->info.enqueue_time.tv_sec));
     if (p->state == RUNNING) {
@@ -1650,6 +1664,7 @@ void s_unset_env(int s, int size) {
     free(var);
 }
 
+#ifndef CPU
 void s_set_free_percentage(int new_percentage) {
     if (new_percentage > 0)
         setFreePercentage(new_percentage);
@@ -1663,6 +1678,7 @@ void s_get_free_percentage(int s) {
     m.u.size = getFreePercentage();
     send_msg(s, &m);
 }
+#endif
 
 void s_get_logdir(int s) {
     send_list_line(s, logdir);
