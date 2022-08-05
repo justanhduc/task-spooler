@@ -144,9 +144,8 @@ static void run_child(int fd_send_filename, const char* tmpdir) {
     int err;
     struct timeval starttv;
     char *cmd;
-
     int cmdLen = 0;
-    printf("here\n");
+
     for (int i = 0; i < command_line.command.num; cmdLen += strlen(command_line.command.array[i]) + 1, i++);
     cmd = malloc(cmdLen * sizeof(char) + 1);
     for (int i = 0; i < command_line.command.num; i++) {
