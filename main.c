@@ -4,7 +4,7 @@
 
     Please find the license in the provided COPYING file.
 */
-#define TS_VERSION_FALLBACK "1.3.1"
+#define TS_VERSION_FALLBACK "1.4.0"
 
 /* from https://github.com/LLNL/lbann/issues/117
  * and https://gcc.gnu.org/onlinedocs/cpp/Stringizing.html#Stringizing */
