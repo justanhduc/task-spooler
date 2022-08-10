@@ -209,6 +209,15 @@ void s_count_running_jobs(int s) {
   send_msg(s, &m);
 }
 
+int s_get_job_uid(int jobid) {
+  struct Job *p = get_job(jobid);
+  if (p == NULL) {
+    return -1;
+  } else {
+    return user_UID[p->user_id];
+  }
+}
+
 void s_get_label(int s, int jobid) {
   struct Job *p = 0;
   char *label;
@@ -973,7 +982,9 @@ void s_job_info(int s, int jobid) {
   }
   write(s, p->command, strlen(p->command));
   fd_nprintf(s, 100, "\n");
+  fd_nprintf(s, 100, "User: %s\n", user_name[p->user_id]);
   fd_nprintf(s, 100, "Slots required: %i\n", p->num_slots);
+  fd_nprintf(s, 100, "Output: %s\n", p->output_filename);
   fd_nprintf(s, 100, "Enqueue time: %s", ctime(&p->info.enqueue_time.tv_sec));
   if (p->state == RUNNING) {
     fd_nprintf(s, 100, "Start time: %s", ctime(&p->info.start_time.tv_sec));
@@ -987,7 +998,7 @@ void s_job_info(int s, int jobid) {
     char *unit = time_rep(&t);
     fd_nprintf(s, 100, "Time run: %f%s\n", t, unit);
   }
-  fd_nprintf(s, 100, "extralines\n");
+  fd_nprintf(s, 100, "\n");
 }
 
 void s_send_last_id(int s) {

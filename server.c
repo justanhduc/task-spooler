@@ -486,7 +486,9 @@ static enum Break client_read(int index) {
     s_count_running_jobs(s);
     break;
   case URGENT:
-    s_move_urgent(s, m.u.jobid);
+    if (m.uid == 0 || m.uid == s_get_job_uid(m.u.jobid)) {
+      s_move_urgent(s, m.u.jobid);
+    }
     break;
   case SET_MAX_SLOTS:
     if (m.uid == 0)
@@ -496,7 +498,15 @@ static enum Break client_read(int index) {
     s_get_max_slots(s);
     break;
   case SWAP_JOBS:
-    s_swap_jobs(s, m.u.swap.jobid1, m.u.swap.jobid2);
+    if (m.uid == 0) {
+      s_swap_jobs(s, m.u.swap.jobid1, m.u.swap.jobid2);
+    } else {
+      int job1_uid = s_get_job_uid(m.u.swap.jobid1);
+      int job2_uid = s_get_job_uid(m.u.swap.jobid2);
+      if (m.uid == job1_uid && m.uid == job2_uid) {
+        s_swap_jobs(s, m.u.swap.jobid1, m.u.swap.jobid2);
+      }
+    }
     break;
   case GET_STATE:
     s_send_state(s, m.u.jobid);

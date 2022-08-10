@@ -490,6 +490,8 @@ int get_env_jobid();
 void s_user_status_all(int s);
 void s_user_status(int s, int i);
 void s_refresh_users(int s);
+int s_get_job_uid(int jobid);
+
 void set_jobids(int i);
 
 /* client.c */

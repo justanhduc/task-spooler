@@ -566,7 +566,7 @@ static void get_terminal_width() {
 int main(int argc, char **argv) {
   int errorlevel = 0;
   client_uid = getuid();
-  printf("client_uid = %u\n", client_uid);
+  // printf("client_uid = %u\n", client_uid);
 
   init_version();
   get_terminal_width();
@@ -611,7 +611,7 @@ int main(int argc, char **argv) {
     c_new_job();
     command_line.jobid = c_wait_newjob_ok();
     if (command_line.store_output) {
-      printf("%i\n", command_line.jobid);
+      printf("New JobID: %i\n", command_line.jobid);
       fflush(stdout);
     }
     if (command_line.should_go_background) {
