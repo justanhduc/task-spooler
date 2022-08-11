@@ -35,19 +35,17 @@ int get_env_jobid() {
   }
 }
 
-const char *get_server_logfile() {
-  char *str;
-  str = getenv("TS_LOGFILE_PATH");
-  if (str == NULL || strlen(str) == 0) {
-    return "/home/kylin/task-spooler/log.txt";
-  } else {
-    return str;
+const char *set_server_logfile() {
+  logfile_path = getenv("TS_LOGFILE_PATH");
+  if (logfile_path == NULL || strlen(logfile_path) == 0) {
+    logfile_path = "/home/kylin/task-spooler/log.txt";
   }
+  return logfile_path;
 }
 
 void write_logfile(const struct Job *p) {
   // char buf[1024] = "";
-  FILE *f = fopen(get_server_logfile(), "a");
+  FILE *f = fopen(logfile_path, "a");
   if (f == NULL) {
     return;
   }
@@ -61,6 +59,18 @@ void write_logfile(const struct Job *p) {
     label = p->label;
   fprintf(f, "[%d] %s P:%d <%s> Pid: %d CMD: %s @ %s\n", p->jobid,
           user_name[user_id], p->num_slots, label, p->pid, p->command, buf);
+  fclose(f);
+}
+
+void debug_write(const char *str) {
+  FILE *f = fopen(logfile_path, "a");
+  if (f == NULL) {
+    return;
+  }
+  char buf[100];
+  time_t now = time(0);
+  strftime(buf, 100, "%Y-%m-%d %H:%M:%S", localtime(&now));
+  fprintf(f, "%s @ %s\n", buf, str);
   fclose(f);
 }
 

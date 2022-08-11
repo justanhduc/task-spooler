@@ -114,10 +114,16 @@ static char *print_noresult(const struct Job *p) {
   /* 20 chars should suffice for a string like "[int,int,..]&& " */
   char dependstr[20] = "";
   int cmd_len;
-
   jobstate = jstate2string(p->state);
-  if (p->pid != 0 && check_ifsleep(p->pid) == 1) {
-    jobstate = "holdon";
+
+  if (p->state == RUNNING) {
+    if (p->pid == 0) {
+      jobstate = "N/A";
+    } else {
+      if (check_ifsleep(p->pid) == 1) {
+        jobstate = "holdon";
+      }
+    }
   }
   output_filename = ofilename_shown(p);
 

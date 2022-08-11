@@ -487,8 +487,10 @@ void read_user_file(const char *path);
 int get_user_id(int id);
 void c_refresh_user();
 const char *get_user_path();
+const char *set_server_logfile();
 void write_logfile(const struct Job *p);
 int get_env_jobid();
+void debug_write(const char *str);
 
 /* jobs.c */
 void s_user_status_all(int s);

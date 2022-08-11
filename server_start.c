@@ -123,6 +123,10 @@ static int fork_server() {
   case -1: /* Error */
     return -1;
   default: /* Parent */
+    printf("Start tast-spooler server from root[%d]\n", client_uid);
+    printf("  Read user file from %s [TS_USER_PATH]\n", get_user_path());
+    printf("  Write log file to %s [TS_LOGFILE_PATH]\n\n",
+           set_server_logfile());
     close(p[1]);
   }
   /* Return the read fd */

@@ -207,6 +207,7 @@ void server_main(int notify_fd, char *_path) {
 
   set_jobids(get_env_jobid());
   read_user_file(get_user_path());
+  set_server_logfile();
   set_socket_model(_path);
 
   install_sigterm_handler();
@@ -216,7 +217,6 @@ void server_main(int notify_fd, char *_path) {
   initialize_log_dir();
 
   notify_parent(notify_fd);
-
   server_loop(ls);
 }
 
@@ -244,14 +244,17 @@ static void server_loop(int ls) {
       FD_SET(ls, &readset);
       maxfd = ls;
     }
+
     for (i = 0; i < nconnections; ++i) {
       FD_SET(client_cs[i].socket, &readset);
       if (client_cs[i].socket > maxfd)
         maxfd = client_cs[i].socket;
     }
+
     select(maxfd + 1, &readset, NULL, NULL, NULL);
     if (FD_ISSET(ls, &readset)) {
       int cs;
+      // wait the connection
       cs = accept(ls, NULL, NULL);
       if (cs == -1)
         error("Accepting from %i", ls);
@@ -259,6 +262,7 @@ static void server_loop(int ls) {
       client_cs[nconnections].socket = cs;
       ++nconnections;
     }
+
     for (i = 0; i < nconnections; ++i)
       if (FD_ISSET(client_cs[i].socket, &readset)) {
         enum Break b;
@@ -377,14 +381,17 @@ static enum Break client_read(int index) {
     if (m.uid == getuid()) {
       if (m.u.jobid != 0) {
         s_stop_user(s, m.u.jobid);
+        s_user_status_all(s);
       } else {
         s_stop_all_users(s);
+        s_user_status(s, get_user_id(m.u.jobid));
       }
     } else {
-      if (m.uid == m.u.jobid)
+      if (m.uid == m.u.jobid) {
         s_stop_user(s, m.u.jobid);
+        s_user_status(s, get_user_id(m.u.jobid));
+      }
     }
-    s_user_status_all(s);
     close(s);
     remove_connection(index);
     break;
@@ -392,14 +399,17 @@ static enum Break client_read(int index) {
     if (m.uid == getuid()) {
       if (m.u.jobid != 0) {
         s_cont_user(s, m.u.jobid);
+        s_user_status_all(s);
       } else {
         s_cont_all_users(s);
+        s_user_status(s, get_user_id(m.u.jobid));
       }
     } else {
-      if (m.uid == m.u.jobid)
+      if (m.uid == m.u.jobid) {
         s_cont_user(s, m.u.jobid);
+        s_user_status(s, get_user_id(m.u.jobid));
+      }
     }
-    s_user_status_all(s);
     close(s);
     remove_connection(index);
     break;

@@ -671,8 +671,8 @@ void s_removejob(int jobid) {
 /* -1 if no one should be run. */
 int next_run_job() {
   struct Job *p;
-  static int uid = 0;
-  uid = (uid + 1) % user_number;
+  // start from a random sequence
+  int uid = rand() % user_number;
 
   const int free_slots = max_slots - busy_slots;
 
@@ -687,38 +687,44 @@ int next_run_job() {
     return -1;
 
   /* Look for a runnable task */
-  p = firstjob;
-  while (p != 0) {
-    if (p->state == QUEUED) {
-      if (p->depend_on_size) {
-        int ready = 1;
-        for (int i = 0; i < p->depend_on_size; i++) {
-          struct Job *do_depend_job = get_job(p->depend_on[i]);
-          /* We won't try to run any job do_depending on an unfinished
-           * job */
-          if (do_depend_job != NULL && (do_depend_job->state == QUEUED ||
-                                        do_depend_job->state == RUNNING)) {
-            /* Next try */
-            p = p->next;
-            ready = 0;
-            break;
-          }
-        }
-        if (ready != 1)
-          continue;
-      }
-
-      int num_slots = p->num_slots, id = p->user_id;
-      if (id == uid && free_slots >= num_slots &&
-          user_max_slots[id] - user_busy[id] >= num_slots) {
-        busy_slots = busy_slots + num_slots;
-        user_busy[id] += num_slots;
-        user_jobs[id]++;
-        user_queue[id]--;
-        return p->jobid;
-      }
+  for (int i = 0; i < user_number; i++) {
+    uid = (uid + 1) % user_number;
+    if (user_queue[uid] == 0) {
+      continue;
     }
-    p = p->next;
+    p = firstjob;
+    while (p != 0) {
+      if (p->state == QUEUED) {
+        if (p->depend_on_size) {
+          int ready = 1;
+          for (int i = 0; i < p->depend_on_size; i++) {
+            struct Job *do_depend_job = get_job(p->depend_on[i]);
+            /* We won't try to run any job do_depending on an unfinished
+             * job */
+            if (do_depend_job != NULL && (do_depend_job->state == QUEUED ||
+                                          do_depend_job->state == RUNNING)) {
+              /* Next try */
+              p = p->next;
+              ready = 0;
+              break;
+            }
+          }
+          if (ready != 1)
+            continue;
+        }
+
+        int num_slots = p->num_slots, id = p->user_id;
+        if (id == uid && free_slots >= num_slots &&
+            user_max_slots[id] - user_busy[id] >= num_slots) {
+          busy_slots = busy_slots + num_slots;
+          user_busy[id] += num_slots;
+          user_jobs[id]++;
+          user_queue[id]--;
+          return p->jobid;
+        }
+      }
+      p = p->next;
+    }
   }
   return -1;
 }
@@ -1219,7 +1225,8 @@ int s_remove_job(int s, int *jobid, int client_uid) {
     else
       snprintf(tmp, 256, "The job %i cannot be removed.\n", *jobid);
     if (p == firstjob && p->state == RUNNING) {
-      kill(p->pid, SIGTERM);
+      if (p->pid != 0)
+        kill(p->pid, SIGTERM);
       snprintf(tmp, 256, "The first job %i is removed.\n", *jobid);
     }
     if (p != NULL) {
@@ -1234,7 +1241,8 @@ int s_remove_job(int s, int *jobid, int client_uid) {
   }
 
   if (p->state == RUNNING) {
-    kill(p->pid, SIGTERM);
+    if (p->pid != 0)
+      kill(p->pid, SIGTERM);
   }
   /*
   if (p == firstjob) {
