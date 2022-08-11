@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#include <time.h>
 
 #include "main.h"
 #include "user.h"
@@ -71,12 +72,18 @@ char *joblistdump_headers() {
 
 char *joblist_headers() {
   char *line;
+  char extra[100] = "";
+  if (user_locker != -1) {
+    time_t dt = time(NULL) - locker_time;
+    snprintf(extra, 100, "Locked by `%s` for %ld sec.",
+             uid2user_name(user_locker), dt);
+  }
 
-  line = malloc(100);
-  snprintf(line, 100,
-           "%-4s %-7s %-7s %-6s %-10s %6s  %-20s   %s [run=%i/%i %.2f%%]\n",
+  line = malloc(256);
+  snprintf(line, 256,
+           "%-4s %-7s %-7s %-6s %-10s %6s  %-20s   %s [run=%i/%i %.2f%%] %s\n",
            "ID", "State", "Proc.", "User", "Label", "Time", "Command", "Log",
-           busy_slots, max_slots, 100.0 * busy_slots / max_slots);
+           busy_slots, max_slots, 100.0 * busy_slots / max_slots, extra);
 
   return line;
 }

@@ -40,7 +40,7 @@ static int last_errorlevel = 0; /* Before the first job, let's consider
 static int last_finished_jobid;
 
 static struct Notify *first_notify = 0;
-
+static char buff[256];
 /* server will access them */
 int max_jobs;
 
@@ -1033,7 +1033,6 @@ void s_cont_all_users(int s) {
 }
 
 void s_cont_user(int s, int uid) {
-  char buffer[256];
   // get the sequence of user_id
   int user_id = get_user_id(uid);
   if (user_id == -1)
@@ -1052,12 +1051,11 @@ void s_cont_user(int s, int uid) {
     p = p->next;
   }
 
-  snprintf(buffer, 256, "Resume user: [%d] %s\n", uid, user_name[user_id]);
-  send_list_line(s, buffer);
+  snprintf(buff, 256, "Resume user: [%d] %s\n", uid, user_name[user_id]);
+  send_list_line(s, buff);
 }
 
 void s_stop_user(int s, int uid) {
-  char buffer[256];
   // get the sequence of user_id
   int user_id = get_user_id(uid);
   if (user_id == -1)
@@ -1075,16 +1073,16 @@ void s_stop_user(int s, int uid) {
         char *label = "(...)";
         if (p->label != NULL)
           label = p->label;
-        snprintf(buffer, 256, "Error in stop %s [%d] %s | %s\n",
+        snprintf(buff, 256, "Error in stop %s [%d] %s | %s\n",
                  user_name[user_id], p->jobid, label, p->command);
-        send_list_line(s, buffer);
+        send_list_line(s, buff);
       }
     }
     p = p->next;
   }
 
-  snprintf(buffer, 256, "Lock user: [%d] %s\n", uid, user_name[user_id]);
-  send_list_line(s, buffer);
+  snprintf(buff, 256, "Lock user: [%d] %s\n", uid, user_name[user_id]);
+  send_list_line(s, buff);
 }
 
 void s_send_output(int s, int jobid) {
@@ -1218,25 +1216,23 @@ int s_remove_job(int s, int *jobid, int client_uid) {
 
   if (p == NULL || p == firstjob || (user_UID[p->user_id] != client_uid)) {
 
-    char tmp[256];
-
     if (*jobid == -1)
-      snprintf(tmp, 256, "The last job cannot be removed.\n");
+      snprintf(buff, 256, "The last job cannot be removed.\n");
     else
-      snprintf(tmp, 256, "The job %i cannot be removed.\n", *jobid);
+      snprintf(buff, 256, "The job %i cannot be removed.\n", *jobid);
     if (p == firstjob && p->state == RUNNING) {
       if (p->pid != 0)
         kill(p->pid, SIGTERM);
-      snprintf(tmp, 256, "The first job %i is removed.\n", *jobid);
+      snprintf(buff, 256, "The first job %i is removed.\n", *jobid);
     }
     if (p != NULL) {
       int id = p->user_id;
       if (user_UID[id] != client_uid) {
-        snprintf(tmp, 256, "The job %i belongs to user:%s not uid:%d.\n",
+        snprintf(buff, 256, "The job %i belongs to user:%s not uid:%d.\n",
                  *jobid, user_name[id], client_uid);
       }
     }
-    send_list_line(s, tmp);
+    send_list_line(s, buff);
     return 0;
   }
 
@@ -1322,9 +1318,92 @@ static struct Job *get_job(int jobid) {
   return 0;
 }
 
+int s_check_locker(int s, int uid) {
+  int dt = time(NULL) - locker_time;
+  int res;
+
+  if (user_locker != 0 && dt > 30) {
+    user_locker = -1;
+  }
+
+  if (user_locker == -1) {
+    res = 0;
+  } else {
+    if (user_locker == uid) {
+      res = 0;
+    } else {
+      res = 1;
+    }
+  }
+
+  return res;
+}
+
+void s_lock_server(int s, int uid) {
+  if (uid == 0) {
+    user_locker = 0;
+    locker_time = time(NULL);
+    snprintf(buff, 256, "lock the task-spooler server by Root\n");
+  } else {
+    if (user_locker == -1) {
+      int user_id = get_user_id(uid);
+      if (user_id != -1) {
+        user_locker = uid;
+        locker_time = time(NULL);
+        snprintf(buff, 256, "lock the task-spooler server by `%s`\n",
+                 user_name[user_id]);
+      } else {
+        snprintf(buff, 256,
+                 "Error: cannot lock the task-spooler server by UID: [%d]\n",
+                 uid);
+      }
+    } else {
+      if (user_locker == uid) {
+        snprintf(buff, 256,
+                 "The task-spooler server has already been locked by `%s`\n",
+                 uid2user_name(uid));
+      } else {
+        snprintf(buff, 256,
+                 "Error: the task-spooler server cannot be locked by `%s`\n",
+                 uid2user_name(uid));
+      }
+    }
+  }
+  send_list_line(s, buff);
+}
+
+void s_unlock_server(int s, int uid) {
+  if (uid == 0) {
+    user_locker = -1;
+    snprintf(buff, 256, "Unlock the task-spooler server by Root\n");
+  } else {
+    if (user_locker == uid) {
+      int user_id = get_user_id(uid);
+      if (user_id != -1) {
+        user_locker = -1;
+        snprintf(buff, 256, "Unlock the task-spooler server by `%s`\n",
+                 user_name[user_id]);
+      } else {
+        snprintf(buff, 256,
+                 "Error: cannot lock the task-spooler server by UID: [%d]\n",
+                 uid);
+      }
+    } else {
+      if (user_locker == -1) {
+        snprintf(buff, 256,
+                 "The task-spooler server has already been unlocked\n");
+      } else {
+        snprintf(buff, 256,
+                 "Error: the task-spooler server cannot be unlocked by `%s`\n",
+                 uid2user_name(uid));
+      }
+    }
+  }
+  send_list_line(s, buff);
+}
+
 void s_hold_job(int s, int jobid, int uid) {
   struct Job *p;
-  char buff[256];
   p = findjob(jobid);
   if (p == 0) {
     snprintf(buff, 256, "Error: cannot find job [%d]\n", jobid);
@@ -1345,7 +1424,6 @@ void s_hold_job(int s, int jobid, int uid) {
 
 void s_restart_job(int s, int jobid, int uid) {
   struct Job *p;
-  char buff[256];
 
   p = findjob(jobid);
   if (p == 0) {

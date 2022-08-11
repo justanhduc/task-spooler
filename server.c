@@ -377,6 +377,16 @@ static enum Break client_read(int index) {
     close(s);
     remove_connection(index);
     break;
+  case LOCK_SERVER:
+    s_lock_server(s, m.uid);
+    close(s);
+    remove_connection(index);
+    break;
+  case UNLOCK_SERVER:
+    s_unlock_server(s, m.uid);
+    close(s);
+    remove_connection(index);
+    break;
   case HOLD_JOB:
     s_hold_job(s, m.u.jobid, m.uid);
     close(s);
@@ -429,6 +439,9 @@ static enum Break client_read(int index) {
     break;
   case NEWJOB:
     if (user_id == -1) {
+      break;
+    }
+    if (s_check_locker(s, m.uid)) {
       break;
     }
     client_cs[index].jobid = s_newjob(s, &m);

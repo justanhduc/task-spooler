@@ -136,6 +136,17 @@ void read_user_file(const char *path) {
     free(line);
 }
 
+const char *uid2user_name(int uid) {
+  if (uid == 0)
+    return "Root";
+  int user_id = get_user_id(uid);
+  if (user_id != -1) {
+    return user_name[user_id];
+  } else {
+    return "Unknown";
+  }
+}
+
 void s_user_status_all(int s) {
   char buffer[256];
   char *extra;

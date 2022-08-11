@@ -520,6 +520,10 @@ static void print_help(const char *cmd) {
          "texts.\n");
   printf("  --hold_job [jobid]              hold on a task.\n");
   printf("  --restart_job [jobid]           restart a task.\n");
+  printf("  --lock                          Locker the server (Timeout: 30 "
+         "sec.)git "
+         "For Root, timeout is infinity.\n");
+  printf("  --unlock                        Unlocker the server.\n");
   printf("  --stop [user]                   For normal user, pause all "
          "tasks and lock the account. \n                                "
          "  For root, to lock all users or single [user].\n");
@@ -603,7 +607,7 @@ static void get_terminal_width() {
 
 int main(int argc, char **argv) {
   int errorlevel = 0;
-  usr_locker = -1;
+  user_locker = -1;
   client_uid = getuid();
   // printf("client_uid = %u\n", client_uid);
 
@@ -646,12 +650,10 @@ int main(int argc, char **argv) {
 
     break;
   case c_LOCK_SERVER:
-    c_lock_server();
-    c_wait_server_lines();
+    errorlevel = c_lock_server();
     break;
   case c_UNLOCK_SERVER:
-    c_unlock_server();
-    c_wait_server_lines();
+    errorlevel = c_unlock_server();
     break;
   case c_STOP_USER: {
     int stop_uid = client_uid;

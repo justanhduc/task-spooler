@@ -155,10 +155,10 @@ int c_wait_server_commands() {
   return -1;
 }
 
-void c_wait_server_lines() {
+static int wait_server_lines_and_check(const char *pre_str) {
   struct Msg m = default_msg();
   int res;
-
+  int error_sig = 0;
   while (1) {
     res = recv_msg(server_socket, &m);
     if (res == -1)
@@ -172,11 +172,17 @@ void c_wait_server_lines() {
       char *buffer;
       buffer = (char *)malloc(m.u.size);
       recv_bytes(server_socket, buffer, m.u.size);
+      if (strncmp(buffer, pre_str, strlen(pre_str)) == 0) {
+        error_sig++;
+      }
       printf("%s", buffer);
       free(buffer);
     }
   }
+  return error_sig;
 }
+
+void c_wait_server_lines() { wait_server_lines_and_check(""); }
 
 void c_list_jobs() {
   struct Msg m = default_msg();
@@ -275,16 +281,20 @@ void c_refresh_user() {
   send_msg(server_socket, &m);
 }
 
-void c_lock_server() {
+int c_lock_server() {
   struct Msg m = default_msg();
   m.type = LOCK_SERVER;
   send_msg(server_socket, &m);
+  int error_sig = wait_server_lines_and_check("Error:");
+  return error_sig;
 }
 
-void c_unlock_server() {
+int c_unlock_server() {
   struct Msg m = default_msg();
   m.type = UNLOCK_SERVER;
   send_msg(server_socket, &m);
+  int error_sig = wait_server_lines_and_check("Error:");
+  return error_sig;
 }
 
 void c_hold_job(int jobid) {
