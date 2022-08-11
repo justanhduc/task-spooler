@@ -118,10 +118,13 @@ void read_user_file(const char *path) {
 
 void s_user_status_all(int s) {
   char buffer[256];
-  send_list_line(s, "\n");
+  char *extra;
+  send_list_line(s, "-- Users ----------- \n");
   for (size_t i = 0; i < user_number; i++) {
-    snprintf(buffer, 256, "[%04d] %3d/%d %20s %d\n", user_UID[i], user_busy[i],
-             user_max_slots[i], user_name[i], user_jobs[user_number]);
+    extra = user_max_slots[i] < 0 ? "Locked" : "";
+    snprintf(buffer, 256, "[%04d] %3d/%-4d %20s Run. %2d %s\n", user_UID[i],
+             user_busy[i], abs(user_max_slots[i]), user_name[i], user_jobs[i],
+             extra);
     send_list_line(s, buffer);
   }
   snprintf(buffer, 256, "Service at UID:%d\n", server_uid);
@@ -130,8 +133,12 @@ void s_user_status_all(int s) {
 
 void s_user_status(int s, int i) {
   char buffer[256];
-  snprintf(buffer, 256, "[%04d] %3d/%d %20s %d\n", user_UID[i], user_busy[i],
-           user_max_slots[i], user_name[i], user_jobs[user_number]);
+  char *extra = "";
+  if (user_max_slots[i] < 0)
+    extra = "Locked";
+  snprintf(buffer, 256, "[%04d] %3d/%-4d %20s Run. %2d %s\n", user_UID[i],
+           user_busy[i], abs(user_max_slots[i]), user_name[i], user_jobs[i],
+           extra);
   send_list_line(s, buffer);
 }
 

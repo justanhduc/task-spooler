@@ -371,6 +371,37 @@ static enum Break client_read(int index) {
       s_refresh_users(s);
     }
     close(s);
+    remove_connection(index);
+    break;
+  case STOP_USER:
+    if (m.uid == getuid()) {
+      if (m.u.jobid != 0) {
+        s_stop_user(s, m.u.jobid);
+      } else {
+        s_stop_all_users(s);
+      }
+    } else {
+      if (m.uid == m.u.jobid)
+        s_stop_user(s, m.u.jobid);
+    }
+    s_user_status_all(s);
+    close(s);
+    remove_connection(index);
+    break;
+  case CONT_USER:
+    if (m.uid == getuid()) {
+      if (m.u.jobid != 0) {
+        s_cont_user(s, m.u.jobid);
+      } else {
+        s_cont_all_users(s);
+      }
+    } else {
+      if (m.uid == m.u.jobid)
+        s_cont_user(s, m.u.jobid);
+    }
+    s_user_status_all(s);
+    close(s);
+    remove_connection(index);
     break;
   case KILL_SERVER:
     if (m.uid == getuid())

@@ -1014,6 +1014,73 @@ void s_refresh_users(int s) {
   send_list_line(s, "refresh the list success!\n");
 }
 
+void s_stop_all_users(int s) {
+  for (int i = 0; i < user_number; i++) {
+    s_stop_user(s, user_UID[i]);
+  }
+}
+
+void s_cont_all_users(int s) {
+  for (int i = 0; i < user_number; i++) {
+    s_cont_user(s, user_UID[i]);
+  }
+}
+
+void s_cont_user(int s, int uid) {
+  char buffer[256];
+  // get the sequence of user_id
+  int user_id = get_user_id(uid);
+  if (user_id == -1)
+    return;
+
+  user_max_slots[user_id] = abs(user_max_slots[user_id]);
+
+  struct Job *p = firstjob;
+  while (p != NULL) {
+    if (p->user_id == user_id && p->state == RUNNING) {
+      // p->state = HOLDING_CLIENT;
+      if (p->pid != 0) {
+        kill(p->pid, SIGCONT);
+      }
+    }
+    p = p->next;
+  }
+
+  snprintf(buffer, 256, "Resume user: [%d] %s\n", uid, user_name[user_id]);
+  send_list_line(s, buffer);
+}
+
+void s_stop_user(int s, int uid) {
+  char buffer[256];
+  // get the sequence of user_id
+  int user_id = get_user_id(uid);
+  if (user_id == -1)
+    return;
+
+  user_max_slots[user_id] = -abs(user_max_slots[user_id]);
+
+  struct Job *p = firstjob;
+  while (p != NULL) {
+    if (p->user_id == user_id && p->state == RUNNING) {
+      // p->state = HOLDING_CLIENT;
+      if (p->pid != 0) {
+        kill(p->pid, SIGSTOP);
+      } else {
+        char *label = "(...)";
+        if (p->label != NULL)
+          label = p->label;
+        snprintf(buffer, 256, "Error in stop %s [%d] %s | %s\n",
+                 user_name[user_id], p->jobid, label, p->command);
+        send_list_line(s, buffer);
+      }
+    }
+    p = p->next;
+  }
+
+  snprintf(buffer, 256, "Lock user: [%d] %s\n", uid, user_name[user_id]);
+  send_list_line(s, buffer);
+}
+
 void s_send_output(int s, int jobid) {
   struct Job *p = 0;
   struct Msg m = default_msg();

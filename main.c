@@ -12,6 +12,7 @@
 #define _TS_MAKE_STR(x) #x
 
 #include <getopt.h>
+#include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -122,7 +123,7 @@ int strtok_int(char *str, char *delim, int *ids) {
 }
 
 static struct option longOptions[] = {
-    {"get_label", optional_argument, NULL, 'a'},
+    {"get_label", required_argument, NULL, 'a'},
     {"count_running", no_argument, NULL, 'R'},
     {"last_queue_id", no_argument, NULL, 'q'},
     {"full_cmd", optional_argument, NULL, 'F'},
@@ -132,6 +133,8 @@ static struct option longOptions[] = {
     {"getenv", required_argument, NULL, 0},
     {"setenv", required_argument, NULL, 0},
     {"unsetenv", required_argument, NULL, 0},
+    {"stop", optional_argument, NULL, 0},
+    {"cont", optional_argument, NULL, 0},
     {NULL, 0, NULL, 0}};
 
 void parse_opts(int argc, char **argv) {
@@ -155,6 +158,15 @@ void parse_opts(int argc, char **argv) {
       } else if (strcmp(longOptions[optionIdx].name, "set_logdir") == 0) {
         command_line.request = c_SET_LOGDIR;
         command_line.label = optarg; /* reuse this variable */
+      } else if (strcmp(longOptions[optionIdx].name, "get_label") == 0) {
+        command_line.request = c_GET_LABEL;
+        command_line.jobid = atoi(optarg);
+      } else if (strcmp(longOptions[optionIdx].name, "stop") == 0) {
+        command_line.request = c_STOP_USER;
+        command_line.label = optarg; /* reuse this var */
+      } else if (strcmp(longOptions[optionIdx].name, "cont") == 0) {
+        command_line.request = c_CONT_USER;
+        command_line.label = optarg; /* reuse this var */
       } else if (strcmp(longOptions[optionIdx].name, "getenv") == 0) {
         command_line.request = c_GET_ENV;
         command_line.label = optarg; /* reuse this var */
@@ -596,6 +608,44 @@ int main(int argc, char **argv) {
     }
 
     break;
+  case c_STOP_USER: {
+    int stop_uid = client_uid;
+    if (command_line.label != NULL) {
+      if (client_uid == 0) {
+        struct passwd *pwd = getpwnam(command_line.label);
+        if (pwd == NULL) {
+          printf("Error: Cannot find user: %s to stop\n", command_line.label);
+          return -1;
+        }
+        stop_uid = pwd->pw_uid;
+      } else {
+        printf("Error: Cannot stop the user %s\n", command_line.label);
+        return -1;
+      }
+    }
+    printf("Stop user ID: %d\n", stop_uid);
+    c_stop_user(stop_uid);
+    c_wait_server_lines();
+  } break;
+  case c_CONT_USER: {
+    int cont_uid = client_uid;
+    if (command_line.label != NULL) {
+      if (client_uid == 0) {
+        struct passwd *pwd = getpwnam(command_line.label);
+        if (pwd == NULL) {
+          printf("Error: Cannot find user: %s to resume\n", command_line.label);
+          return -1;
+        }
+        cont_uid = pwd->pw_uid;
+      } else {
+        printf("Error: Cannot resume the user %s\n", command_line.label);
+        return -1;
+      }
+    }
+    printf("Resume user ID: %d\n", cont_uid);
+    c_cont_user(cont_uid);
+    c_wait_server_lines();
+  } break;
   case c_SHOW_VERSION:
     print_version();
     break;

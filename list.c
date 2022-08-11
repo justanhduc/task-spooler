@@ -17,6 +17,31 @@
 extern int busy_slots;
 extern int max_slots;
 
+static int check_ifsleep(int pid) {
+  char filename[256];
+  char name[256];
+  char status = '\0';
+  FILE *fp = NULL;
+  snprintf(filename, 256, "/proc/%d/stat", pid);
+
+  fp = fopen(filename, "r");
+  if (fp == NULL) {
+    fprintf(stderr, "Error: Couldn't open [%s]\n", filename);
+    return -1;
+  }
+  int token = fscanf(fp, "%d %s %c", &pid, name, &status);
+  if (token < 3) {
+    return -1;
+  }
+  fclose(fp);
+
+  if (status == 'T') {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
 static char *shorten(char *line, int len) {
   char *newline = (char *)malloc((len + 1) * sizeof(char));
   if (strlen(line) <= len)
@@ -91,6 +116,9 @@ static char *print_noresult(const struct Job *p) {
   int cmd_len;
 
   jobstate = jstate2string(p->state);
+  if (p->pid != 0 && check_ifsleep(p->pid) == 1) {
+    jobstate = "holdon";
+  }
   output_filename = ofilename_shown(p);
 
   char *uname = user_name[p->user_id];
@@ -123,7 +151,7 @@ static char *print_noresult(const struct Job *p) {
   struct timeval endtv;
   float real_ms;
   char *unit;
-  if (p->state == QUEUED) {
+  if (p->state == QUEUED || p->pid == 0) {
     real_ms = 0;
     unit = " ";
   } else {
@@ -141,8 +169,9 @@ static char *print_noresult(const struct Job *p) {
   char *cmd = shorten(p->command, cmd_len);
   if (p->label) {
     char *label = shorten(p->label, 10);
-    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-20s | %s\n",
-             p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
+    snprintf(line, maxlen,
+             "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-20s %d | %s\n", p->jobid,
+             jobstate, p->num_slots, uname, label, real_ms, unit, cmd, p->pid,
              output_filename);
     free(label);
     free(cmd);

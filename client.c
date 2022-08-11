@@ -271,9 +271,23 @@ void c_show_info() {
 
 void c_refresh_user() {
   struct Msg m = default_msg();
-  // int res;
-
   m.type = REFRESH_USERS;
+  send_msg(server_socket, &m);
+}
+
+void c_stop_user(int uid) {
+  struct Msg m = default_msg();
+  // int res;
+  m.type = STOP_USER;
+  m.u.jobid = uid;
+  send_msg(server_socket, &m);
+}
+
+void c_cont_user(int uid) {
+  struct Msg m = default_msg();
+  // int res;
+  m.type = CONT_USER;
+  m.u.jobid = uid;
   send_msg(server_socket, &m);
 }
 

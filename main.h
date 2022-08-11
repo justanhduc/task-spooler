@@ -17,6 +17,8 @@ enum MsgTypes {
   LIST_ALL,
   LIST_LINE,
   REFRESH_USERS,
+  STOP_USER,
+  CONT_USER,
   CLEAR_FINISHED,
   ASK_OUTPUT,
   ANSWER_OUTPUT,
@@ -58,6 +60,8 @@ enum Request {
   c_LIST,
   c_LIST_ALL,
   c_REFRESH_USER,
+  c_STOP_USER,
+  c_CONT_USER,
   c_CLEAR_FINISHED,
   c_SHOW_HELP,
   c_SHOW_VERSION,
@@ -491,8 +495,14 @@ void s_user_status_all(int s);
 void s_user_status(int s, int i);
 void s_refresh_users(int s);
 int s_get_job_uid(int jobid);
+void s_stop_all_users(int s);
+void s_stop_user(int s, int uid);
+void s_cont_user(int s, int uid);
+void s_cont_all_users(int s);
 
 void set_jobids(int i);
 
 /* client.c */
 void c_list_jobs_all();
+void c_stop_user(int uid);
+void c_cont_user(int uid);
