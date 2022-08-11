@@ -1,5 +1,6 @@
 
 #define _GNU_SOURCE
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,6 +34,15 @@ int get_env_jobid() {
       i = 1000;
     return i;
   }
+}
+
+long str2int(const char *str) {
+  long i;
+  if (sscanf(str, "%ld", &i) == 0) {
+    printf("Error in convert %s to number\n", str);
+    exit(-1);
+  }
+  return i;
 }
 
 const char *set_server_logfile() {

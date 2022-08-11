@@ -1322,6 +1322,48 @@ static struct Job *get_job(int jobid) {
   return 0;
 }
 
+void s_hold_job(int s, int jobid, int uid) {
+  struct Job *p;
+  char buff[256];
+  p = findjob(jobid);
+  if (p == 0) {
+    snprintf(buff, 256, "Error: cannot find job [%d]\n", jobid);
+    send_list_line(s, buff);
+    return;
+  }
+
+  int job_UID = user_UID[p->user_id];
+  if (p->pid != 0 && (job_UID = uid || uid == 0)) {
+    kill(p->pid, SIGSTOP);
+    snprintf(buff, 256, "Hold on job [%d] successfully!\n", jobid);
+
+  } else {
+    snprintf(buff, 256, "Error: cannot hold on job [%d]\n", jobid);
+  }
+  send_list_line(s, buff);
+}
+
+void s_restart_job(int s, int jobid, int uid) {
+  struct Job *p;
+  char buff[256];
+
+  p = findjob(jobid);
+  if (p == 0) {
+    snprintf(buff, 256, "Error: cannot find job [%d]\n", jobid);
+    send_list_line(s, buff);
+
+    return;
+  }
+
+  int job_UID = user_UID[p->user_id];
+  if (p->pid != 0 && (job_UID = uid || uid == 0)) {
+    kill(p->pid, SIGCONT);
+    snprintf(buff, 256, "Restart job [%d] successfully!\n", jobid);
+  } else {
+    snprintf(buff, 256, "Error: cannot hold on job [%d]\n", jobid);
+  }
+  send_list_line(s, buff);
+}
 /* Don't complain, if the socket doesn't exist */
 void s_remove_notification(int s) {
   struct Notify *n;

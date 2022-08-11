@@ -377,6 +377,16 @@ static enum Break client_read(int index) {
     close(s);
     remove_connection(index);
     break;
+  case HOLD_JOB:
+    s_hold_job(s, m.u.jobid, m.uid);
+    close(s);
+    remove_connection(index);
+    break;
+  case RESTART_JOB:
+    s_restart_job(s, m.u.jobid, m.uid);
+    close(s);
+    remove_connection(index);
+    break;
   case STOP_USER:
     if (m.uid == getuid()) {
       if (m.u.jobid != 0) {

@@ -275,6 +275,32 @@ void c_refresh_user() {
   send_msg(server_socket, &m);
 }
 
+void c_lock_server() {
+  struct Msg m = default_msg();
+  m.type = LOCK_SERVER;
+  send_msg(server_socket, &m);
+}
+
+void c_unlock_server() {
+  struct Msg m = default_msg();
+  m.type = UNLOCK_SERVER;
+  send_msg(server_socket, &m);
+}
+
+void c_hold_job(int jobid) {
+  struct Msg m = default_msg();
+  m.type = HOLD_JOB;
+  m.u.jobid = jobid;
+  send_msg(server_socket, &m);
+}
+
+void c_restart_job(int jobid) {
+  struct Msg m = default_msg();
+  m.type = RESTART_JOB;
+  m.u.jobid = jobid;
+  send_msg(server_socket, &m);
+}
+
 void c_stop_user(int uid) {
   struct Msg m = default_msg();
   // int res;

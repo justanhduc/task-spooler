@@ -125,6 +125,7 @@ int strtok_int(char *str, char *delim, int *ids) {
 static struct option longOptions[] = {
     {"get_label", required_argument, NULL, 'a'},
     {"count_running", no_argument, NULL, 'R'},
+    {"help", no_argument, NULL, 0},
     {"last_queue_id", no_argument, NULL, 'q'},
     {"full_cmd", optional_argument, NULL, 'F'},
     {"plain", no_argument, NULL, 0},
@@ -135,6 +136,10 @@ static struct option longOptions[] = {
     {"unsetenv", required_argument, NULL, 0},
     {"stop", optional_argument, NULL, 0},
     {"cont", optional_argument, NULL, 0},
+    {"hold", required_argument, NULL, 0},
+    {"restart", required_argument, NULL, 0},
+    {"lock-ts", no_argument, NULL, 0},
+    {"unlock-ts", no_argument, NULL, 0},
     {NULL, 0, NULL, 0}};
 
 void parse_opts(int argc, char **argv) {
@@ -158,9 +163,21 @@ void parse_opts(int argc, char **argv) {
       } else if (strcmp(longOptions[optionIdx].name, "set_logdir") == 0) {
         command_line.request = c_SET_LOGDIR;
         command_line.label = optarg; /* reuse this variable */
+      } else if (strcmp(longOptions[optionIdx].name, "help") == 0) {
+        command_line.request = c_SHOW_HELP;
       } else if (strcmp(longOptions[optionIdx].name, "get_label") == 0) {
         command_line.request = c_GET_LABEL;
-        command_line.jobid = atoi(optarg);
+        command_line.jobid = str2int(optarg);
+      } else if (strcmp(longOptions[optionIdx].name, "hold") == 0) {
+        command_line.request = c_HOLD_JOB;
+        command_line.jobid = str2int(optarg);
+      } else if (strcmp(longOptions[optionIdx].name, "restart") == 0) {
+        command_line.request = c_RESTART_JOB;
+        command_line.jobid = str2int(optarg);
+      } else if (strcmp(longOptions[optionIdx].name, "lock-ts") == 0) {
+        command_line.request = c_LOCK_SERVER;
+      } else if (strcmp(longOptions[optionIdx].name, "unlock-ts") == 0) {
+        command_line.request = c_UNLOCK_SERVER;
       } else if (strcmp(longOptions[optionIdx].name, "stop") == 0) {
         command_line.request = c_STOP_USER;
         command_line.label = optarg; /* reuse this var */
@@ -194,7 +211,7 @@ void parse_opts(int argc, char **argv) {
       break;
     case 'k':
       command_line.request = c_KILL_JOB;
-      command_line.jobid = atoi(optarg);
+      command_line.jobid = str2int(optarg);
       break;
     case 'l':
       command_line.request = c_LIST;
@@ -218,11 +235,11 @@ void parse_opts(int argc, char **argv) {
       break;
     case 'c':
       command_line.request = c_CAT;
-      command_line.jobid = atoi(optarg);
+      command_line.jobid = str2int(optarg);
       break;
     case 'o':
       command_line.request = c_SHOW_OUTPUT_FILE;
-      command_line.jobid = atoi(optarg);
+      command_line.jobid = str2int(optarg);
       break;
     case 'O':
       command_line.logfile = optarg;
@@ -244,51 +261,51 @@ void parse_opts(int argc, char **argv) {
       break;
     case 't':
       command_line.request = c_TAIL;
-      command_line.jobid = atoi(optarg);
+      command_line.jobid = str2int(optarg);
       break;
     case 'p':
       command_line.request = c_SHOW_PID;
-      command_line.jobid = atoi(optarg);
+      command_line.jobid = str2int(optarg);
       break;
     case 'i':
       command_line.request = c_INFO;
-      command_line.jobid = atoi(optarg);
+      command_line.jobid = str2int(optarg);
       break;
     case 'q':
       command_line.request = c_LAST_ID;
       break;
     case 'a':
       command_line.request = c_GET_LABEL;
-      command_line.jobid = atoi(optarg);
+      command_line.jobid = str2int(optarg);
       break;
     case 'F':
       command_line.request = c_SHOW_CMD;
-      command_line.jobid = atoi(optarg);
+      command_line.jobid = str2int(optarg);
       break;
     case 'N':
-      command_line.num_slots = atoi(optarg);
+      command_line.num_slots = str2int(optarg);
       if (command_line.num_slots < 0)
         command_line.num_slots = 0;
       break;
     case 'r':
       command_line.request = c_REMOVEJOB;
-      command_line.jobid = atoi(optarg);
+      command_line.jobid = str2int(optarg);
       break;
     case 'w':
       command_line.request = c_WAITJOB;
-      command_line.jobid = atoi(optarg);
+      command_line.jobid = str2int(optarg);
       break;
     case 'u':
       command_line.request = c_URGENT;
-      command_line.jobid = atoi(optarg);
+      command_line.jobid = str2int(optarg);
       break;
     case 's':
       command_line.request = c_GET_STATE;
-      command_line.jobid = atoi(optarg);
+      command_line.jobid = str2int(optarg);
       break;
     case 'S':
       command_line.request = c_SET_MAX_SLOTS;
-      command_line.max_slots = atoi(optarg);
+      command_line.max_slots = str2int(optarg);
       if (command_line.max_slots < 1) {
         fprintf(stderr, "You should set at minimum 1 slot.\n");
         exit(-1);
@@ -501,6 +518,15 @@ static void print_help(const char *cmd) {
       "  --set_logdir [path]             set the path containing log files.\n");
   printf("  --plain                         list jobs in plain tab-separated "
          "texts.\n");
+  printf("  --hold_job [jobid]              hold on a task.\n");
+  printf("  --restart_job [jobid]           restart a task.\n");
+  printf("  --stop [user]                   For normal user, pause all "
+         "tasks and lock the account. \n                                "
+         "  For root, to lock all users or single [user].\n");
+  printf("  --cont [user]                   For normal user, continue all "
+         "paused tasks and lock the account. \n                         "
+         "         For root, to unlock all users or single [user].\n");
+
   printf("Actions:\n");
   printf("  -A           Show all users information\n");
   printf("  -X           Refresh the user configuration (only available for "
@@ -532,7 +558,7 @@ static void print_help(const char *cmd) {
   printf(
       "  -u [id]      put that job first. The last added, if not specified.\n");
   printf("  -U <id-id>   swap two jobs in the queue.\n");
-  printf("  -h           show this help\n");
+  printf("  -h | --help  show this help\n");
   printf("  -V           show the program version\n");
   printf("Options adding jobs:\n");
   printf("  -B           in case of full clients on the server, quit instead "
@@ -577,6 +603,7 @@ static void get_terminal_width() {
 
 int main(int argc, char **argv) {
   int errorlevel = 0;
+  usr_locker = -1;
   client_uid = getuid();
   // printf("client_uid = %u\n", client_uid);
 
@@ -607,6 +634,24 @@ int main(int argc, char **argv) {
       printf("Only the root can shutdown the task-spooler server\n");
     }
 
+    break;
+  case c_HOLD_JOB:
+    c_hold_job(command_line.jobid);
+    c_wait_server_lines();
+
+    break;
+  case c_RESTART_JOB:
+    c_restart_job(command_line.jobid);
+    c_wait_server_lines();
+
+    break;
+  case c_LOCK_SERVER:
+    c_lock_server();
+    c_wait_server_lines();
+    break;
+  case c_UNLOCK_SERVER:
+    c_unlock_server();
+    c_wait_server_lines();
     break;
   case c_STOP_USER: {
     int stop_uid = client_uid;

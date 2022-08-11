@@ -17,6 +17,10 @@ enum MsgTypes {
   LIST_ALL,
   LIST_LINE,
   REFRESH_USERS,
+  HOLD_JOB,
+  RESTART_JOB,
+  LOCK_SERVER,
+  UNLOCK_SERVER,
   STOP_USER,
   CONT_USER,
   CLEAR_FINISHED,
@@ -62,6 +66,10 @@ enum Request {
   c_REFRESH_USER,
   c_STOP_USER,
   c_CONT_USER,
+  c_LOCK_SERVER,
+  c_UNLOCK_SERVER,
+  c_HOLD_JOB,
+  c_RESTART_JOB,
   c_CLEAR_FINISHED,
   c_SHOW_HELP,
   c_SHOW_VERSION,
@@ -490,7 +498,9 @@ const char *get_user_path();
 const char *set_server_logfile();
 void write_logfile(const struct Job *p);
 int get_env_jobid();
+long str2int(const char *str);
 void debug_write(const char *str);
+int usr_locker;
 
 /* jobs.c */
 void s_user_status_all(int s);
@@ -501,6 +511,8 @@ void s_stop_all_users(int s);
 void s_stop_user(int s, int uid);
 void s_cont_user(int s, int uid);
 void s_cont_all_users(int s);
+void s_hold_job(int s, int jobid, int uid);
+void s_restart_job(int s, int jobid, int uid);
 
 void set_jobids(int i);
 
@@ -508,3 +520,7 @@ void set_jobids(int i);
 void c_list_jobs_all();
 void c_stop_user(int uid);
 void c_cont_user(int uid);
+void c_hold_job(int jobid);
+void c_lock_server();
+void c_unlock_server();
+void c_restart_job(int jobid);
