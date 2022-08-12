@@ -205,7 +205,9 @@ void server_main(int notify_fd, char *_path) {
     user_queue[i] = 0;
   }
 
-  set_jobids(get_env_jobid());
+  s_set_jobids(get_env("TS_FIRST_JOBID", 1000));
+  jobsort_flag = get_env("TS_SORTJOBS", 0);
+
   read_user_file(get_user_path());
   set_server_logfile();
   set_socket_model(_path);
@@ -516,6 +518,10 @@ static enum Break client_read(int index) {
   case CLEAR_FINISHED:
     if (user_id != -1)
       s_clear_finished(user_id);
+    if (m.uid == 0) {
+      // clear all finished by all users
+      s_clear_finished(-100);
+    }
     break;
   case ASK_OUTPUT:
     s_send_output(s, m.u.jobid);
@@ -553,6 +559,10 @@ static enum Break client_read(int index) {
     if (m.uid == 0 || m.uid == s_get_job_uid(m.u.jobid)) {
       s_move_urgent(s, m.u.jobid);
     }
+    if (jobsort_flag)
+      s_sort_jobs();
+    close(s);
+    remove_connection(index);
     break;
   case SET_MAX_SLOTS:
     if (m.uid == 0)
@@ -571,6 +581,8 @@ static enum Break client_read(int index) {
         s_swap_jobs(s, m.u.swap.jobid1, m.u.swap.jobid2);
       }
     }
+    if (jobsort_flag)
+      s_sort_jobs();
     close(s);
     remove_connection(index);
     break;

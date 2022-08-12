@@ -182,16 +182,15 @@ static char *print_noresult(const struct Job *p) {
   char *cmd = shorten(p->command, cmd_len);
   if (p->label) {
     char *label = shorten(p->label, 10);
-    snprintf(line, maxlen,
-             "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-20s %d | %s\n", p->jobid,
-             jobstate, p->num_slots, uname, label, real_ms, unit, cmd, p->pid,
+    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-20s | %s\n",
+             p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
              output_filename);
     free(label);
     free(cmd);
   } else {
     char *cmd = shorten(p->command, cmd_len);
     char *label = "(..)";
-    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-20s | %s\n",
+    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-20s| %s\n",
              p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
              output_filename);
     free(cmd);

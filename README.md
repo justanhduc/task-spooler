@@ -125,6 +125,7 @@ Duc Nguyen took the project and develops a GPU-support version.
 See below or `man ts` for more details.
 
 ```
+usage: ts [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]
 Env vars:
   TS_SOCKET  the path to the unix socket used by the ts command.
   TS_MAILTO  where to mail the result (on -m). Local user by default.
@@ -136,7 +137,8 @@ Env vars:
   TS_SLOTS   amount of jobs which can run at once, read on server start.
   TS_USER_PATH  path to the user configuration file, read on server starts.
   TS_LOGFILE_PATH  path to the job log file, read on server starts
-  TS_JOBID  The first job ID (default: 1000), read on server starts.
+  TS_FIRST_JOBID  The first job ID (default: 1000), read on server starts.
+  TS_SORTJOBS  Switch to control the job sequence sort, read on server starts.
   TMPDIR     directory where to place the output files and the default socket.
 Long option actions:
   --getenv   [var]                get the value of the specified variable in server environment.
@@ -151,7 +153,7 @@ Long option actions:
   --plain                         list jobs in plain tab-separated texts.
   --hold_job [jobid]              hold on a task.
   --restart_job [jobid]           restart a task.
-  --lock                          Locker the server (Timeout: 30 sec.). For Root, timeout is infinity.
+  --lock                          Locker the server (Timeout: 30 sec.)git For Root, timeout is infinity.
   --unlock                        Unlocker the server.
   --stop [user]                   For normal user, pause all tasks and lock the account.
                                   For root, to lock all users or single [user].

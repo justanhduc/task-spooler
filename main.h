@@ -497,7 +497,7 @@ void c_refresh_user();
 const char *get_user_path();
 const char *set_server_logfile();
 void write_logfile(const struct Job *p);
-int get_env_jobid();
+int get_env(const char *env, int v0);
 long str2int(const char *str);
 void debug_write(const char *str);
 const char *uid2user_name(int uid);
@@ -505,6 +505,7 @@ const char *uid2user_name(int uid);
 /* locker */
 int user_locker;
 time_t locker_time;
+int jobsort_flag;
 
 /* jobs.c */
 void s_user_status_all(int s);
@@ -520,7 +521,8 @@ void s_restart_job(int s, int jobid, int uid);
 void s_lock_server(int s, int uid);
 void s_unlock_server(int s, int uid);
 int s_check_locker(int s, int uid);
-void set_jobids(int i);
+void s_set_jobids(int i);
+void s_sort_jobs();
 
 /* client.c */
 void c_list_jobs_all();

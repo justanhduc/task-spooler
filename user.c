@@ -23,15 +23,15 @@ const char *get_user_path() {
   }
 }
 
-int get_env_jobid() {
+int get_env(const char *env, int v0) {
   char *str;
-  str = getenv("TS_JOBID");
+  str = getenv(env);
   if (str == NULL || strlen(str) == 0) {
-    return 1000;
+    return v0;
   } else {
     int i = atoi(str);
     if (i < 0)
-      i = 1000;
+      i = v0;
     return i;
   }
 }

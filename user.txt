@@ -1,4 +1,4 @@
 #uid user maxslot
-1000    Kylin 3
-2    user  100
-34   user2 30
+1000    Kylin  10
+1001    test0  100
+34      user2 30

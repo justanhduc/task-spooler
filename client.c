@@ -386,7 +386,7 @@ void c_shutdown_server() {
     return;
   }
   char buf[10];
-  printf("Do you want to kill the taskspooler server? (Yes/n) ");
+  printf("Do you want to kill the task-spooler server? (Yes/no) ");
   scanf("%3s", buf);
   if (strcmp(buf, "Yes") != 0) {
     return;
@@ -400,8 +400,19 @@ void c_shutdown_server() {
 
 void c_clear_finished() {
   struct Msg m = default_msg();
-
+  if (m.uid == 0) {
+    char buf[10];
+    printf("Do you want to clear all the finished jobs on the task-spooler "
+           "server? (Yes/no) ");
+    scanf("%3s", buf);
+    if (strcmp(buf, "Yes") != 0) {
+      return;
+    } else {
+      printf("Clear the finished!\n");
+    }
+  }
   m.type = CLEAR_FINISHED;
+
   send_msg(server_socket, &m);
 }
 

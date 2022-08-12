@@ -493,8 +493,11 @@ static void print_help(const char *cmd) {
          "starts.\n");
   printf("  TS_LOGFILE_PATH  path to the job log file, read on server "
          "starts\n");
-  printf("  TS_JOBID  The first job ID (default: 1000), read on server "
+  printf("  TS_FIRST_JOBID  The first job ID (default: 1000), read on server "
          "starts.\n");
+  printf(
+      "  TS_SORTJOBS  Switch to control the job sequence sort, read on server "
+      "starts.\n");
   printf("  TMPDIR     directory where to place the output files and the "
          "default socket.\n");
   printf("Long option actions:\n");
@@ -607,6 +610,7 @@ static void get_terminal_width() {
 
 int main(int argc, char **argv) {
   int errorlevel = 0;
+  jobsort_flag = 0;
   user_locker = -1;
   client_uid = getuid();
   // printf("client_uid = %u\n", client_uid);

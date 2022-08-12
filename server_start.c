@@ -45,7 +45,6 @@ void create_socket_path(char **path) {
   }
 
   /* ... if the $TS_SOCKET doesn't exist ... */
-
   /* Create the path */
   tmpdir = getenv("TMPDIR");
   if (tmpdir == NULL)
