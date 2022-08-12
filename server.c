@@ -571,6 +571,8 @@ static enum Break client_read(int index) {
         s_swap_jobs(s, m.u.swap.jobid1, m.u.swap.jobid2);
       }
     }
+    close(s);
+    remove_connection(index);
     break;
   case GET_STATE:
     s_send_state(s, m.u.jobid);

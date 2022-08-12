@@ -51,15 +51,13 @@ void create_socket_path(char **path) {
   if (tmpdir == NULL)
     tmpdir = "/tmp";
 
-  // sprintf(userid, "%u", (unsigned int)getuid());
-
   /* Calculate the size */
   size = strlen(tmpdir) + strlen("/socket-ts.") + strlen(userid) + 1;
 
   /* Freed after preparing the socket address */
   *path = (char *)malloc(size);
 
-  sprintf(*path, "%s/socket-ts.%s", tmpdir, userid);
+  snprintf(*path, size - 1, "%s/socket-ts.%s", tmpdir, userid);
 
   should_check_owner = 1;
 }
@@ -123,10 +121,12 @@ static int fork_server() {
   case -1: /* Error */
     return -1;
   default: /* Parent */
-    printf("Start tast-spooler server from root[%d]\n", client_uid);
-    printf("  Read user file from %s [TS_USER_PATH]\n", get_user_path());
-    printf("  Write log file to %s [TS_LOGFILE_PATH]\n\n",
-           set_server_logfile());
+    if (client_uid == 0) {
+      printf("Start tast-spooler server from root[%d]\n", client_uid);
+      printf("  Read user file from %s [TS_USER_PATH]\n", get_user_path());
+      printf("  Write log file to %s [TS_LOGFILE_PATH]\n\n",
+             set_server_logfile());
+    }
     close(p[1]);
   }
   /* Return the read fd */

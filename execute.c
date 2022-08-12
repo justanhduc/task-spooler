@@ -146,9 +146,10 @@ static void run_child(int fd_send_filename, const char *tmpdir) {
     label = command_line.label;
   }
 
-  outfname = malloc(1 + strlen(label) + strlen(".XXXXXX") + 1);
+  int len_outfname = 1 + strlen(label) + strlen(".XXXXXX") + 1;
+  outfname = malloc(len_outfname);
 
-  sprintf(outfname, "/%s.XXXXXX", label);
+  snprintf(outfname, len_outfname, "/%s.XXXXXX", label);
 
   if (command_line.store_output) {
     /* Prepare path */

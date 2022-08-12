@@ -31,7 +31,7 @@ struct CommandLine command_line;
 int term_width;
 
 /* Globals for the environment of getopt */
-static char getopt_env[] = "POSIXLY_CORRECT=YES";
+static char getopt_env[20] = "POSIXLY_CORRECT=YES";
 static char *old_getopt_env;
 
 static char version[1024];
@@ -39,15 +39,15 @@ static char version[1024];
 static void init_version() {
 #ifdef TS_VERSION
   char *ts_version = TS_MAKE_STR(TS_VERSION);
-  sprintf(version,
-          "Task Spooler %s - a task queue system for the unix user.\n"
-          "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell",
-          ts_version);
+  snprintf(version, 1024,
+           "Task Spooler %s - a task queue system for the unix user.\n"
+           "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell",
+           ts_version);
 #else
-  sprintf(version,
-          "Task Spooler %s - a task queue system for the unix user.\n"
-          "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell",
-          TS_VERSION_FALLBACK);
+  snprintf(version, 1024,
+           "Task Spooler %s - a task queue system for the unix user.\n"
+           "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell",
+           TS_VERSION_FALLBACK);
 #endif
 }
 
@@ -596,7 +596,7 @@ static void unset_getopt_env() {
     /* Wipe the string from the environment */
     putenv("POSIXLY_CORRECT");
   } else
-    sprintf(getopt_env, "POSIXLY_CORRECT=%s", old_getopt_env);
+    snprintf(getopt_env, 20, "POSIXLY_CORRECT=%s", old_getopt_env);
 }
 
 static void get_terminal_width() {
