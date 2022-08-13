@@ -84,6 +84,14 @@ void debug_write(const char *str) {
   fclose(f);
 }
 
+static int find_user_by_name(const char *name) {
+  for (int i = 0; i < user_number; i++) {
+    if (strcmp(user_name[i], name) == 0)
+      return i;
+  }
+  return -1;
+}
+
 void read_user_file(const char *path) {
   server_uid = getuid();
   if (server_uid != 0) {
@@ -99,7 +107,6 @@ void read_user_file(const char *path) {
   int UID, slots;
   char name[USER_NAME_WIDTH];
 
-  int i_number = 0;
   while ((read = getline(&line, &len, fp)) != -1) {
     if (line[0] == '#')
       continue;
@@ -107,28 +114,20 @@ void read_user_file(const char *path) {
     int res = sscanf(line, "%d %256s %d", &UID, name, &slots);
     if (res != 3) {
       printf("error in read %s at line %s", path, line);
-      exit(0);
+      continue;
     } else {
-      if (user_max_slots[i_number] != 0 && user_UID[i_number] != UID) {
-        i_number++;
-        continue;
+      int user_id = find_user_by_name(name);
+      if (user_id == -1) {
+        if (user_number >= USER_MAX)
+          continue;
+        user_id = user_number;
+        user_number++;
       }
 
-      user_UID[i_number] = UID;
-      user_max_slots[i_number] = slots;
-      strncpy(user_name[i_number], name, USER_NAME_WIDTH);
-
-      // printf("%d %s %d\n", user_ID[user_number], user_name[user_number],
-      //       user_slot[user_number]);
-      // user_busy[user_number] = 0;
-      // user_jobs[user_number] = 0;
-      // user_queue[user_number] = 0;
-      i_number++;
+      user_UID[user_id] = UID;
+      user_max_slots[user_id] = slots;
+      strncpy(user_name[user_id], name, USER_NAME_WIDTH - 1);
     }
-  }
-
-  if (i_number > user_number) {
-    user_number = i_number;
   }
 
   fclose(fp);

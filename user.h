@@ -1,5 +1,5 @@
 #define USER_NAME_WIDTH 256
-#define USER_MAX 50
+#define USER_MAX 100
 
 char user_name[USER_MAX][USER_NAME_WIDTH];
 int server_uid;
