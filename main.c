@@ -536,8 +536,9 @@ static void print_help(const char *cmd) {
 
   printf("Actions:\n");
   printf("  -A           Show all users information\n");
-  printf("  -X           Refresh the user configuration (only available for "
-         "root)\n");
+  printf(
+      "  -X           Refresh the user config by UID (Max. 100 users and only "
+      "available for root)\n");
   printf("  -K           kill the task spooler server (only available for "
          "root)\n");
   printf("  -C           clear the list of finished jobs for current user\n");

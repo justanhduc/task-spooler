@@ -84,6 +84,7 @@ void debug_write(const char *str) {
   fclose(f);
 }
 
+/*
 static int find_user_by_name(const char *name) {
   for (int i = 0; i < user_number; i++) {
     if (strcmp(user_name[i], name) == 0)
@@ -91,6 +92,7 @@ static int find_user_by_name(const char *name) {
   }
   return -1;
 }
+*/
 
 void read_user_file(const char *path) {
   server_uid = getuid();
@@ -116,17 +118,20 @@ void read_user_file(const char *path) {
       printf("error in read %s at line %s", path, line);
       continue;
     } else {
-      int user_id = find_user_by_name(name);
+      int user_id = get_user_id(UID);
       if (user_id == -1) {
         if (user_number >= USER_MAX)
           continue;
+
         user_id = user_number;
         user_number++;
-      }
 
-      user_UID[user_id] = UID;
-      user_max_slots[user_id] = slots;
-      strncpy(user_name[user_id], name, USER_NAME_WIDTH - 1);
+        user_UID[user_id] = UID;
+        user_max_slots[user_id] = slots;
+        strncpy(user_name[user_id], name, USER_NAME_WIDTH - 1);
+      } else {
+        user_max_slots[user_id] = slots;
+      }
     }
   }
 
