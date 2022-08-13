@@ -10,6 +10,9 @@
 #include "main.h"
 #include "user.h"
 
+#define DEFAUL_USER_PATH "/home/kylin/task-spooler/user.txt"
+#define DEFAUL_LOG_PATH "/home/kylin/task-spooler/log.txt"
+
 void send_list_line(int s, const char *str);
 void error(const char *str, ...);
 
@@ -17,7 +20,7 @@ const char *get_user_path() {
   char *str;
   str = getenv("TS_USER_PATH");
   if (str == NULL || strlen(str) == 0) {
-    return "/home/kylin/task-spooler/user.txt";
+    return DEFAUL_USER_PATH;
   } else {
     return str;
   }
@@ -48,7 +51,7 @@ long str2int(const char *str) {
 const char *set_server_logfile() {
   logfile_path = getenv("TS_LOGFILE_PATH");
   if (logfile_path == NULL || strlen(logfile_path) == 0) {
-    logfile_path = "/home/kylin/task-spooler/log.txt";
+    logfile_path = DEFAUL_LOG_PATH;
   }
   return logfile_path;
 }
