@@ -653,7 +653,6 @@ int c_wait_running_job() {
 
 void c_send_max_slots(int max_slots) {
   struct Msg m = default_msg();
-
   /* Send the request */
   m.type = SET_MAX_SLOTS;
   m.u.max_slots = command_line.max_slots;
@@ -675,7 +674,7 @@ void c_get_max_slots() {
     error("Error in move_urgent");
   switch (m.type) {
   case GET_MAX_SLOTS_OK:
-    printf("%i\n", m.u.max_slots);
+    printf("Max slots: %i\n", m.u.max_slots);
     return;
   default:
     warning("Wrong internal message in get_max_slots");

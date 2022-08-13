@@ -813,7 +813,13 @@ int main(int argc, char **argv) {
     c_move_urgent();
     break;
   case c_SET_MAX_SLOTS:
-    c_send_max_slots(command_line.max_slots);
+    if (client_uid != 0) {
+      printf("Reset max slots is only supported by root user!\n");
+      break;
+    } else {
+      c_send_max_slots(command_line.max_slots);
+      c_wait_server_lines();
+    }
     break;
   case c_GET_MAX_SLOTS:
     c_get_max_slots();

@@ -352,7 +352,7 @@ void s_send_last_id(int s);
 
 void s_send_runjob(int s, int jobid);
 
-void s_set_max_slots(int new_max_slots);
+void s_set_max_slots(int s, int new_max_slots);
 
 void s_get_max_slots(int s);
 

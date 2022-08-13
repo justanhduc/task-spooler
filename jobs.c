@@ -266,7 +266,7 @@ void s_get_label(int s, int jobid) {
   }
 
   if (p == 0) {
-    snprintf(buff, 256, "Job %i not finished or not running.\n", jobid);
+    snprintf(buff, 255, "Job %i not finished or not running.\n", jobid);
     send_list_line(s, buff);
     return;
   }
@@ -306,7 +306,7 @@ void s_send_cmd(int s, int jobid) {
   }
 
   if (p == 0) {
-    snprintf(buff, 256, "Job %i not finished or not running.\n", jobid);
+    snprintf(buff, 255, "Job %i not finished or not running.\n", jobid);
     send_list_line(s, buff);
     return;
   }
@@ -969,7 +969,7 @@ void s_job_info(int s, int jobid) {
   }
 
   if (p == 0) {
-    snprintf(buff, 256, "Job %i not finished or not running.\n", jobid);
+    snprintf(buff, 255, "Job %i not finished or not running.\n", jobid);
     send_list_line(s, buff);
     return;
   }
@@ -1049,7 +1049,7 @@ void s_cont_user(int s, int uid) {
     p = p->next;
   }
 
-  snprintf(buff, 256, "Resume user: [%d] %s\n", uid, user_name[user_id]);
+  snprintf(buff, 255, "Resume user: [%d] %s\n", uid, user_name[user_id]);
   send_list_line(s, buff);
 }
 
@@ -1071,7 +1071,7 @@ void s_stop_user(int s, int uid) {
         char *label = "(...)";
         if (p->label != NULL)
           label = p->label;
-        snprintf(buff, 256, "Error in stop %s [%d] %s | %s\n",
+        snprintf(buff, 255, "Error in stop %s [%d] %s | %s\n",
                  user_name[user_id], p->jobid, label, p->command);
         send_list_line(s, buff);
       }
@@ -1079,7 +1079,7 @@ void s_stop_user(int s, int uid) {
     p = p->next;
   }
 
-  snprintf(buff, 256, "Lock user: [%d] %s\n", uid, user_name[user_id]);
+  snprintf(buff, 255, "Lock user: [%d] %s\n", uid, user_name[user_id]);
   send_list_line(s, buff);
 }
 
@@ -1114,19 +1114,19 @@ void s_send_output(int s, int jobid) {
 
   if (p == 0) {
     if (jobid == -1)
-      snprintf(buff, 256, "The last job has not finished or is not running.\n");
+      snprintf(buff, 255, "The last job has not finished or is not running.\n");
     else
-      snprintf(buff, 256, "Job %i not finished or not running.\n", jobid);
+      snprintf(buff, 255, "Job %i not finished or not running.\n", jobid);
     send_list_line(s, buff);
     return;
   }
 
   if (p->state == SKIPPED) {
     if (jobid == -1)
-      snprintf(buff, 256, "The last job was skipped due to a dependency.\n");
+      snprintf(buff, 255, "The last job was skipped due to a dependency.\n");
 
     else
-      snprintf(buff, 256, "Job %i was skipped due to a dependency.\n", jobid);
+      snprintf(buff, 255, "Job %i was skipped due to a dependency.\n", jobid);
     send_list_line(s, buff);
     return;
   }
@@ -1209,13 +1209,13 @@ int s_remove_job(int s, int *jobid, int client_uid) {
   if (p == NULL || (user_UID[p->user_id] != client_uid)) {
 
     if (*jobid == -1)
-      snprintf(buff, 256, "The last job cannot be removed.\n");
+      snprintf(buff, 255, "The last job cannot be removed.\n");
     else
-      snprintf(buff, 256, "The job %i cannot be removed.\n", *jobid);
+      snprintf(buff, 255, "The job %i cannot be removed.\n", *jobid);
     if (p != NULL) {
       int id = p->user_id;
       if (user_UID[id] != client_uid) {
-        snprintf(buff, 256, "The job %i belongs to user:%s not uid:%d.\n",
+        snprintf(buff, 255, "The job %i belongs to user:%s not uid:%d.\n",
                  *jobid, user_name[id], client_uid);
       }
     }
@@ -1227,9 +1227,9 @@ int s_remove_job(int s, int *jobid, int client_uid) {
     if (p->pid != 0 && (user_UID[p->user_id] == client_uid)) {
       kill(p->pid, SIGTERM);
       if (*jobid == -1)
-        snprintf(buff, 256, "The last job is removed.\n");
+        snprintf(buff, 255, "The last job is removed.\n");
       else
-        snprintf(buff, 256, "The job %i is removed.\n", *jobid);
+        snprintf(buff, 255, "The job %i is removed.\n", *jobid);
       send_list_line(s, buff);
       return 0;
     }
@@ -1336,27 +1336,27 @@ void s_lock_server(int s, int uid) {
   if (uid == 0) {
     user_locker = 0;
     locker_time = time(NULL);
-    snprintf(buff, 256, "lock the task-spooler server by Root\n");
+    snprintf(buff, 255, "lock the task-spooler server by Root\n");
   } else {
     if (user_locker == -1) {
       int user_id = get_user_id(uid);
       if (user_id != -1) {
         user_locker = uid;
         locker_time = time(NULL);
-        snprintf(buff, 256, "lock the task-spooler server by `%s`\n",
+        snprintf(buff, 255, "lock the task-spooler server by `%s`\n",
                  user_name[user_id]);
       } else {
-        snprintf(buff, 256,
+        snprintf(buff, 255,
                  "Error: cannot lock the task-spooler server by UID: [%d]\n",
                  uid);
       }
     } else {
       if (user_locker == uid) {
-        snprintf(buff, 256,
+        snprintf(buff, 255,
                  "The task-spooler server has already been locked by `%s`\n",
                  uid2user_name(uid));
       } else {
-        snprintf(buff, 256,
+        snprintf(buff, 255,
                  "Error: the task-spooler server cannot be locked by `%s`\n",
                  uid2user_name(uid));
       }
@@ -1368,25 +1368,25 @@ void s_lock_server(int s, int uid) {
 void s_unlock_server(int s, int uid) {
   if (uid == 0) {
     user_locker = -1;
-    snprintf(buff, 256, "Unlock the task-spooler server by Root\n");
+    snprintf(buff, 255, "Unlock the task-spooler server by Root\n");
   } else {
     if (user_locker == uid) {
       int user_id = get_user_id(uid);
       if (user_id != -1) {
         user_locker = -1;
-        snprintf(buff, 256, "Unlock the task-spooler server by `%s`\n",
+        snprintf(buff, 255, "Unlock the task-spooler server by `%s`\n",
                  user_name[user_id]);
       } else {
-        snprintf(buff, 256,
+        snprintf(buff, 255,
                  "Error: cannot lock the task-spooler server by UID: [%d]\n",
                  uid);
       }
     } else {
       if (user_locker == -1) {
-        snprintf(buff, 256,
+        snprintf(buff, 255,
                  "The task-spooler server has already been unlocked\n");
       } else {
-        snprintf(buff, 256,
+        snprintf(buff, 255,
                  "Error: the task-spooler server cannot be unlocked by `%s`\n",
                  uid2user_name(uid));
       }
@@ -1399,7 +1399,7 @@ void s_hold_job(int s, int jobid, int uid) {
   struct Job *p;
   p = findjob(jobid);
   if (p == 0) {
-    snprintf(buff, 256, "Error: cannot find job [%d]\n", jobid);
+    snprintf(buff, 255, "Error: cannot find job [%d]\n", jobid);
     send_list_line(s, buff);
     return;
   }
@@ -1407,10 +1407,10 @@ void s_hold_job(int s, int jobid, int uid) {
   int job_UID = user_UID[p->user_id];
   if (p->pid != 0 && (job_UID = uid || uid == 0)) {
     kill(p->pid, SIGSTOP);
-    snprintf(buff, 256, "Hold on job [%d] successfully!\n", jobid);
+    snprintf(buff, 255, "Hold on job [%d] successfully!\n", jobid);
 
   } else {
-    snprintf(buff, 256, "Error: cannot hold on job [%d]\n", jobid);
+    snprintf(buff, 255, "Error: cannot hold on job [%d]\n", jobid);
   }
   send_list_line(s, buff);
 }
@@ -1420,7 +1420,7 @@ void s_restart_job(int s, int jobid, int uid) {
 
   p = findjob(jobid);
   if (p == 0) {
-    snprintf(buff, 256, "Error: cannot find job [%d]\n", jobid);
+    snprintf(buff, 255, "Error: cannot find job [%d]\n", jobid);
     send_list_line(s, buff);
 
     return;
@@ -1429,9 +1429,9 @@ void s_restart_job(int s, int jobid, int uid) {
   int job_UID = user_UID[p->user_id];
   if (p->pid != 0 && (job_UID = uid || uid == 0)) {
     kill(p->pid, SIGCONT);
-    snprintf(buff, 256, "Restart job [%d] successfully!\n", jobid);
+    snprintf(buff, 255, "Restart job [%d] successfully!\n", jobid);
   } else {
-    snprintf(buff, 256, "Error: cannot hold on job [%d]\n", jobid);
+    snprintf(buff, 255, "Error: cannot hold on job [%d]\n", jobid);
   }
   send_list_line(s, buff);
 }
@@ -1538,9 +1538,9 @@ void s_wait_job(int s, int jobid) {
 
   if (p == 0) {
     if (jobid == -1)
-      snprintf(buff, 256, "The last job cannot be waited.\n");
+      snprintf(buff, 255, "The last job cannot be waited.\n");
     else
-      snprintf(buff, 256, "The job %i cannot be waited.\n", jobid);
+      snprintf(buff, 255, "The job %i cannot be waited.\n", jobid);
     send_list_line(s, buff);
     return;
   }
@@ -1589,9 +1589,9 @@ void s_wait_running_job(int s, int jobid) {
 
   if (p == 0) {
     if (jobid == -1)
-      snprintf(buff, 256, "The last job cannot be waited.\n");
+      snprintf(buff, 255, "The last job cannot be waited.\n");
     else
-      snprintf(buff, 256, "The job %i cannot be waited.\n", jobid);
+      snprintf(buff, 255, "The job %i cannot be waited.\n", jobid);
     send_list_line(s, buff);
     return;
   }
@@ -1602,11 +1602,13 @@ void s_wait_running_job(int s, int jobid) {
     add_to_notify_list(s, p->jobid);
 }
 
-void s_set_max_slots(int new_max_slots) {
+void s_set_max_slots(int s, int new_max_slots) {
   if (new_max_slots > 0)
     max_slots = new_max_slots;
   else
     warning("Received new_max_slots=%i", new_max_slots);
+  snprintf(buff, 255, "Reset the number of slots: %d\n", max_slots);
+  send_list_line(s, buff);
 }
 
 void s_get_max_slots(int s) {
@@ -1639,9 +1641,9 @@ void s_move_urgent(int s, int jobid) {
   // firstjob.next means no run job
   if (p == 0 || firstjob.next == 0) {
     if (jobid == -1)
-      snprintf(buff, 256, "The last job cannot be urged.\n");
+      snprintf(buff, 255, "The last job cannot be urged.\n");
     else
-      snprintf(buff, 256, "The job %i cannot be urged.\n", jobid);
+      snprintf(buff, 255, "The job %i cannot be urged.\n", jobid);
     send_list_line(s, buff);
     return;
   }
@@ -1649,7 +1651,7 @@ void s_move_urgent(int s, int jobid) {
   /* Interchange the pointers */
   tmp1 = find_previous_job(p);
   if (tmp1 == NULL) {
-    snprintf(buff, 256, "The job %i cannot be urged.\n", jobid);
+    snprintf(buff, 255, "The job %i cannot be urged.\n", jobid);
     send_list_line(s, buff);
     return;
   }
@@ -1668,7 +1670,7 @@ void s_swap_jobs(int s, int jobid1, int jobid2) {
   p2 = findjob(jobid2);
 
   if (p1 == NULL || p2 == NULL) {
-    snprintf(buff, 256, "The jobs %i and %i cannot be swapped.\n", jobid1,
+    snprintf(buff, 255, "The jobs %i and %i cannot be swapped.\n", jobid1,
              jobid2);
     send_list_line(s, buff);
     return;
@@ -1720,9 +1722,9 @@ void s_send_state(int s, int jobid) {
 
   if (p == 0) {
     if (jobid == -1)
-      snprintf(buff, 256, "The last job cannot be stated.\n");
+      snprintf(buff, 255, "The last job cannot be stated.\n");
     else
-      snprintf(buff, 256, "The job %i cannot be stated.\n", jobid);
+      snprintf(buff, 255, "The job %i cannot be stated.\n", jobid);
     send_list_line(s, buff);
     return;
   }

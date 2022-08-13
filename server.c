@@ -100,7 +100,7 @@ static void set_default_maxslots() {
   if (str != NULL) {
     int slots;
     slots = abs(atoi(str));
-    s_set_max_slots(slots);
+    s_set_max_slots(0, slots);
   }
 }
 
@@ -566,7 +566,9 @@ static enum Break client_read(int index) {
     break;
   case SET_MAX_SLOTS:
     if (m.uid == 0)
-      s_set_max_slots(m.u.max_slots);
+      s_set_max_slots(s, m.u.max_slots);
+    close(s);
+    remove_connection(index);
     break;
   case GET_MAX_SLOTS:
     s_get_max_slots(s);
