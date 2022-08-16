@@ -140,6 +140,7 @@ static struct option longOptions[] = {
     {"restart", required_argument, NULL, 0},
     {"lock-ts", no_argument, NULL, 0},
     {"unlock-ts", no_argument, NULL, 0},
+    {"daemon", no_argument, NULL, 0},
     {NULL, 0, NULL, 0}};
 
 void parse_opts(int argc, char **argv) {
@@ -160,6 +161,8 @@ void parse_opts(int argc, char **argv) {
     case 0:
       if (strcmp(longOptions[optionIdx].name, "get_logdir") == 0) {
         command_line.request = c_GET_LOGDIR;
+      } else if (strcmp(longOptions[optionIdx].name, "daemon") == 0) {
+        command_line.request = c_DAEMON;
       } else if (strcmp(longOptions[optionIdx].name, "set_logdir") == 0) {
         command_line.request = c_SET_LOGDIR;
         command_line.label = optarg; /* reuse this variable */
@@ -521,6 +524,8 @@ static void print_help(const char *cmd) {
       "  --set_logdir [path]             set the path containing log files.\n");
   printf("  --plain                         list jobs in plain tab-separated "
          "texts.\n");
+  printf("  --daemon                        Run the server as daemon by Root "
+         "only.\n");
   printf("  --hold_job [jobid]              hold on a task.\n");
   printf("  --restart_job [jobid]           restart a task.\n");
   printf("  --lock                          Locker the server (Timeout: 30 "
@@ -630,7 +635,11 @@ int main(int argc, char **argv) {
   ignore_sigpipe();
 
   if (command_line.need_server) {
-    ensure_server_up();
+    if (command_line.request == c_DAEMON) {
+      ensure_server_up(1);
+    } else {
+      ensure_server_up(0);
+    }
     c_check_version();
   }
 
@@ -644,6 +653,8 @@ int main(int argc, char **argv) {
     }
 
     break;
+  case c_DAEMON:
+    break;
   case c_HOLD_JOB:
     c_hold_job(command_line.jobid);
     c_wait_server_lines();
@@ -652,7 +663,6 @@ int main(int argc, char **argv) {
   case c_RESTART_JOB:
     c_restart_job(command_line.jobid);
     c_wait_server_lines();
-
     break;
   case c_LOCK_SERVER:
     errorlevel = c_lock_server();

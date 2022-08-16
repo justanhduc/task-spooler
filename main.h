@@ -63,6 +63,7 @@ enum Request {
   c_KILL_SERVER,
   c_LIST,
   c_LIST_ALL,
+  c_DAEMON,
   c_REFRESH_USER,
   c_STOP_USER,
   c_CONT_USER,
@@ -388,7 +389,7 @@ int try_connect(int s);
 
 void wait_server_up(int fd);
 
-int ensure_server_up();
+int ensure_server_up(int);
 
 void notify_parent(int fd);
 
@@ -491,6 +492,7 @@ char *get_environment();
 int tail_file(const char *fname, int last_lines);
 
 /* user.c */
+static const int root_UID = 0;
 void read_user_file(const char *path);
 int get_user_id(int uid);
 void c_refresh_user();

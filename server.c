@@ -168,7 +168,6 @@ void server_main(int notify_fd, char *_path) {
 
   process_type = SERVER;
   max_descriptors = get_max_descriptors();
-
   /* Arbitrary limit, that will block the enqueuing, but should allow space
    * for usual ts queries */
   max_jobs = max_descriptors - 5;
@@ -218,7 +217,9 @@ void server_main(int notify_fd, char *_path) {
 
   initialize_log_dir();
 
-  notify_parent(notify_fd);
+  if (notify_fd != 0)
+    notify_parent(notify_fd);
+  printf("Start main server loops...\n");
   server_loop(ls);
 }
 

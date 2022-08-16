@@ -99,9 +99,9 @@ static int find_user_by_name(const char *name) {
 
 void read_user_file(const char *path) {
   server_uid = getuid();
-  if (server_uid != 0) {
-    error("the service is not run as root!");
-  }
+  // if (server_uid != root_UID) {
+  //  error("the service is not run as root!");
+  //}
   FILE *fp;
   fp = fopen(path, "r");
   if (fp == NULL)

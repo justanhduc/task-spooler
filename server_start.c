@@ -56,7 +56,7 @@ void create_socket_path(char **path) {
   /* Freed after preparing the socket address */
   *path = (char *)malloc(size);
 
-  snprintf(*path, size - 1, "%s/socket-ts.%s", tmpdir, userid);
+  snprintf(*path, size, "%s/socket-ts.%s", tmpdir, userid);
 
   should_check_owner = 1;
 }
@@ -96,6 +96,20 @@ void wait_server_up(int fd) {
   close(fd);
 }
 
+static void server_info() {
+  printf("Start tast-spooler server from root[%d]\n", client_uid);
+  printf("  Socket path: %s         [TS_SOCKET]\n", socket_path);
+  printf("  Read user file from %s  [TS_USER_PATH]\n", get_user_path());
+  printf("  Write log file to %s    [TS_LOGFILE_PATH]\n\n",
+         set_server_logfile());
+}
+
+static void server_daemon() {
+  server_info();
+  server_main(0, socket_path);
+  exit(0);
+}
+
 /* Returns the fd where to wait for the parent notification */
 static int fork_server() {
   int pid;
@@ -120,12 +134,7 @@ static int fork_server() {
   case -1: /* Error */
     return -1;
   default: /* Parent */
-    if (client_uid == 0) {
-      printf("Start tast-spooler server from root[%d]\n", client_uid);
-      printf("  Read user file from %s [TS_USER_PATH]\n", get_user_path());
-      printf("  Write log file to %s [TS_LOGFILE_PATH]\n\n",
-             set_server_logfile());
-    }
+    server_info();
     close(p[1]);
   }
   /* Return the read fd */
@@ -138,7 +147,7 @@ void notify_parent(int fd) {
   close(fd);
 }
 
-int ensure_server_up() {
+int ensure_server_up(int daemonFlag) {
   int res;
   int notify_fd;
   server_socket = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -164,7 +173,18 @@ int ensure_server_up() {
     unlink(socket_path);
 
   /* Try starting the server */
-  notify_fd = fork_server();
+  if (client_uid == root_UID) {
+    if (daemonFlag) {
+      printf("Start task-spooler server as daemon\n");
+      server_daemon();
+    } else {
+      printf("start task-spooler server\n");
+      notify_fd = fork_server();
+    }
+  } else {
+    printf("only task-spooler server could be run as Root!\n");
+  }
+
   wait_server_up(notify_fd);
   res = try_connect(server_socket);
 
