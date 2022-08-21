@@ -111,12 +111,12 @@ int read_first_jobid_from_logfile(const char *path) {
   }
   int res = sscanf(line, "[%d]", &jobid);
   if (jobid <= 0 || res != 1) {
-    jobid = 1000;
+    jobid = 999;
   }
 
   printf("last line is %s with jobid = %d\n", line, jobid);
   fclose(fp);
-  return jobid;
+  return jobid + 1;
 }
 
 void read_user_file(const char *path) {

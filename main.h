@@ -140,6 +140,7 @@ enum Jobstate { QUEUED, RUNNING, FINISHED, SKIPPED, HOLDING_CLIENT };
 struct Msg {
   enum MsgTypes type;
   int uid;
+  int jobid;
   union {
     struct {
       int command_size;
@@ -156,7 +157,6 @@ struct Msg {
       int store_output;
       int pid;
     } output;
-    int jobid;
     struct Result {
       int errorlevel;
       int died_by_signal;
@@ -396,7 +396,7 @@ void notify_parent(int fd);
 void create_socket_path(char **path);
 
 /* execute.c */
-int run_job(struct Result *res);
+int run_job(int jobid, struct Result *res);
 
 /* client_run.c */
 void c_run_tail(const char *filename);

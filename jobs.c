@@ -930,6 +930,7 @@ void s_send_runjob(int s, int jobid) {
    * (-nf?) . */
 
   m.u.last_errorlevel = p->dependency_errorlevel;
+  m.jobid = jobid;
   send_msg(s, &m);
 }
 
@@ -1009,7 +1010,7 @@ void s_send_last_id(int s) {
   struct Msg m = default_msg();
 
   m.type = LAST_ID;
-  m.u.jobid = jobids - 1;
+  m.jobid = jobids - 1;
   send_msg(s, &m);
 }
 
@@ -1254,7 +1255,7 @@ int s_remove_job(int s, int *jobid, int client_uid) {
   notify_errorlevel(p);
 
   /* Notify the clients in wait_job */
-  check_notify_list(m.u.jobid);
+  check_notify_list(m.jobid);
 
   /* Update the list pointers */
   before_p->next = p->next;

@@ -132,9 +132,11 @@ static void run_gzip(int fd_out, int fd_in) {
   }
 }
 
-static void run_child(int fd_send_filename, const char *tmpdir) {
+static void run_child(int fd_send_filename, const char *tmpdir, int jobid) {
   char *outfname;
   char errfname[sizeof outfname + 2]; /* .e */
+  char jobid_str[100];
+
   int namesize;
   int outfd;
   int err;
@@ -145,11 +147,13 @@ static void run_child(int fd_send_filename, const char *tmpdir) {
   } else if (command_line.label) {
     label = command_line.label;
   }
+  snprintf(jobid_str, 100, "%d", jobid);
 
-  int len_outfname = 1 + strlen(label) + strlen(".XXXXXX") + 1;
+  // int len_outfname = 1 + strlen(label) + strlen(".XXXXXX") + 1;
+  int len_outfname = 3 + strlen(label) + strlen(jobid_str);
   outfname = malloc(len_outfname);
 
-  snprintf(outfname, len_outfname, "/%s.XXXXXX", label);
+  snprintf(outfname, len_outfname, "/%s.%d", label, jobid);
 
   if (command_line.store_output) {
     /* Prepare path */
@@ -173,7 +177,8 @@ static void run_child(int fd_send_filename, const char *tmpdir) {
       /* gzip output goes to the filename */
       /* This will be the handle other than 0,1,2 */
       /* mkstemp doesn't admit adding ".gz" to the pattern */
-      outfd = mkstemp(outfname_full); /* stdout */
+      // outfd = mkstemp(outfname_full); /* stdout */
+      outfd = open(outfname_full, O_CREAT | O_WRONLY | O_TRUNC, 0644);
       assert(outfd != -1);
 
       /* Program stdout and stderr */
@@ -184,7 +189,7 @@ static void run_child(int fd_send_filename, const char *tmpdir) {
         int errfd;
         strncpy(errfname, outfname_full, sizeof errfname);
         strncat(errfname, ".e", 2 + 1);
-        errfd = open(errfname, O_CREAT | O_WRONLY | O_TRUNC, 0600);
+        errfd = open(errfname, O_CREAT | O_WRONLY | O_TRUNC, 0644);
         assert(err == 0);
         err = dup2(errfd, 2);
         assert(err == 0);
@@ -203,13 +208,14 @@ static void run_child(int fd_send_filename, const char *tmpdir) {
       run_gzip(outfd, p[0]);
     } else {
       /* Prepare the filename */
-      outfd = mkstemp(outfname_full); /* stdout */
-      dup2(outfd, 1);                 /* stdout */
+      // outfd = mkstemp(outfname_full); /* stdout */
+      outfd = open(outfname_full, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+      dup2(outfd, 1); /* stdout */
       if (command_line.stderr_apart) {
         int errfd;
         strncpy(errfname, outfname_full, sizeof errfname);
         strncat(errfname, ".e", 2 + 1);
-        errfd = open(errfname, O_CREAT | O_WRONLY | O_TRUNC, 0600);
+        errfd = open(errfname, O_CREAT | O_WRONLY | O_TRUNC, 0644);
         dup2(errfd, 2);
         close(errfd);
       } else
@@ -238,7 +244,7 @@ static void run_child(int fd_send_filename, const char *tmpdir) {
   execvp(command_line.command.array[0], command_line.command.array);
 }
 
-int run_job(struct Result *res) {
+int run_job(int jobid, struct Result *res) {
   int pid;
   int errorlevel;
   int p[2];
@@ -262,7 +268,7 @@ int run_job(struct Result *res) {
     restore_sigmask();
     close(server_socket);
     close(p[0]);
-    run_child(p[1], path);
+    run_child(p[1], path, jobid);
     /* Not reachable, if the 'exec' of the command
      * works. Thus, command exists, etc. */
     fprintf(stderr, "ts could not run the command\n");

@@ -392,28 +392,28 @@ static enum Break client_read(int index) {
     remove_connection(index);
     break;
   case HOLD_JOB:
-    s_hold_job(s, m.u.jobid, m.uid);
+    s_hold_job(s, m.jobid, m.uid);
     close(s);
     remove_connection(index);
     break;
   case RESTART_JOB:
-    s_restart_job(s, m.u.jobid, m.uid);
+    s_restart_job(s, m.jobid, m.uid);
     close(s);
     remove_connection(index);
     break;
   case STOP_USER:
     if (m.uid == getuid()) {
-      if (m.u.jobid != 0) {
-        s_stop_user(s, m.u.jobid);
+      if (m.jobid != 0) {
+        s_stop_user(s, m.jobid);
         s_user_status_all(s);
       } else {
         s_stop_all_users(s);
-        s_user_status(s, get_user_id(m.u.jobid));
+        s_user_status(s, get_user_id(m.jobid));
       }
     } else {
-      if (m.uid == m.u.jobid) {
-        s_stop_user(s, m.u.jobid);
-        s_user_status(s, get_user_id(m.u.jobid));
+      if (m.uid == m.jobid) {
+        s_stop_user(s, m.jobid);
+        s_user_status(s, get_user_id(m.jobid));
       }
     }
     close(s);
@@ -421,17 +421,17 @@ static enum Break client_read(int index) {
     break;
   case CONT_USER:
     if (m.uid == getuid()) {
-      if (m.u.jobid != 0) {
-        s_cont_user(s, m.u.jobid);
+      if (m.jobid != 0) {
+        s_cont_user(s, m.jobid);
         s_user_status_all(s);
       } else {
         s_cont_all_users(s);
-        s_user_status(s, get_user_id(m.u.jobid));
+        s_user_status(s, get_user_id(m.jobid));
       }
     } else {
-      if (m.uid == m.u.jobid) {
-        s_cont_user(s, m.u.jobid);
-        s_user_status(s, get_user_id(m.u.jobid));
+      if (m.uid == m.jobid) {
+        s_cont_user(s, m.jobid);
+        s_user_status(s, get_user_id(m.jobid));
       }
     }
     close(s);
@@ -495,7 +495,7 @@ static enum Break client_read(int index) {
     remove_connection(index);
     break;
   case INFO:
-    s_job_info(s, m.u.jobid);
+    s_job_info(s, m.jobid);
     close(s);
     remove_connection(index);
     break;
@@ -503,10 +503,10 @@ static enum Break client_read(int index) {
     s_send_last_id(s);
     break;
   case GET_LABEL:
-    s_get_label(s, m.u.jobid);
+    s_get_label(s, m.jobid);
     break;
   case GET_CMD:
-    s_send_cmd(s, m.u.jobid);
+    s_send_cmd(s, m.jobid);
     break;
   case ENDJOB:
     job_finished(&m.u.result, client_cs[index].jobid);
@@ -526,16 +526,16 @@ static enum Break client_read(int index) {
     }
     break;
   case ASK_OUTPUT:
-    s_send_output(s, m.u.jobid);
+    s_send_output(s, m.jobid);
     break;
   case REMOVEJOB: {
     int went_ok;
     /* Will update the jobid. If it's -1, will set the jobid found */
-    went_ok = s_remove_job(s, &m.u.jobid, m.uid);
+    went_ok = s_remove_job(s, &m.jobid, m.uid);
     if (went_ok) {
       int i;
       for (i = 0; i < nconnections; ++i) {
-        if (client_cs[i].hasjob && client_cs[i].jobid == m.u.jobid) {
+        if (client_cs[i].hasjob && client_cs[i].jobid == m.jobid) {
           close(client_cs[i].socket);
 
           /* So remove_connection doesn't call s_removejob again */
@@ -549,17 +549,17 @@ static enum Break client_read(int index) {
     }
   } break;
   case WAITJOB:
-    s_wait_job(s, m.u.jobid);
+    s_wait_job(s, m.jobid);
     break;
   case WAIT_RUNNING_JOB:
-    s_wait_running_job(s, m.u.jobid);
+    s_wait_running_job(s, m.jobid);
     break;
   case COUNT_RUNNING:
     s_count_running_jobs(s);
     break;
   case URGENT:
-    if (m.uid == 0 || m.uid == s_get_job_uid(m.u.jobid)) {
-      s_move_urgent(s, m.u.jobid);
+    if (m.uid == 0 || m.uid == s_get_job_uid(m.jobid)) {
+      s_move_urgent(s, m.jobid);
     }
     if (jobsort_flag)
       s_sort_jobs();
@@ -591,7 +591,7 @@ static enum Break client_read(int index) {
     remove_connection(index);
     break;
   case GET_STATE:
-    s_send_state(s, m.u.jobid);
+    s_send_state(s, m.jobid);
     break;
   case GET_ENV:
     s_get_env(s, m.u.size);
@@ -648,7 +648,7 @@ static void s_newjob_ok(int index) {
   s = client_cs[index].socket;
 
   m.type = NEWJOB_OK;
-  m.u.jobid = client_cs[index].jobid;
+  m.jobid = client_cs[index].jobid;
 
   send_msg(s, &m);
 }

@@ -118,7 +118,7 @@ int c_wait_newjob_ok() {
   if (m.type != NEWJOB_OK)
     error("Error getting the newjob_ok");
 
-  return m.u.jobid;
+  return m.jobid;
 }
 
 int c_wait_server_commands() {
@@ -147,7 +147,7 @@ int c_wait_server_commands() {
         result.skipped = 1;
         c_send_runjob_ok(0, -1);
       } else
-        run_job(&result);
+        run_job(m.jobid, &result);
       c_end_of_job(&result);
       return result.errorlevel;
     }
@@ -237,7 +237,7 @@ void c_show_info() {
   int res;
 
   m.type = INFO;
-  m.u.jobid = command_line.jobid;
+  m.jobid = command_line.jobid;
 
   send_msg(server_socket, &m);
 
@@ -300,14 +300,14 @@ int c_unlock_server() {
 void c_hold_job(int jobid) {
   struct Msg m = default_msg();
   m.type = HOLD_JOB;
-  m.u.jobid = jobid;
+  m.jobid = jobid;
   send_msg(server_socket, &m);
 }
 
 void c_restart_job(int jobid) {
   struct Msg m = default_msg();
   m.type = RESTART_JOB;
-  m.u.jobid = jobid;
+  m.jobid = jobid;
   send_msg(server_socket, &m);
 }
 
@@ -315,7 +315,7 @@ void c_stop_user(int uid) {
   struct Msg m = default_msg();
   // int res;
   m.type = STOP_USER;
-  m.u.jobid = uid;
+  m.jobid = uid;
   send_msg(server_socket, &m);
 }
 
@@ -323,7 +323,7 @@ void c_cont_user(int uid) {
   struct Msg m = default_msg();
   // int res;
   m.type = CONT_USER;
-  m.u.jobid = uid;
+  m.jobid = uid;
   send_msg(server_socket, &m);
 }
 
@@ -341,7 +341,7 @@ void c_show_last_id() {
 
   switch (m.type) {
   case LAST_ID:
-    printf("%d\n", m.u.jobid);
+    printf("%d\n", m.jobid);
   default:
     warning("Wrong internal message in get_output_file line size");
   }
@@ -423,7 +423,7 @@ static char *get_output_file(int *pid) {
 
   /* Send the request */
   m.type = ASK_OUTPUT;
-  m.u.jobid = command_line.jobid;
+  m.jobid = command_line.jobid;
   send_msg(server_socket, &m);
 
   /* Receive the answer */
@@ -567,7 +567,7 @@ void c_remove_job() {
 
   /* Send the request */
   m.type = REMOVEJOB;
-  m.u.jobid = command_line.jobid;
+  m.jobid = command_line.jobid;
   m.uid = client_uid;
   send_msg(server_socket, &m);
 
@@ -626,7 +626,7 @@ static void c_wait_job_send() {
 
   /* Send the request */
   m.type = WAITJOB;
-  m.u.jobid = command_line.jobid;
+  m.jobid = command_line.jobid;
   send_msg(server_socket, &m);
 }
 
@@ -635,7 +635,7 @@ static void c_wait_running_job_send() {
 
   /* Send the request */
   m.type = WAIT_RUNNING_JOB;
-  m.u.jobid = command_line.jobid;
+  m.jobid = command_line.jobid;
   send_msg(server_socket, &m);
 }
 
@@ -688,7 +688,7 @@ void c_move_urgent() {
 
   /* Send the request */
   m.type = URGENT;
-  m.u.jobid = command_line.jobid;
+  m.jobid = command_line.jobid;
   send_msg(server_socket, &m);
 
   /* Receive the answer */
@@ -722,7 +722,7 @@ void c_get_state() {
 
   /* Send the request */
   m.type = GET_STATE;
-  m.u.jobid = command_line.jobid;
+  m.jobid = command_line.jobid;
   send_msg(server_socket, &m);
 
   /* Receive the answer */
@@ -817,7 +817,7 @@ void c_show_label() {
 
   /* Send the request */
   m.type = GET_LABEL;
-  m.u.jobid = command_line.jobid;
+  m.jobid = command_line.jobid;
   send_msg(server_socket, &m);
 
   /* Receive the answer */
@@ -850,7 +850,7 @@ void c_show_cmd() {
 
   /* Send the request */
   m.type = GET_CMD;
-  m.u.jobid = command_line.jobid;
+  m.jobid = command_line.jobid;
   send_msg(server_socket, &m);
 
   /* Receive the answer */
