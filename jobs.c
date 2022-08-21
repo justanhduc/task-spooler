@@ -1607,8 +1607,10 @@ void s_set_max_slots(int s, int new_max_slots) {
     max_slots = new_max_slots;
   else
     warning("Received new_max_slots=%i", new_max_slots);
-  snprintf(buff, 255, "Reset the number of slots: %d\n", max_slots);
-  send_list_line(s, buff);
+  if (s > 0) {
+    snprintf(buff, 255, "Reset the number of slots: %d\n", max_slots);
+    send_list_line(s, buff);
+  }
 }
 
 void s_get_max_slots(int s) {

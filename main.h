@@ -503,6 +503,7 @@ int get_env(const char *env, int v0);
 long str2int(const char *str);
 void debug_write(const char *str);
 const char *uid2user_name(int uid);
+int read_first_jobid_from_logfile(const char *path);
 
 /* locker */
 int user_locker;

@@ -195,6 +195,21 @@ Options adding jobs:
   -N [num]     number of slots required by the job (1 default).
 ```
 
+## User configuration
+using the `TS_USER_PATH` environment variable to specify the path to the user configuration. The format of the user file is shown as an example. The UID could be found by `id -u [user]`.
+```
+# 1231 # comments
+# TS_SLOTS = 4 # environment variable
+# TS_FIRST_JOBID = 2000 # environment variable
+# uid     name    slots
+1000      Kylin   10
+3021     test1    10
+1001     test0    100
+34       user2    30
+
+qweq qweq qweq # automatically skipped
+```
+
 ## Thanks
 
 **Author**

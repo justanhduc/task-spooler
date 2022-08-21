@@ -204,11 +204,12 @@ void server_main(int notify_fd, char *_path) {
     user_queue[i] = 0;
   }
 
-  s_set_jobids(get_env("TS_FIRST_JOBID", 1000));
+  set_server_logfile();
+  int jobid = read_first_jobid_from_logfile(logfile_path);
+  s_set_jobids(get_env("TS_FIRST_JOBID", jobid));
   jobsort_flag = get_env("TS_SORTJOBS", 0);
 
   read_user_file(get_user_path());
-  set_server_logfile();
   set_socket_model(_path);
 
   install_sigterm_handler();

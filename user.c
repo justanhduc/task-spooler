@@ -62,7 +62,7 @@ void write_logfile(const struct Job *p) {
   if (f == NULL) {
     return;
   }
-  char buf[100];
+  static char buf[100];
   time_t now = time(0);
   strftime(buf, 100, "%Y-%m-%d %H:%M:%S", localtime(&now));
   // snprintf(buf, 1024, "[%d] %s @ %s\n", p->jobid, p->command, date);
@@ -97,6 +97,28 @@ static int find_user_by_name(const char *name) {
 }
 */
 
+int read_first_jobid_from_logfile(const char *path) {
+  FILE *fp;
+  fp = fopen(path, "r");
+  if (fp == NULL)
+    return 1000; // default start from 1000
+  char *line = NULL;
+  size_t len = 0;
+  size_t read;
+  int jobid;
+
+  while ((read = getline(&line, &len, fp)) != -1) {
+  }
+  int res = sscanf(line, "[%d]", &jobid);
+  if (jobid <= 0 || res != 1) {
+    jobid = 1000;
+  }
+
+  printf("last line is %s with jobid = %d\n", line, jobid);
+  fclose(fp);
+  return jobid;
+}
+
 void read_user_file(const char *path) {
   server_uid = getuid();
   // if (server_uid != root_UID) {
@@ -115,7 +137,21 @@ void read_user_file(const char *path) {
   while ((read = getline(&line, &len, fp)) != -1) {
     if (line[0] == '#')
       continue;
-
+    if (strncmp("TS_SLOTS", line, 8) == 0) {
+      int res = sscanf(line, "TS_SLOTS = %d", &slots);
+      if (slots > 0 && res == 1) {
+        printf("TS_SLOTS = %d\n", slots);
+        s_set_max_slots(0, slots);
+        continue;
+      }
+    } else if (strncmp("TS_FIRST_JOBID", line, 14) == 0) {
+      int res = sscanf(line, "TS_FIRST_JOBID = %d", &slots);
+      if (slots > 0 && res == 1) {
+        printf("TS_FIRST_JOBID = %d\n", slots);
+        s_set_jobids(slots);
+        continue;
+      }
+    }
     int res = sscanf(line, "%d %256s %d", &UID, name, &slots);
     if (res != 3) {
       printf("error in read %s at line %s", path, line);
