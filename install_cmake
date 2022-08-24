@@ -6,4 +6,5 @@ make -j 3
 sudo install -c -d /usr/local/bin
 sudo install -c ts /usr/local/bin
 sudo install -c -d /usr/local/share/man/man1
+./makeman
 sudo install -c -m 644 ../ts.1 /usr/local/share/man/man1

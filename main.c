@@ -477,7 +477,9 @@ static void print_help(const char *cmd) {
     puts(version);
     printf("usage: %s [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]\n", cmd);
     printf("Env vars:\n");
+#ifndef CPU
     printf("  TS_VISIBLE_DEVICES  the GPU IDs that are visible to ts. Jobs will be run on these GPUs only.\n");
+#endif
     printf("  TS_SOCKET  the path to the unix socket used by the ts command.\n");
     printf("  TS_MAILTO  where to mail the result (on -m). Local user by default.\n");
     printf("  TS_MAXFINISHED  maximum finished jobs in the queue.\n");
@@ -491,23 +493,26 @@ static void print_help(const char *cmd) {
     printf("  --getenv   [var]                get the value of the specified variable in server environment.\n");
     printf("  --setenv   [var]                set the specified flag to server environment.\n");
     printf("  --unsetenv   [var]              remove the specified flag from server environment.\n");
-    printf("  --set_gpu_free_perc   [num]     set the value of GPU memory threshold above which GPUs are considered available (90 by default).\n");
-    printf("  --get_gpu_free_perc             get the value of GPU memory threshold above which GPUs are considered available.\n");
-    printf("  --unsetenv   [var]              remove the specified flag from server environment.\n");
     printf("  --get_label      || -a [id]     show the job label. Of the last added, if not specified.\n");
     printf("  --full_cmd       || -F [id]     show full command. Of the last added, if not specified.\n");
     printf("  --count_running  || -R          return the number of running jobs\n");
     printf("  --last_queue_id  || -q          show the job ID of the last added.\n");
     printf("  --get_logdir                    get the path containing log files.\n");
     printf("  --set_logdir [path]             set the path containing log files.\n");
+#ifndef CPU
+    printf("  --set_gpu_free_perc   [num]     set the value of GPU memory threshold above which GPUs are considered available (90 by default).\n");
+    printf("  --get_gpu_free_perc             get the value of GPU memory threshold above which GPUs are considered available.\n");
     printf("Long option adding jobs:\n");
     printf("  --gpus           || -G [num]    number of GPUs required by the job (1 default).\n");
     printf("  --gpu_indices    || -g <id,...> the job will be on these GPU indices without checking whether they are free.\n");
+#endif
     printf("Actions (can be performed only one at a time):\n");
     printf("  -K           kill the task spooler server\n");
     printf("  -C           clear the list of finished jobs\n");
     printf("  -l           show the job list (default action)\n");
+#ifndef CPU
     printf("  -g           list all jobs running on GPUs and the corresponding GPU IDs.\n");
+#endif
     printf("  -S [num]     get/set the number of max simultaneous jobs of the server.\n");
     printf("  -t [id]      \"tail -n 10 -f\" the output of the job. Last run if not specified.\n");
     printf("  -c [id]      like -t, but shows all the lines. Last run if not specified.\n");

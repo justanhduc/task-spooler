@@ -4,7 +4,7 @@ Originally, [Task Spooler by Lluís Batlle i Rossell](https://vicerveza.homeunix
 
 ## Introduction 
 
-A **CPU-only** version that is more faithful to the original Task Spooler is being actively developed in [here](https://github.com/justanhduc/task-spooler/tree/cpu-only).
+~~A **CPU-only** version that is more faithful to the original Task Spooler is being actively developed in [here](https://github.com/justanhduc/task-spooler/tree/cpu-only).~~
 
 As in freshmeat.net:
 

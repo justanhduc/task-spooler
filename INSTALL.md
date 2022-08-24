@@ -7,12 +7,6 @@ git clone https://github.com/justanhduc/task-spooler
 ```
 
 To setup Task Spooler with GPU support, one needs to set a `CUDA_HOME` environment variable.
-Otherwise, if you need only the CPU version, perform a checkout first
-
-```
-git checkout cpu-only
-```
-
 Then, simple run the provided script
 
 ```
@@ -29,8 +23,29 @@ and you want to reinstall or upgrade, you can run
 ./reinstall
 ```
 
+## CPU version
+
+If you would like to install only the CPU version, use the following commands (recommended)
+```
+make cpu
+sudo make install
+```
+or via CMake
+```
+mkdir build && cd build
+cmake .. -DCPU=1 -DCMAKE_BUILD_TYPE=Release
+make
+sudo install -c -d /usr/local/bin
+sudo install -c ts /usr/local/bin
+sudo install -c -d /usr/local/share/man/man1
+./makeman
+sudo install -c -m 644 ../ts.1 /usr/local/share/man/man1
+```
+This version is more faithful to the original `ts` but with many new exciting features, 
+and is still being actively developed. 
+
 ## Local installation
-To install without sudo privilege, one can use the following command
+To install without sudo privilege, one can replace the installation command by
 ```
 make install-local
 ```

@@ -20,6 +20,11 @@ if (GIT_REPO)
     add_definitions(-DTS_VERSION=${git_version})
 endif()
 
+if (CPU)
+    message("Installing a CPU version...")
+    add_definitions(-DCPU)
+endif()
+
 set(target ts)
 add_executable(
         ${target}
@@ -41,5 +46,6 @@ add_executable(
         signals.c
         tail.c
 )
+add_executable(makeman man.c)
 
 target_link_libraries(${target} nvidia-ml)

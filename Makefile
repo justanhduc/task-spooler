@@ -61,19 +61,27 @@ cpu: CFLAGS+=-DCPU
 
 all cpu: $(TARGET)
 
+all cpu:
+ifeq ($(GIT_REPO), true)
+	GIT_VERSION=$$(echo $$(git describe --dirty --always --tags) | tr - +); \
+	$(CC) $(CFLAGS) -DTS_VERSION=$${GIT_VERSION} man.c -o makeman
+endif
+
 clean:
-	rm -f *.o $(TARGET)
+	rm -f *.o $(TARGET) makeman ts.1
 
 install: $(TARGET)
 	$(INSTALL) -d $(PREFIX)/bin
 	$(INSTALL) ts $(PREFIX)/bin
 	$(INSTALL) -d $(PREFIX)/share/man/man1
+	./makeman
 	$(INSTALL) -m 644 $(TARGET).1 $(PREFIX)/share/man/man1
 
 install-local: $(TARGET)
 	$(INSTALL) -d $(PREFIX_LOCAL)/bin
 	$(INSTALL) ts $(PREFIX_LOCAL)/bin
 	$(INSTALL) -d $(PREFIX_LOCAL)/.local/share/man/man1
+	./makeman
 	$(INSTALL) -m 644 $(TARGET).1 $(PREFIX_LOCAL)/.local/share/man/man1
 
 .PHONY: uninstall
