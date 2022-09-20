@@ -1,0 +1,72 @@
+name: "Build"
+'on':
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*.*.*"
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  build-ubuntu:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            cuda: "on"
+            cmake_args: |
+              -DTASK_SPOOLER_COMPILE_CUDA=on
+
+          - os: ubuntu-22.04
+            cuda: "off"
+            cmake_args: ""
+
+      fail-fast: false
+
+    name: "cmake / ${{ matrix.os }} / cuda-${{ matrix.cuda }}"
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: "Install CUDA"
+        if: ${{ matrix.cuda == 'on' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install nvidia-cuda-toolkit
+
+      - name: "Build"
+        run: |
+          mkdir build
+          cd build
+          cmake .. ${{ matrix.cmake_args }}
+          make 
+
+
+  build-macos:
+    strategy:
+      matrix:
+        os: [macos-12.0]
+      fail-fast: false
+
+    name: "cmake / ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: "Build"
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make 
+
+
