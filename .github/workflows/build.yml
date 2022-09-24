@@ -14,14 +14,14 @@ jobs:
   build-ubuntu:
     strategy:
       matrix:
+        os: [ubuntu-latest, ubuntu-22.04, ubuntu-20.04, ubuntu-18.04, ubuntu-16.04]
+        cuda: ["on", "off"]
         include:
-          - os: ubuntu-22.04
-            cuda: "off"
+          - cuda: "off"
             cmake_args: |
               -DTASK_SPOOLER_COMPILE_CUDA=off
 
-          - os: ubuntu-22.04
-            cuda: "on"
+          - cuda: "on"
             cmake_args: ""
 
       fail-fast: false
@@ -51,7 +51,7 @@ jobs:
   build-macos:
     strategy:
       matrix:
-        os: [macos-12.0]
+        os: [macos-latest]
       fail-fast: false
 
     name: "cmake / ${{ matrix.os }}"
