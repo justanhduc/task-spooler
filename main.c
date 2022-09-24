@@ -4,15 +4,6 @@
 
     Please find the license in the provided COPYING file.
 */
-#ifndef TS_VERSION
-#define TS_VERSION 1.4.0
-#endif
-
-/* from https://github.com/LLNL/lbann/issues/117
- * and https://gcc.gnu.org/onlinedocs/cpp/Stringizing.html#Stringizing */
-#define TS_MAKE_STR(x) _TS_MAKE_STR(x)
-#define _TS_MAKE_STR(x) #x
-
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,6 +14,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+#include "version.h"
 #include "main.h"
 
 extern char *optarg;
