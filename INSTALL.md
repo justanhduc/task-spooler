@@ -33,13 +33,9 @@ sudo make install
 or via CMake
 ```
 mkdir build && cd build
-cmake .. -DCPU=1 -DCMAKE_BUILD_TYPE=Release
+cmake .. -DTASK_SPOOLER_COMPILE_CUDA=OFF -DCMAKE_BUILD_TYPE=Release
 make
-sudo install -c -d /usr/local/bin
-sudo install -c ts /usr/local/bin
-sudo install -c -d /usr/local/share/man/man1
-./makeman
-sudo install -c -m 644 ../ts.1 /usr/local/share/man/man1
+sudo make install
 ```
 This version is more faithful to the original `ts` but with many new exciting features, 
 and is still being actively developed. 
