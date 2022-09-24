@@ -3,7 +3,7 @@ project(Task-Spooler C)
 
 set(CMAKE_C_STANDARD 11)
 
-option(TASK_SPOOLER_COMPILE_CUDA "Compile CUDA support (NVML)" OFF)
+option(TASK_SPOOLER_COMPILE_CUDA "Compile CUDA support (NVML)" ON)
 
 # VERSIONING
 execute_process(
@@ -59,3 +59,9 @@ else(TASK_SPOOLER_COMPILE_CUDA)
   target_compile_definitions(${target} PUBLIC CPU)
 endif(TASK_SPOOLER_COMPILE_CUDA)
 
+# install
+install(CODE "execute_process(COMMAND install -c -d /usr/local/bin)")
+install(CODE "execute_process(COMMAND install -c ts /usr/local/bin)")
+install(CODE "execute_process(COMMAND ./makeman)")
+install(CODE "execute_process(COMMAND install -c -d /usr/local/share/man/man1)")
+install(CODE "execute_process(COMMAND install -c -m 644 ts.1 /usr/local/share/man/man1)")
