@@ -56,7 +56,7 @@ if(TASK_SPOOLER_COMPILE_CUDA)
   target_link_libraries(${target} CUDA::nvml)
 else(TASK_SPOOLER_COMPILE_CUDA)
   message("Installing a CPU version...")
-  target_compile_definitions(${target} PUBLIC CPU)
+  add_definitions(-DCPU)
 endif(TASK_SPOOLER_COMPILE_CUDA)
 
 # install
