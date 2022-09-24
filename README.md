@@ -1,5 +1,7 @@
 # GPU Task Spooler
 
+[!github-action](https://github.com/justanhduc/task-spooler/actions/workflows/build.yml/badge.svg)
+
 Originally, [Task Spooler by Lluís Batlle i Rossell](https://vicerveza.homeunix.net/~viric/soft/ts/).
 
 ## Introduction 
