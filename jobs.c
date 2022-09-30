@@ -14,6 +14,7 @@
 #include <sys/socket.h>
 
 #include "main.h"
+#include "cjson/cJSON.h"
 
 /* The list will access them */
 int busy_slots = 0;
@@ -388,10 +389,30 @@ void s_list(int s) {
         }
     }
     else {
-        char *debug_msg = "TODO\n";
-        buffer = malloc(sizeof(debug_msg));
-        strcpy(buffer, debug_msg);
+        const unsigned int resolution_numbers[3][2] = {
+            {1280, 720},
+            {1920, 1080},
+            {3840, 2160}
+        };
+
+        cJSON *jobs = cJSON_CreateArray();
+        if (jobs == NULL)
+        {
+            goto end;
+        }
+
+        // TODO: populate jobs
+
+        buffer = cJSON_Print(jobs);
+        if (buffer == NULL)
+        {
+            error("Error converting jobs to JSON.");
+            goto end;
+        }
+
         send_list_line(s, buffer);
+    end:
+        cJSON_Delete(jobs);
         free(buffer);
     }
 }

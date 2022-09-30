@@ -37,7 +37,8 @@ set(TASK_SPOOLER_SOURCES
         server.c
         server_start.c
         signals.c
-        tail.c)
+        tail.c
+        cjson/cJSON.c)
 
 if(TASK_SPOOLER_COMPILE_CUDA)
   set(TASK_SPOOLER_SOURCES ${TASK_SPOOLER_SOURCES} gpu.c)
