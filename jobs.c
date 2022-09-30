@@ -443,6 +443,10 @@ void s_list(int s) {
         /* Serialize Finished jobs */
         p = first_finished_job;
         while (p != 0) {
+            int success = add_job_to_json_array(p, jobs);
+            if (success == 0) {
+                goto end;
+            }
             p = p->next;
             num_jobs ++;
         }
