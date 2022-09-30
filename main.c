@@ -55,6 +55,7 @@ static void default_command_line() {
     command_line.gpu_nums = NULL;
     command_line.wait_free_gpus = 1;
     command_line.logfile = NULL;
+    command_line.list_format = DEFAULT;
 }
 
 struct Msg default_msg() {
@@ -136,10 +137,10 @@ void parse_opts(int argc, char **argv) {
     /* Parse options */
     while (1) {
 #ifndef CPU
-        c = getopt_long(argc, argv, ":RTVhKzClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:G:W:g:O:",
+        c = getopt_long(argc, argv, ":RTVhKzClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:G:W:g:O:M:",
                         longOptions, &optionIdx);
 #else
-        c = getopt_long(argc, argv, ":RTVhKzClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:W:O:",
+        c = getopt_long(argc, argv, ":RTVhKzClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:W:O:M:",
                         longOptions, &optionIdx);
 #endif
 
@@ -400,6 +401,21 @@ void parse_opts(int argc, char **argv) {
                         exit(-1);
                 }
                 break;
+            case 'M':
+                if (command_line.request != c_LIST) {
+                    fprintf(stderr, "-M can only be used when listing jobs.\n");
+                    exit(-1);
+                }
+                enum ListFormat format;
+                if (strcmp(optarg, "default") == 0) {
+                    format = DEFAULT;
+                }
+                else {
+                    fprintf(stderr, "Invalid argument for option M: %s.\n", optarg);
+                    exit(-1);
+                }
+                command_line.list_format = format;
+                break;
             case '?':
                 fprintf(stderr, "Wrong option %c.\n", optopt);
                 exit(-1);
@@ -533,6 +549,7 @@ static void print_help(const char *cmd) {
     printf("  -W <id,...>  the job will be run after the job of given IDs ends well (exit code 0).\n");
     printf("  -L [label]   name this task with a label, to be distinguished on listing.\n");
     printf("  -N [num]     number of slots required by the job (1 default).\n");
+    printf("  -M <format>  Print output in a machine-readable format. Choices: TODO\n");
 }
 
 static void print_version() {

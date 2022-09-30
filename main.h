@@ -93,6 +93,10 @@ enum Request {
     c_SET_LOGDIR
 };
 
+enum ListFormat {
+    DEFAULT,
+};
+
 struct CommandLine {
     enum Request request;
     int need_server;
@@ -120,6 +124,7 @@ struct CommandLine {
     int *gpu_nums;
     int wait_free_gpus;
     char *logfile;
+    enum ListFormat list_format;
 };
 
 enum Process_type {
