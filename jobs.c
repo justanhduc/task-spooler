@@ -368,13 +368,77 @@ static int add_job_to_json_array(struct Job *p, cJSON *jobs) {
     cJSON_AddItemToArray(jobs, job);
 
     /* Add fields */
-    cJSON *id = cJSON_CreateNumber(p->jobid);
-    if (id == NULL)
+    cJSON *field;
+
+    /* ID */
+    field = cJSON_CreateNumber(p->jobid);
+    if (field == NULL)
     {
         error("Error initializing JSON object for job %i field ID.", p->jobid);
         return 0;
     }
-    cJSON_AddItemToObject(job, "ID", id);
+    cJSON_AddItemToObject(job, "ID", field);
+
+    /* State */
+    const char *state_string = jstate2string(p->state);
+    field = cJSON_CreateStringReference(state_string);
+    if (field == NULL)
+    {
+        error("Error initializing JSON object for job %i field State (value %d/%s).", p->jobid, p->state, state_string);
+        return 0;
+    }
+    cJSON_AddItemToObject(job, "State", field);
+
+    /* Output */
+    field = cJSON_CreateStringReference(p->output_filename);
+    if (field == NULL)
+    {
+        error("Error initializing JSON object for job %i field Output (value %s).", p->jobid, p->output_filename);
+        return 0;
+    }
+    cJSON_AddItemToObject(job, "Output", field);
+
+    /* E-Level */
+    if (p->state == FINISHED) {
+        field = cJSON_CreateNumber(p->result.errorlevel);
+    }
+    else {
+        field = cJSON_CreateNull();
+    }
+    if (field == NULL)
+    {
+        error("Error initializing JSON object for job %i field E-Level.", p->jobid);
+        return 0;
+    }
+    cJSON_AddItemToObject(job, "E-Level", field);
+
+    /* Time */
+    if (p->state == FINISHED) {
+        field = cJSON_CreateNumber(p->result.real_ms);
+        if (field == NULL)
+        {
+            error("Error initializing JSON object for job %i field Time_ms (value %d).", p->result.real_ms);
+            return 0;
+        }
+    }
+    else {
+        field = cJSON_CreateNull();
+        if (field == NULL)
+        {
+            error("Error initializing JSON object for job %i field Time_ms (no result).");
+            return 0;
+        }
+    }
+    cJSON_AddItemToObject(job, "Time_ms", field);
+
+    /* Command */
+    field = cJSON_CreateStringReference(p->command);
+    if (field == NULL)
+    {
+        error("Error initializing JSON object for job %i field Command (value %s).", p->jobid, p->command);
+        return 0;
+    }
+    cJSON_AddItemToObject(job, "Command", field);
 
     return 1;
 }
