@@ -360,30 +360,39 @@ void s_list(int s) {
     struct Job *p;
     char *buffer;
 
-    /* Times:   0.00/0.00/0.00 - 4+4+4+2 = 14*/
-    buffer = joblist_headers();
-    send_list_line(s, buffer);
-    free(buffer);
+    if (list_format == DEFAULT) {
+        /* Times:   0.00/0.00/0.00 - 4+4+4+2 = 14*/
+        buffer = joblist_headers();
+        send_list_line(s, buffer);
+        free(buffer);
 
-    /* Show Queued or Running jobs */
-    p = firstjob;
-    while (p != 0) {
-        if (p->state != HOLDING_CLIENT) {
+        /* Show Queued or Running jobs */
+        p = firstjob;
+        while (p != 0) {
+            if (p->state != HOLDING_CLIENT) {
+                buffer = joblist_line(p);
+                send_list_line(s, buffer);
+                free(buffer);
+            }
+            p = p->next;
+        }
+
+        p = first_finished_job;
+
+        /* Show Finished jobs */
+        while (p != 0) {
             buffer = joblist_line(p);
             send_list_line(s, buffer);
             free(buffer);
+            p = p->next;
         }
-        p = p->next;
     }
-
-    p = first_finished_job;
-
-    /* Show Finished jobs */
-    while (p != 0) {
-        buffer = joblist_line(p);
+    else {
+        char *debug_msg = "TODO\n";
+        buffer = malloc(sizeof(debug_msg));
+        strcpy(buffer, debug_msg);
         send_list_line(s, buffer);
         free(buffer);
-        p = p->next;
     }
 }
 

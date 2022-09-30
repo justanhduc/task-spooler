@@ -95,6 +95,7 @@ enum Request {
 
 enum ListFormat {
     DEFAULT,
+    JSON,
 };
 
 struct CommandLine {
@@ -137,6 +138,7 @@ extern enum Process_type process_type;
 extern int server_socket; /* Used in the client */
 extern char* logdir;
 extern int term_width;
+extern int list_format;
 
 struct Msg;
 
@@ -192,6 +194,7 @@ struct Msg {
         int count_running;
         char *label;
         int term_width;
+        enum ListFormat list_format;
     } u;
 };
 

@@ -23,6 +23,7 @@ extern int optind, opterr, optopt;
 /* Globals */
 struct CommandLine command_line;
 int term_width;
+int list_format;
 
 /* Globals for the environment of getopt */
 static char getopt_env[] = "POSIXLY_CORRECT=YES";
@@ -409,6 +410,9 @@ void parse_opts(int argc, char **argv) {
                 enum ListFormat format;
                 if (strcmp(optarg, "default") == 0) {
                     format = DEFAULT;
+                }
+                else if (strcmp(optarg, "json") == 0) {
+                    format = JSON;
                 }
                 else {
                     fprintf(stderr, "Invalid argument for option M: %s.\n", optarg);
