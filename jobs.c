@@ -358,7 +358,7 @@ const char *jstate2string(enum Jobstate s) {
 }
 
 /* Serialize a job and add it to the JSON array. Returns 1 for success, 0 for failure. */
-int add_job_to_json_array(struct Job *p, cJSON *jobs) {
+static int add_job_to_json_array(struct Job *p, cJSON *jobs) {
     cJSON *job = cJSON_CreateObject();
     if (job == NULL)
     {
