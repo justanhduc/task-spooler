@@ -475,23 +475,14 @@ void s_list(int s) {
         }
     }
     else if (list_format == JSON) {
-        cJSON *wrapper_object = cJSON_CreateObject();
-        if (wrapper_object == NULL)
-        {
-            error("Error initializing JSON wrapper object.");
-            goto end;
-        }
-
         cJSON *jobs = cJSON_CreateArray();
         if (jobs == NULL)
         {
             error("Error initializing JSON array.");
             goto end;
         }
-        debug("made JSON array");
 
         /* Serialize Queued or Running jobs */
-        int num_jobs = 0;
         p = firstjob;
         while (p != 0) {
             if (p->state != HOLDING_CLIENT) {
@@ -501,7 +492,6 @@ void s_list(int s) {
                 }
             }
             p = p->next;
-            num_jobs ++;
         }
 
         /* Serialize Finished jobs */
@@ -512,20 +502,9 @@ void s_list(int s) {
                 goto end;
             }
             p = p->next;
-            num_jobs ++;
         }
 
-        cJSON *num_jobs_obj = cJSON_CreateNumber(num_jobs);
-        if (num_jobs_obj == NULL)
-        {
-            error("Error initializing JSON object for job count.");
-            goto end;
-        }
-        cJSON_AddItemToObject(wrapper_object, "num_jobs", num_jobs_obj);
-
-        cJSON_AddItemToObject(wrapper_object, "jobs", jobs);
-
-        buffer = cJSON_Print(wrapper_object);
+        buffer = cJSON_Print(jobs);
         if (buffer == NULL)
         {
             error("Error converting jobs to JSON.");
