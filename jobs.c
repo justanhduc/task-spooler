@@ -388,22 +388,69 @@ void s_list(int s) {
             p = p->next;
         }
     }
-    else {
-        const unsigned int resolution_numbers[3][2] = {
-            {1280, 720},
-            {1920, 1080},
-            {3840, 2160}
-        };
+    else if (list_format == JSON) {
+        cJSON *wrapper_object = cJSON_CreateObject();
+        if (wrapper_object == NULL)
+        {
+            error("Error initializing JSON wrapper object.");
+            goto end;
+        }
 
         cJSON *jobs = cJSON_CreateArray();
         if (jobs == NULL)
         {
+            error("Error initializing JSON array.");
             goto end;
         }
+        debug("made JSON array");
 
-        // TODO: populate jobs
+        /* Serialize Queued or Running jobs */
+        int num_jobs = 0;
+        p = firstjob;
+        debug("pointer p: %d", p);
+        while (p != 0) {
+            debug("processing jobid %i state %i", p->jobid, p->state);
+            if (p->state != HOLDING_CLIENT) {
+                debug("processing jobid %i", p->jobid);
+                cJSON *job = cJSON_CreateObject();
+                if (job == NULL)
+                {
+                    error("Error initializing JSON object for job %i.", p->jobid);
+                    goto end;
+                }
+                cJSON_AddItemToArray(jobs, job);
 
-        buffer = cJSON_Print(jobs);
+                /* Add fields */
+                cJSON *id = cJSON_CreateNumber(p->jobid);
+                if (id == NULL)
+                {
+                    error("Error initializing JSON object for job %i field ID.", p->jobid);
+                    goto end;
+                }
+                cJSON_AddItemToObject(job, "ID", id);
+            }
+            p = p->next;
+            num_jobs ++;
+        }
+
+        /* Serialize Finished jobs */
+        p = first_finished_job;
+        while (p != 0) {
+            p = p->next;
+            num_jobs ++;
+        }
+
+        cJSON *num_jobs_obj = cJSON_CreateNumber(num_jobs);
+        if (num_jobs_obj == NULL)
+        {
+            error("Error initializing JSON object for job count.");
+            goto end;
+        }
+        cJSON_AddItemToObject(wrapper_object, "num_jobs", num_jobs_obj);
+
+        cJSON_AddItemToObject(wrapper_object, "jobs", jobs);
+
+        buffer = cJSON_Print(wrapper_object);
         if (buffer == NULL)
         {
             error("Error converting jobs to JSON.");
