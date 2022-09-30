@@ -357,6 +357,28 @@ const char *jstate2string(enum Jobstate s) {
     return jobstate;
 }
 
+/* Serialize a job and add it to the JSON array. Returns 1 for success, 0 for failure. */
+int add_job_to_json_array(struct Job *p, cJSON *jobs) {
+    cJSON *job = cJSON_CreateObject();
+    if (job == NULL)
+    {
+        error("Error initializing JSON object for job %i.", p->jobid);
+        return 0;
+    }
+    cJSON_AddItemToArray(jobs, job);
+
+    /* Add fields */
+    cJSON *id = cJSON_CreateNumber(p->jobid);
+    if (id == NULL)
+    {
+        error("Error initializing JSON object for job %i field ID.", p->jobid);
+        return 0;
+    }
+    cJSON_AddItemToObject(job, "ID", id);
+
+    return 1;
+}
+
 void s_list(int s) {
     struct Job *p;
     char *buffer;
@@ -407,27 +429,12 @@ void s_list(int s) {
         /* Serialize Queued or Running jobs */
         int num_jobs = 0;
         p = firstjob;
-        debug("pointer p: %d", p);
         while (p != 0) {
-            debug("processing jobid %i state %i", p->jobid, p->state);
             if (p->state != HOLDING_CLIENT) {
-                debug("processing jobid %i", p->jobid);
-                cJSON *job = cJSON_CreateObject();
-                if (job == NULL)
-                {
-                    error("Error initializing JSON object for job %i.", p->jobid);
+                int success = add_job_to_json_array(p, jobs);
+                if (success == 0) {
                     goto end;
                 }
-                cJSON_AddItemToArray(jobs, job);
-
-                /* Add fields */
-                cJSON *id = cJSON_CreateNumber(p->jobid);
-                if (id == NULL)
-                {
-                    error("Error initializing JSON object for job %i field ID.", p->jobid);
-                    goto end;
-                }
-                cJSON_AddItemToObject(job, "ID", id);
             }
             p = p->next;
             num_jobs ++;
