@@ -504,7 +504,7 @@ void s_list(int s) {
             p = p->next;
         }
 
-        buffer = cJSON_Print(jobs);
+        buffer = cJSON_PrintUnformatted(jobs);
         if (buffer == NULL)
         {
             error("Error converting jobs to JSON.");
