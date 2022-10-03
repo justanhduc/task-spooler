@@ -553,7 +553,7 @@ static void print_help(const char *cmd) {
     printf("  -W <id,...>  the job will be run after the job of given IDs ends well (exit code 0).\n");
     printf("  -L [label]   name this task with a label, to be distinguished on listing.\n");
     printf("  -N [num]     number of slots required by the job (1 default).\n");
-    printf("  -M <format>  Print output in a machine-readable format. Choices: TODO\n");
+    printf("  -M <format>  Print output in a machine-readable format. Choices: {default,json}\n");
 }
 
 static void print_version() {
