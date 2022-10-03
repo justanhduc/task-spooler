@@ -431,6 +431,17 @@ static int add_job_to_json_array(struct Job *p, cJSON *jobs) {
     }
     cJSON_AddItemToObject(job, "Time_ms", field);
 
+    /* GPUs */
+    #ifndef CPU
+    field = cJSON_CreateNumber(p->num_gpus);
+    if (field == NULL)
+    {
+        error("Error initializing JSON object for job %i field GPUs (value %d).", p->num_gpus);
+        return 0;
+    }
+    cJSON_AddItemToObject(job, "GPUs", field);
+    #endif /*CPU*/
+
     /* Command */
     field = cJSON_CreateStringReference(p->command);
     if (field == NULL)
