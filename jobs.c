@@ -510,6 +510,11 @@ void s_list(int s) {
             error("Error converting jobs to JSON.");
             goto end;
         }
+        
+        // append newline
+        size_t buffer_strlen = strlen(buffer);
+        buffer = realloc(buffer, buffer_strlen+1+1);
+        buffer[buffer_strlen] = '\n';
 
         send_list_line(s, buffer);
     end:
