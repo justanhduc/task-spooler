@@ -19,7 +19,8 @@ OBJECTS=main.o \
 	print.o \
 	info.o \
 	env.o \
-	tail.o
+	tail.o \
+	cjson/cJSON.o
 TARGET=ts
 INSTALL=install -c
 
@@ -56,6 +57,7 @@ list.o: list.c main.h
 tail.o: tail.c main.h
 gpu.o: gpu.c main.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -L$(CUDA_HOME)/lib64 -I$(CUDA_HOME)/include -lpthread -c $< -o $@
+cjson/cJSON.o: cjson/cJSON.c cjson/cJSON.h
 
 cpu: CFLAGS+=-DCPU
 
@@ -68,7 +70,7 @@ ifeq ($(GIT_REPO), true)
 endif
 
 clean:
-	rm -f *.o $(TARGET) makeman ts.1
+	rm -f *.o cjson/*.o $(TARGET) makeman ts.1
 
 install: $(TARGET)
 	$(INSTALL) -d $(PREFIX)/bin
