@@ -138,7 +138,6 @@ extern enum Process_type process_type;
 extern int server_socket; /* Used in the client */
 extern char* logdir;
 extern int term_width;
-extern int list_format;
 
 struct Msg;
 
@@ -324,7 +323,7 @@ void c_set_logdir();
 char* get_logdir();
 
 /* jobs.c */
-void s_list(int s);
+void s_list(int s, enum ListFormat listFormat);
 
 #ifndef CPU
 void s_list_gpu(int s);

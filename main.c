@@ -23,7 +23,6 @@ extern int optind, opterr, optopt;
 /* Globals */
 struct CommandLine command_line;
 int term_width;
-int list_format;
 
 /* Globals for the environment of getopt */
 static char getopt_env[] = "POSIXLY_CORRECT=YES";

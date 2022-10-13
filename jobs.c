@@ -454,11 +454,11 @@ static int add_job_to_json_array(struct Job *p, cJSON *jobs) {
     return 1;
 }
 
-void s_list(int s) {
+void s_list(int s, enum ListFormat listFormat) {
     struct Job *p;
     char *buffer;
 
-    if (list_format == DEFAULT) {
+    if (listFormat == DEFAULT) {
         /* Times:   0.00/0.00/0.00 - 4+4+4+2 = 14*/
         buffer = joblist_headers();
         send_list_line(s, buffer);
@@ -485,7 +485,7 @@ void s_list(int s) {
             p = p->next;
         }
     }
-    else if (list_format == JSON) {
+    else if (listFormat == JSON) {
         cJSON *jobs = cJSON_CreateArray();
         if (jobs == NULL)
         {
