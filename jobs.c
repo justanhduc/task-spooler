@@ -14,6 +14,7 @@
 #include <sys/socket.h>
 
 #include "main.h"
+#include "cjson/cJSON.h"
 
 /* The list will access them */
 int busy_slots = 0;
@@ -356,34 +357,180 @@ const char *jstate2string(enum Jobstate s) {
     return jobstate;
 }
 
-void s_list(int s) {
+/* Serialize a job and add it to the JSON array. Returns 1 for success, 0 for failure. */
+static int add_job_to_json_array(struct Job *p, cJSON *jobs) {
+    cJSON *job = cJSON_CreateObject();
+    if (job == NULL)
+    {
+        error("Error initializing JSON object for job %i.", p->jobid);
+        return 0;
+    }
+    cJSON_AddItemToArray(jobs, job);
+
+    /* Add fields */
+    cJSON *field;
+
+    /* ID */
+    field = cJSON_CreateNumber(p->jobid);
+    if (field == NULL)
+    {
+        error("Error initializing JSON object for job %i field ID.", p->jobid);
+        return 0;
+    }
+    cJSON_AddItemToObject(job, "ID", field);
+
+    /* State */
+    const char *state_string = jstate2string(p->state);
+    field = cJSON_CreateStringReference(state_string);
+    if (field == NULL)
+    {
+        error("Error initializing JSON object for job %i field State (value %d/%s).", p->jobid, p->state, state_string);
+        return 0;
+    }
+    cJSON_AddItemToObject(job, "State", field);
+
+    /* Output */
+    field = cJSON_CreateStringReference(p->output_filename);
+    if (field == NULL)
+    {
+        error("Error initializing JSON object for job %i field Output (value %s).", p->jobid, p->output_filename);
+        return 0;
+    }
+    cJSON_AddItemToObject(job, "Output", field);
+
+    /* E-Level */
+    if (p->state == FINISHED) {
+        field = cJSON_CreateNumber(p->result.errorlevel);
+    }
+    else {
+        field = cJSON_CreateNull();
+    }
+    if (field == NULL)
+    {
+        error("Error initializing JSON object for job %i field E-Level.", p->jobid);
+        return 0;
+    }
+    cJSON_AddItemToObject(job, "E-Level", field);
+
+    /* Time */
+    if (p->state == FINISHED) {
+        field = cJSON_CreateNumber(p->result.real_ms);
+        if (field == NULL)
+        {
+            error("Error initializing JSON object for job %i field Time_ms (value %d).", p->result.real_ms);
+            return 0;
+        }
+    }
+    else {
+        field = cJSON_CreateNull();
+        if (field == NULL)
+        {
+            error("Error initializing JSON object for job %i field Time_ms (no result).");
+            return 0;
+        }
+    }
+    cJSON_AddItemToObject(job, "Time_ms", field);
+
+    /* GPUs */
+    #ifndef CPU
+    field = cJSON_CreateNumber(p->num_gpus);
+    if (field == NULL)
+    {
+        error("Error initializing JSON object for job %i field GPUs (value %d).", p->num_gpus);
+        return 0;
+    }
+    cJSON_AddItemToObject(job, "GPUs", field);
+    #endif /*CPU*/
+
+    /* Command */
+    field = cJSON_CreateStringReference(p->command);
+    if (field == NULL)
+    {
+        error("Error initializing JSON object for job %i field Command (value %s).", p->jobid, p->command);
+        return 0;
+    }
+    cJSON_AddItemToObject(job, "Command", field);
+
+    return 1;
+}
+
+void s_list(int s, enum ListFormat listFormat) {
     struct Job *p;
     char *buffer;
 
-    /* Times:   0.00/0.00/0.00 - 4+4+4+2 = 14*/
-    buffer = joblist_headers();
-    send_list_line(s, buffer);
-    free(buffer);
+    if (listFormat == DEFAULT) {
+        /* Times:   0.00/0.00/0.00 - 4+4+4+2 = 14*/
+        buffer = joblist_headers();
+        send_list_line(s, buffer);
+        free(buffer);
 
-    /* Show Queued or Running jobs */
-    p = firstjob;
-    while (p != 0) {
-        if (p->state != HOLDING_CLIENT) {
+        /* Show Queued or Running jobs */
+        p = firstjob;
+        while (p != 0) {
+            if (p->state != HOLDING_CLIENT) {
+                buffer = joblist_line(p);
+                send_list_line(s, buffer);
+                free(buffer);
+            }
+            p = p->next;
+        }
+
+        p = first_finished_job;
+
+        /* Show Finished jobs */
+        while (p != 0) {
             buffer = joblist_line(p);
             send_list_line(s, buffer);
             free(buffer);
+            p = p->next;
         }
-        p = p->next;
     }
+    else if (listFormat == JSON) {
+        cJSON *jobs = cJSON_CreateArray();
+        if (jobs == NULL)
+        {
+            error("Error initializing JSON array.");
+            goto end;
+        }
 
-    p = first_finished_job;
+        /* Serialize Queued or Running jobs */
+        p = firstjob;
+        while (p != 0) {
+            if (p->state != HOLDING_CLIENT) {
+                int success = add_job_to_json_array(p, jobs);
+                if (success == 0) {
+                    goto end;
+                }
+            }
+            p = p->next;
+        }
 
-    /* Show Finished jobs */
-    while (p != 0) {
-        buffer = joblist_line(p);
+        /* Serialize Finished jobs */
+        p = first_finished_job;
+        while (p != 0) {
+            int success = add_job_to_json_array(p, jobs);
+            if (success == 0) {
+                goto end;
+            }
+            p = p->next;
+        }
+
+        buffer = cJSON_PrintUnformatted(jobs);
+        if (buffer == NULL)
+        {
+            error("Error converting jobs to JSON.");
+            goto end;
+        }
+        
+        // append newline
+        size_t buffer_strlen = strlen(buffer);
+        buffer = realloc(buffer, buffer_strlen+1+1);
+        buffer[buffer_strlen] = '\n';
+
         send_list_line(s, buffer);
+    end:
+        cJSON_Delete(jobs);
         free(buffer);
-        p = p->next;
     }
 }
 

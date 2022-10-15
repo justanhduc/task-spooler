@@ -15,6 +15,14 @@ if [ $LINES -ne 5 ]; then
   echo "Error in simple tasks."
   exit 1
 fi
+if command -v jq > /dev/null
+then
+  LINES_JSON=`./ts -M json | jq '. | length'`
+  if [ $LINES_JSON -ne 5 ]; then
+    echo "Error in exporting JSON from simple tasks."
+    exit 1
+  fi
+fi
 
 ./ts -K
 

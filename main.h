@@ -93,6 +93,11 @@ enum Request {
     c_SET_LOGDIR
 };
 
+enum ListFormat {
+    DEFAULT,
+    JSON,
+};
+
 struct CommandLine {
     enum Request request;
     int need_server;
@@ -120,6 +125,7 @@ struct CommandLine {
     int *gpu_nums;
     int wait_free_gpus;
     char *logfile;
+    enum ListFormat list_format;
 };
 
 enum Process_type {
@@ -187,6 +193,7 @@ struct Msg {
         int count_running;
         char *label;
         int term_width;
+        enum ListFormat list_format;
     } u;
 };
 
@@ -316,7 +323,7 @@ void c_set_logdir();
 char* get_logdir();
 
 /* jobs.c */
-void s_list(int s);
+void s_list(int s, enum ListFormat listFormat);
 
 #ifndef CPU
 void s_list_gpu(int s);
