@@ -518,6 +518,7 @@ void c_kill_job() {
     exit(-1);
   }
 
+  printf("kill the pid: %d\n", pid);
   /* Send SIGTERM to the process group, as pid is for process group */
   kill(-pid, SIGTERM);
 }
@@ -583,6 +584,9 @@ void c_remove_job() {
     string = (char *)malloc(m.u.size);
     res = recv_bytes(server_socket, string, m.u.size);
     fprintf(stderr, "Error in the request: %s", string);
+    if (strncmp(string, "Running job", 11) == 0) {
+      c_kill_job();
+    }
     free(string);
     exit(-1);
     /* WILL NOT GO FURTHER */

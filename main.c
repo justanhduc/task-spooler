@@ -810,6 +810,7 @@ int main(int argc, char **argv) {
   case c_REMOVEJOB:
     if (!command_line.need_server)
       error("The command %i needs the server", command_line.request);
+    printf("remove the job\n");
     c_remove_job();
     break;
   case c_WAITJOB:

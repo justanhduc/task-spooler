@@ -1227,11 +1227,11 @@ int s_remove_job(int s, int *jobid, int client_uid) {
 
   if (p->state == RUNNING) {
     if (p->pid != 0 && (user_UID[p->user_id] == client_uid)) {
-      kill(p->pid, SIGTERM);
+      kill(p->pid, SIGKILL);
       if (*jobid == -1)
-        snprintf(buff, 255, "The last job is removed.\n");
+        snprintf(buff, 255, "Running job of last job is removed.\n");
       else
-        snprintf(buff, 255, "The job %i is removed.\n", *jobid);
+        snprintf(buff, 255, "Running job %i[%d] is removed.\n", *jobid, p->pid);
       send_list_line(s, buff);
       return 0;
     }
