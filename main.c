@@ -529,7 +529,7 @@ static void print_help(const char *cmd) {
   printf("  --hold_job [jobid]              hold on a task.\n");
   printf("  --restart_job [jobid]           restart a task.\n");
   printf("  --lock                          Locker the server (Timeout: 30 "
-         "sec.)git "
+         "sec.)"
          "For Root, timeout is infinity.\n");
   printf("  --unlock                        Unlocker the server.\n");
   printf("  --stop [user]                   For normal user, pause all "

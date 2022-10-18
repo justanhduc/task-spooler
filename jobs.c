@@ -735,8 +735,9 @@ int next_run_job() {
         int num_slots = p->num_slots, id = p->user_id;
         if (id == uid && free_slots >= num_slots &&
             user_max_slots[id] - user_busy[id] >= num_slots) {
-          busy_slots = busy_slots + num_slots;
+          busy_slots += num_slots;
           user_busy[id] += num_slots;
+
           user_jobs[id]++;
           user_queue[id]--;
           return p->jobid;
