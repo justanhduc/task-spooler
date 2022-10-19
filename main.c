@@ -13,6 +13,7 @@
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "version.h"
 #include "main.h"
@@ -32,8 +33,10 @@ static char version[1024];
 
 static void init_version() {
     char *ts_version = TS_MAKE_STR(TS_VERSION);
+    time_t t = time(NULL);
+    struct tm timeinfo = *localtime(&t);
     sprintf(version, "Task Spooler %s - a task queue system for the unix user.\n"
-                     "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell", ts_version);
+                     "Copyright (C) 2007-%d  Duc Nguyen - Lluis Batlle i Rossell", ts_version, timeinfo.tm_year + 1900);
 }
 
 static void default_command_line() {
@@ -485,7 +488,7 @@ static void go_background() {
 
 static void print_help(const char *cmd) {
     puts(version);
-    printf("usage: %s [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]\n", cmd);
+    printf("usage: %s <action> <[options] {your-command}>\n", cmd);
     printf("Env vars:\n");
 #ifndef CPU
     printf("  TS_VISIBLE_DEVICES  the GPU IDs that are visible to ts. Jobs will be run on these GPUs only.\n");
@@ -514,7 +517,7 @@ static void print_help(const char *cmd) {
     printf("  --get_gpu_free_perc             get the value of GPU memory threshold above which GPUs are considered available.\n");
     printf("Long option adding jobs:\n");
     printf("  --gpus           || -G [num]    number of GPUs required by the job (1 default).\n");
-    printf("  --gpu_indices    || -g <id,...> the job will be on these GPU indices without checking whether they are free.\n");
+    printf("  --gpu_indices    || -g [id,...] the job will be on these GPU indices without checking whether they are free.\n");
 #endif
     printf("Actions (can be performed only one at a time):\n");
     printf("  -K           kill the task spooler server\n");
@@ -535,23 +538,23 @@ static void print_help(const char *cmd) {
     printf("  -k [id]      send SIGTERM to the job process group. The last run, if not specified.\n");
     printf("  -T           send SIGTERM to all running job groups.\n");
     printf("  -u [id]      put that job first. The last added, if not specified.\n");
-    printf("  -U <id-id>   swap two jobs in the queue.\n");
+    printf("  -U [id-id]   swap two jobs in the queue.\n");
+    printf("  -M [format]  Print output in a machine-readable format. Choices: {default, json, tab}.\n");
     printf("  -h           show this help\n");
     printf("  -V           show the program version\n");
     printf("Options adding jobs:\n");
     printf("  -B           in case of full clients on the server, quit instead of waiting.\n");
     printf("  -n           don't store the output of the command.\n");
     printf("  -E           Keep stderr apart, in a name like the output file, but adding '.e'.\n");
-    printf("  -O           Set name of the log file (without any path).\n");
     printf("  -z           gzip the stored output (if not -n).\n");
     printf("  -f           don't fork into background.\n");
     printf("  -m           send the output by e-mail (uses sendmail).\n");
     printf("  -d           the job will be run after the last job ends.\n");
-    printf("  -D <id,...>  the job will be run after the job of given IDs ends.\n");
-    printf("  -W <id,...>  the job will be run after the job of given IDs ends well (exit code 0).\n");
+    printf("  -O [name]    set name of the log file (without any path).\n");
+    printf("  -D [id,...]  the job will be run after the job of given IDs ends.\n");
+    printf("  -W [id,...]  the job will be run after the job of given IDs ends well (exit code 0).\n");
     printf("  -L [label]   name this task with a label, to be distinguished on listing.\n");
     printf("  -N [num]     number of slots required by the job (1 default).\n");
-    printf("  -M <format>  Print output in a machine-readable format. Choices: {default,json}\n");
 }
 
 static void print_version() {
