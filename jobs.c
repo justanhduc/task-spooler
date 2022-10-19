@@ -532,6 +532,28 @@ void s_list(int s, enum ListFormat listFormat) {
         cJSON_Delete(jobs);
         free(buffer);
     }
+    else if (listFormat == TAB) {
+        /* Show Queued or Running jobs */
+        p = firstjob;
+        while (p != 0) {
+            if (p->state != HOLDING_CLIENT) {
+                buffer = joblist_line_plain(p);
+                send_list_line(s, buffer);
+                free(buffer);
+            }
+            p = p->next;
+        }
+
+        p = first_finished_job;
+
+        /* Show Finished jobs */
+        while (p != 0) {
+            buffer = joblist_line_plain(p);
+            send_list_line(s, buffer);
+            free(buffer);
+            p = p->next;
+        }
+    }
 }
 
 #ifndef CPU

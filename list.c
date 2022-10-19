@@ -309,6 +309,184 @@ char *jobgpulist_line(const struct Job *p) {
 }
 #endif
 
+static char *plainprint_noresult(const struct Job *p) {
+    const char *jobstate;
+    const char *output_filename;
+    int maxlen;
+    char *line;
+    /* 20 chars should suffice for a string like "[int,int,..]&& " */
+    char dependstr[20] = "";
+
+    jobstate = jstate2string(p->state);
+    output_filename = ofilename_shown(p);
+
+    maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1
+             + 25 + 1 + 5 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
+
+    if (p->label)
+        maxlen += 3 + strlen(p->label);
+
+    if (p->depend_on_size) {
+        maxlen += sizeof(dependstr);
+        int pos = 0;
+        if (p->depend_on[0] == -1)
+            pos += snprintf(&dependstr[pos], sizeof(dependstr), "[ ");
+        else
+            pos += snprintf(&dependstr[pos], sizeof(dependstr), "[%i", p->depend_on[0]);
+
+        for (int i = 1; i < p->depend_on_size; i++) {
+            if (p->depend_on[i] == -1)
+                pos += snprintf(&dependstr[pos], sizeof(dependstr), ", ");
+            else
+                pos += snprintf(&dependstr[pos], sizeof(dependstr), ",%i", p->depend_on[i]);
+        }
+        pos += snprintf(&dependstr[pos], sizeof(dependstr), "]&& ");
+    }
+
+    line = (char *) malloc(maxlen);
+    if (line == NULL)
+        error("Malloc for %i failed.\n", maxlen);
+
+    if (p->label)
+#ifdef CPU
+        snprintf(line, maxlen, "%i\t%s\t%s\t%s\t%s\t%s\t[%s]\t%s\n",
+                 p->jobid,
+                 jobstate,
+                 output_filename,
+                 "",
+                 "",
+                 dependstr,
+                 p->label,
+                 p->command);
+#else
+        snprintf(line, maxlen, "%i\t%s\t%s\t%s\t%s\t%d\t%s\t[%s]\t%s\n",
+                 p->jobid,
+                 jobstate,
+                 output_filename,
+                 "",
+                 "",
+                 p->num_gpus,
+                 dependstr,
+                 p->label,
+                 p->command);
+#endif
+    else
+#ifdef CPU
+        snprintf(line, maxlen, "%i\t%s\t%s\t%s\t%s\t%s\t\t%s\n",
+                 p->jobid,
+                 jobstate,
+                 output_filename,
+                 "",
+                 "",
+                 dependstr,
+                 p->command);
+#else
+        snprintf(line, maxlen, "%i\t%s\t%s\t%s\t%s\t%d\t%s\t\t%s\n",
+                 p->jobid,
+                 jobstate,
+                 output_filename,
+                 "",
+                 "",
+                 p->num_gpus,
+                 dependstr,
+                 p->command);
+#endif
+
+    return line;
+}
+
+static char *plainprint_result(const struct Job *p) {
+    const char *jobstate;
+    int maxlen;
+    char *line;
+    const char *output_filename;
+    /* 20 chars should suffice for a string like "[int,int,..]&& " */
+    char dependstr[20] = "";
+    float real_ms = p->result.real_ms;
+    char *unit = time_rep(&real_ms);
+
+    jobstate = jstate2string(p->state);
+    output_filename = ofilename_shown(p);
+
+    maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1
+             + 25 + 1 + + 5 + 1 + strlen(p->command) + 20; /* 20 is the margin for errors */
+
+    if (p->label)
+        maxlen += 3 + strlen(p->label);
+
+    if (p->depend_on_size) {
+        maxlen += sizeof(dependstr);
+        int pos = 0;
+        if (p->depend_on[0] == -1)
+            pos += snprintf(&dependstr[pos], sizeof(dependstr), "[ ");
+        else
+            pos += snprintf(&dependstr[pos], sizeof(dependstr), "[%i", p->depend_on[0]);
+
+        for (int i = 1; i < p->depend_on_size; i++) {
+            if (p->depend_on[i] == -1)
+                pos += snprintf(&dependstr[pos], sizeof(dependstr), ", ");
+            else
+                pos += snprintf(&dependstr[pos], sizeof(dependstr), ",%i", p->depend_on[i]);
+        }
+        pos += snprintf(&dependstr[pos], sizeof(dependstr), "]&& ");
+    }
+
+    line = (char *) malloc(maxlen);
+    if (line == NULL)
+        error("Malloc for %i failed.\n", maxlen);
+
+    if (p->label)
+#ifdef CPU
+        snprintf(line, maxlen, "%i\t%s\t%s\t%i\t%.2f\t%s\t%s\t[%s]\t%s\n",
+                 p->jobid,
+                 jobstate,
+                 output_filename,
+                 p->result.errorlevel,
+                 real_ms,
+                 unit,
+                 dependstr,
+                 p->label,
+                 p->command);
+#else
+        snprintf(line, maxlen, "%i\t%s\t%s\t%i\t%.2f\t%s\t%d\t%s\t[%s]\t%s\n",
+                 p->jobid,
+                 jobstate,
+                 output_filename,
+                 p->result.errorlevel,
+                 real_ms,
+                 unit,
+                 p->num_gpus,
+                 dependstr,
+                 p->label,
+                 p->command);
+#endif
+    else
+#ifdef CPU
+        snprintf(line, maxlen, "%i\t%s\t%s\t%i\t%.2f\t%s\t%s\t\t%s\n",
+                 p->jobid,
+                 jobstate,
+                 output_filename,
+                 p->result.errorlevel,
+                 real_ms,
+                 unit,
+                 dependstr,
+                 p->command);
+#else
+        snprintf(line, maxlen, "%i\t%s\t%s\t%i\t%.2f\t%s\t%d\t%s\t\t%s\n",
+                 p->jobid,
+                 jobstate,
+                 output_filename,
+                 p->result.errorlevel,
+                 real_ms,
+                 unit,
+                 p->num_gpus,
+                 dependstr,
+                 p->command);
+#endif
+
+    return line;
+}
+
 char *joblist_line(const struct Job *p) {
     char *line;
 
@@ -316,6 +494,17 @@ char *joblist_line(const struct Job *p) {
         line = print_result(p);
     else
         line = print_noresult(p);
+
+    return line;
+}
+
+char *joblist_line_plain(const struct Job *p) {
+    char *line;
+
+    if (p->state == FINISHED)
+        line = plainprint_result(p);
+    else
+        line = plainprint_noresult(p);
 
     return line;
 }

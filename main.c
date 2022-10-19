@@ -406,18 +406,17 @@ void parse_opts(int argc, char **argv) {
                     fprintf(stderr, "-M can only be used when listing jobs.\n");
                     exit(-1);
                 }
-                enum ListFormat format;
-                if (strcmp(optarg, "default") == 0) {
-                    format = DEFAULT;
-                }
-                else if (strcmp(optarg, "json") == 0) {
-                    format = JSON;
-                }
+
+                if (strcmp(optarg, "default") == 0)
+                    command_line.list_format = DEFAULT;
+                else if (strcmp(optarg, "json") == 0)
+                    command_line.list_format = JSON;
+                else if (strcmp(optarg, "tab") == 0)
+                    command_line.list_format = TAB;
                 else {
                     fprintf(stderr, "Invalid argument for option M: %s.\n", optarg);
                     exit(-1);
                 }
-                command_line.list_format = format;
                 break;
             case '?':
                 fprintf(stderr, "Wrong option %c.\n", optopt);

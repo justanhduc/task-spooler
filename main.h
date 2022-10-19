@@ -96,6 +96,7 @@ enum Request {
 enum ListFormat {
     DEFAULT,
     JSON,
+    TAB
 };
 
 struct CommandLine {
@@ -483,6 +484,8 @@ char *joblist_headers();
 char *jobgpulist_header();
 
 char *joblist_line(const struct Job *p);
+
+char *joblist_line_plain(const struct Job *p);
 
 char *joblistdump_torun(const struct Job *p);
 
