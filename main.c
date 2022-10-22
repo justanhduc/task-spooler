@@ -526,8 +526,8 @@ static void print_help(const char *cmd) {
          "texts.\n");
   printf("  --daemon                        Run the server as daemon by Root "
          "only.\n");
-  printf("  --hold_job [jobid]              hold on a task.\n");
-  printf("  --restart_job [jobid]           restart a task.\n");
+  printf("  --hold [jobid]                  hold on a task.\n");
+  printf("  --restart [jobid]               rerun a hold task.\n");
   printf("  --lock                          Locker the server (Timeout: 30 "
          "sec.)"
          "For Root, timeout is infinity.\n");
