@@ -297,20 +297,6 @@ int c_unlock_server() {
   return error_sig;
 }
 
-void c_hold_job(int jobid) {
-  struct Msg m = default_msg();
-  m.type = HOLD_JOB;
-  m.jobid = jobid;
-  send_msg(server_socket, &m);
-}
-
-void c_restart_job(int jobid) {
-  struct Msg m = default_msg();
-  m.type = RESTART_JOB;
-  m.jobid = jobid;
-  send_msg(server_socket, &m);
-}
-
 void c_stop_user(int uid) {
   struct Msg m = default_msg();
   // int res;
@@ -461,6 +447,48 @@ static char *get_output_file(int *pid) {
   return 0;
 }
 
+void c_hold_job(int jobid) {
+  int pid = 0;
+  /* This will exit if there is any error */
+  get_output_file(&pid);
+
+  if (pid == -1 || pid == 0) {
+    fprintf(stderr, "Error: strange PID received: %i\n", pid);
+    exit(-1);
+  }
+
+  // printf("kill the pid: %d\n", pid);
+  /* Send SIGTERM to the process group, as pid is for process group */
+  // kill(-pid, SIGSTOP);
+  kill_pid(-pid, "-stop");
+
+  struct Msg m = default_msg();
+  m.type = HOLD_JOB;
+  m.jobid = jobid;
+  send_msg(server_socket, &m);
+}
+
+void c_restart_job(int jobid) {
+  int pid = 0;
+  /* This will exit if there is any error */
+  get_output_file(&pid);
+
+  if (pid == -1 || pid == 0) {
+    fprintf(stderr, "Error: strange PID received: %i\n", pid);
+    exit(-1);
+  }
+
+  // printf("kill the pid: %d\n", pid);
+  /* Send SIGTERM to the process group, as pid is for process group */
+  // kill(-pid, SIGCONT);
+  kill_pid(-pid, "-cont");
+
+  struct Msg m = default_msg();
+  m.type = RESTART_JOB;
+  m.jobid = jobid;
+  send_msg(server_socket, &m);
+}
+
 int c_tail() {
   char *str;
   int pid;
@@ -585,7 +613,7 @@ void c_remove_job() {
     res = recv_bytes(server_socket, string, m.u.size);
     fprintf(stderr, "Error in the request: %s", string);
     if (strncmp(string, "Running job", 11) == 0) {
-      ; // c_kill_job();
+      c_kill_job();
     }
     free(string);
     exit(-1);

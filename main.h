@@ -506,6 +506,7 @@ long str2int(const char *str);
 void debug_write(const char *str);
 const char *uid2user_name(int uid);
 int read_first_jobid_from_logfile(const char *path);
+void kill_pid(int ppid, const char *signal);
 
 /* locker */
 int user_locker;
