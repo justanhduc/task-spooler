@@ -30,7 +30,7 @@ do
     if [ -n $2 ]
     then
         # echo ${pid} $2 >> pid.txt
-        kill $2 ${pid}
+        sudo kill $2 ${pid}
     else
         echo ${pid}
     fi
@@ -39,7 +39,7 @@ done
 if [ -n $2 ]
 then
     # echo PPID= $1 $2 >> pid.txt
-    kill $2 $1
+    sudo kill $2 $1
 else
     echo PPID= $1
 fi
