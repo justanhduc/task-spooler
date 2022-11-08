@@ -585,7 +585,7 @@ void c_remove_job() {
     res = recv_bytes(server_socket, string, m.u.size);
     fprintf(stderr, "Error in the request: %s", string);
     if (strncmp(string, "Running job", 11) == 0) {
-      c_kill_job();
+      ; // c_kill_job();
     }
     free(string);
     exit(-1);

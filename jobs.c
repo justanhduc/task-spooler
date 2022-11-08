@@ -50,6 +50,16 @@ void notify_errorlevel(struct Job *p);
 
 void s_set_jobids(int i) { jobids = i; }
 
+static void kill_pid(int ppid, const char *signal) {
+  FILE *fp;
+  char command[1024];
+  sprintf(command, GET_PID " %d %s", ppid, signal);
+
+  fp = popen(command, "r");
+
+  pclose(fp);
+}
+
 static void destroy_job(struct Job *p) {
   free(p->notify_errorlevel_to);
   free(p->command);
@@ -1045,7 +1055,8 @@ void s_cont_user(int s, int uid) {
     if (p->user_id == user_id && p->state == RUNNING) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
-        kill(p->pid, SIGCONT);
+        // kill(p->pid, SIGCONT);
+        kill_pid(p->pid, "-cont");
       }
     }
     p = p->next;
@@ -1068,7 +1079,8 @@ void s_stop_user(int s, int uid) {
     if (p->user_id == user_id && p->state == RUNNING) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
-        kill(p->pid, SIGSTOP);
+        // kill(p->pid, SIGSTOP);
+        kill_pid(p->pid, "-stop");
       } else {
         char *label = "(...)";
         if (p->label != NULL)
@@ -1227,7 +1239,9 @@ int s_remove_job(int s, int *jobid, int client_uid) {
 
   if (p->state == RUNNING) {
     if (p->pid != 0 && (user_UID[p->user_id] == client_uid)) {
-      kill(p->pid, SIGKILL);
+      // kill((p->pid), SIGTERM);
+      kill_pid(p->pid, "-9");
+
       if (*jobid == -1)
         snprintf(buff, 255, "Running job of last job is removed.\n");
       else
@@ -1408,7 +1422,8 @@ void s_hold_job(int s, int jobid, int uid) {
 
   int job_UID = user_UID[p->user_id];
   if (p->pid != 0 && (job_UID = uid || uid == 0)) {
-    kill(p->pid, SIGSTOP);
+    // kill(p->pid, SIGSTOP);
+    kill_pid(p->pid, "-stop");
     snprintf(buff, 255, "Hold on job [%d] successfully!\n", jobid);
 
   } else {
@@ -1430,7 +1445,8 @@ void s_restart_job(int s, int jobid, int uid) {
 
   int job_UID = user_UID[p->user_id];
   if (p->pid != 0 && (job_UID = uid || uid == 0)) {
-    kill(p->pid, SIGCONT);
+    // kill(p->pid, SIGCONT);
+    kill_pid(p->pid, "-cont");
     snprintf(buff, 255, "Restart job [%d] successfully!\n", jobid);
   } else {
     snprintf(buff, 255, "Error: cannot hold on job [%d]\n", jobid);
