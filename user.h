@@ -1,6 +1,5 @@
 #define USER_NAME_WIDTH 256
 #define USER_MAX 100
-#define GET_PID "bash /home/kylin/task-spooler/kill_ppid.sh"
 
 char user_name[USER_MAX][USER_NAME_WIDTH];
 int server_uid;

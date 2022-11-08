@@ -100,8 +100,8 @@ static void server_info() {
   printf("Start tast-spooler server from root[%d]\n", client_uid);
   printf("  Socket path: %s         [TS_SOCKET]\n", socket_path);
   printf("  Read user file from %s  [TS_USER_PATH]\n", get_user_path());
-  printf("  Write log file to %s    [TS_LOGFILE_PATH]\n\n",
-         set_server_logfile());
+  printf("  Write log file to %s    [TS_LOGFILE_PATH]\n", set_server_logfile());
+  printf("  Extra Bash CMD from `%s`\n\n", GET_PID);
 }
 
 static void server_daemon() {

@@ -4,6 +4,8 @@
 
     Please find the license in the provided COPYING file.
 */
+#define GET_PID "bash /home/kylin/task-spooler/kill_ppid.sh"
+
 enum { CMD_LEN = 500, PROTOCOL_VERSION = 730 };
 
 enum MsgTypes {
