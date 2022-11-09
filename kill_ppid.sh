@@ -5,12 +5,6 @@ get_child() {
     echo $(pgrep -laP $1 | awk '{print $1}')
 }
 
-# recursively getting parents isn't that useful, 
-# so single use function
-get_parent() {
-    echo $(ps -o ppid= -p 36700)
-}
-
 get_children() {
     __RET=$(get_child $1)
     __CHILDREN=
@@ -24,24 +18,44 @@ get_children() {
     echo "${__CHILDREN}"
 }
 
+if [ 1 -gt $# ]; 
+then
+    echo "not input PID"
+    exit 1
+fi
+
+owner=`ps -o user= -p $1`
+if [ -z "$owner" ]; 
+then
+    # echo "not a valid PID"
+    exit 1
+fi
 pids=`get_children $1`
+
+user=`whoami`
+
+extra=""
+# echo $owner $user
+if [[ "$owner" != "$user" ]]; then
+    extra="sudo"
+fi
+
 for pid in ${pids}; 
 do
     if [ -n $2 ]
     then
-        # echo ${pid} $2 >> pid.txt
-        sudo kill $2 ${pid}
-    else
-        echo ${pid}
+        # echo ${extra} ${pid} $2
+        ${extra} kill $2 ${pid}
     fi
 done
 
 if [ -n $2 ]
 then
-    # echo PPID= $1 $2 >> pid.txt
-    sudo kill $2 $1
+    # echo PPID= $1 ${extra} $2
+    ${extra} kill $2 $1
 else
-    echo PPID= $1
+    echo ${extra} PPID= $1
 fi
+
 
 

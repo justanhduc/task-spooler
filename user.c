@@ -229,7 +229,7 @@ void kill_pid(int ppid, const char *signal) {
   FILE *fp;
   char command[1024];
   sprintf(command, GET_PID " %d %s", ppid, signal);
-
+  // printf("command = %s\n", command);
   fp = popen(command, "r");
 
   pclose(fp);
