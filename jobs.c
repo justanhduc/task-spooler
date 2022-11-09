@@ -1046,7 +1046,7 @@ void s_cont_user(int s, int uid) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
         // kill(p->pid, SIGCONT);
-        kill_pid(p->pid, "-cont");
+        kill_pid(p->pid, "CONT");
       }
     }
     p = p->next;
@@ -1070,7 +1070,7 @@ void s_stop_user(int s, int uid) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
         // kill(p->pid, SIGSTOP);
-        kill_pid(p->pid, "-stop");
+        kill_pid(p->pid, "STOP");
       } else {
         char *label = "(...)";
         if (p->label != NULL)

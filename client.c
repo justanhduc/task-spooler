@@ -460,7 +460,7 @@ void c_hold_job(int jobid) {
   // printf("kill the pid: %d\n", pid);
   /* Send SIGTERM to the process group, as pid is for process group */
   // kill(-pid, SIGSTOP);
-  kill_pid(pid, "-stop");
+  kill_pid(pid, "STOP");
 
   struct Msg m = default_msg();
   m.type = HOLD_JOB;
@@ -481,7 +481,7 @@ void c_restart_job(int jobid) {
   // printf("kill the pid: %d\n", pid);
   /* Send SIGTERM to the process group, as pid is for process group */
   // kill(-pid, SIGCONT);
-  kill_pid(pid, "-cont");
+  kill_pid(pid, "CONT");
 
   struct Msg m = default_msg();
   m.type = RESTART_JOB;

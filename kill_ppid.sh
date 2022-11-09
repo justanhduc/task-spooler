@@ -45,14 +45,14 @@ do
     if [ -n $2 ]
     then
         # echo ${extra} ${pid} $2
-        ${extra} kill $2 ${pid}
+        ${extra} kill -s $2 ${pid}
     fi
 done
 
 if [ -n $2 ]
 then
     # echo PPID= $1 ${extra} $2
-    ${extra} kill $2 $1
+    ${extra} kill -s $2 $1
 else
     echo ${extra} PPID= $1
 fi
