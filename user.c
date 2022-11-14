@@ -16,6 +16,8 @@
 void send_list_line(int s, const char *str);
 void error(const char *str, ...);
 
+int user_locked[USER_MAX] = {0};
+
 const char *get_user_path() {
   char *str;
   str = getenv("TS_USER_PATH");
@@ -195,7 +197,7 @@ void s_user_status_all(int s) {
   char *extra;
   send_list_line(s, "-- Users ----------- \n");
   for (size_t i = 0; i < user_number; i++) {
-    extra = user_max_slots[i] < 0 ? "Locked" : "";
+    extra = user_locked[i] != 0 ? "Locked" : "";
     snprintf(buffer, 256, "[%04d] %3d/%-4d %20s Run. %2d %s\n", user_UID[i],
              user_busy[i], abs(user_max_slots[i]), user_name[i], user_jobs[i],
              extra);
@@ -208,7 +210,7 @@ void s_user_status_all(int s) {
 void s_user_status(int s, int i) {
   char buffer[256];
   char *extra = "";
-  if (user_max_slots[i] < 0)
+  if (user_locked[i] != 0)
     extra = "Locked";
   snprintf(buffer, 256, "[%04d] %3d/%-4d %20s Run. %2d %s\n", user_UID[i],
            user_busy[i], abs(user_max_slots[i]), user_name[i], user_jobs[i],
@@ -228,9 +230,10 @@ int get_user_id(int uid) {
 void kill_pid(int ppid, const char *signal) {
   FILE *fp;
   char command[1024];
-  sprintf(command, GET_PID " %d %s", ppid, signal);
-  // printf("command = %s\n", command);
+  char *path = get_kill_sh_path();
+  sprintf(command, "bash %s %d %s", path, ppid, signal);
+  printf("command = %s\n", command);
   fp = popen(command, "r");
-
+  free(path);
   pclose(fp);
 }

@@ -1039,6 +1039,7 @@ void s_cont_user(int s, int uid) {
     return;
 
   user_max_slots[user_id] = abs(user_max_slots[user_id]);
+  user_locked[user_id] = 0;
 
   struct Job *p = firstjob.next;
   while (p != NULL) {
@@ -1063,6 +1064,7 @@ void s_stop_user(int s, int uid) {
     return;
 
   user_max_slots[user_id] = -abs(user_max_slots[user_id]);
+  user_locked[user_id] = 1;
 
   struct Job *p = firstjob.next;
   while (p != NULL) {

@@ -4,7 +4,6 @@
 
     Please find the license in the provided COPYING file.
 */
-#define GET_PID "bash /home/kylin/task-spooler/kill_ppid.sh"
 
 enum { CMD_LEN = 500, PROTOCOL_VERSION = 730 };
 
@@ -495,6 +494,7 @@ int tail_file(const char *fname, int last_lines);
 
 /* user.c */
 static const int root_UID = 0;
+char *get_kill_sh_path();
 void read_user_file(const char *path);
 int get_user_id(int uid);
 void c_refresh_user();

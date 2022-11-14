@@ -2,7 +2,7 @@ PREFIX?=/usr/local
 PREFIX_LOCAL=~
 GLIBCFLAGS=-D_XOPEN_SOURCE=500 -D__STRICT_ANSI__
 CPPFLAGS+=$(GLIBCFLAGS)
-CFLAGS?=-pedantic -ansi -Wall -g -O0 -std=c11
+CFLAGS?=-pedantic -ansi -Wall -g -O0 -std=gnu11
 OBJECTS=main.o \
 	server.o \
 	server_start.o \

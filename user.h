@@ -8,5 +8,6 @@ int user_UID[USER_MAX];
 int user_busy[USER_MAX];
 int user_jobs[USER_MAX];
 int user_queue[USER_MAX];
+int user_locked[USER_MAX];
 int user_number;
 char *logfile_path;

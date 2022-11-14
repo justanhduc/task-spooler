@@ -25,6 +25,93 @@ static int should_check_owner = 0;
 
 static int fork_server();
 
+char *get_kill_sh_path() {
+  char *tmpdir;
+  tmpdir = getenv("TMPDIR");
+  if (tmpdir == NULL)
+    tmpdir = "/tmp";
+  char *path = NULL;
+  int size = strlen(tmpdir) + strlen("/kill_ppid.sh") + 1;
+  path = (char *)malloc(size);
+  snprintf(path, size, "%s/kill_ppid.sh", tmpdir);
+  return path;
+}
+
+static void setup_kill_sh() {
+  char *path = get_kill_sh_path();
+  FILE *f = fopen(path, "w");
+  if (f == NULL) {
+    printf("Cannot create `kill_ppide.sh` file at %s\n", path);
+    exit(0);
+  }
+  fprintf(f, R"(#!/bin/bash
+
+# getting children generally resolves nicely at some point
+get_child() {
+    echo $(pgrep -laP $1 | awk '{print $1}')
+}
+
+get_children() {
+    __RET=$(get_child $1)
+    __CHILDREN=
+    while [ -n "$__RET" ]; do
+        __CHILDREN+="$__RET "
+        __RET=$(get_child $__RET)
+    done
+
+    __CHILDREN=$(echo "${__CHILDREN}" | xargs | sort)
+
+    echo "${__CHILDREN}"
+}
+
+if [ 1 -gt $# ]; 
+then
+    echo "not input PID"
+    exit 1
+fi
+
+owner=`ps -o user= -p $1`
+if [ -z "$owner" ]; 
+then
+    # echo "not a valid PID"
+    exit 1
+fi
+pids=`get_children $1`
+
+user=`whoami`
+
+extra=""
+# echo $owner $user
+if [[ "$owner" != "$user" ]]; then
+    extra="sudo"
+fi
+
+for pid in ${pids}; 
+do
+    if [ -n $2 ]
+    then
+        # echo ${extra} ${pid} $2
+        ${extra} kill -s $2 ${pid}
+    fi
+done
+
+if [ -n $2 ]
+then
+    # echo PPID= $1 ${extra} $2
+    ${extra} kill -s $2 $1
+else
+    echo ${extra} PPID= $1
+fi
+
+
+
+)");
+  fclose(f);
+
+  printf("  Kill_PPID.sh at `%s`\n\n", path);
+  free(path);
+}
+
 void create_socket_path(char **path) {
   char *tmpdir;
   char userid[20] = "root";
@@ -101,7 +188,7 @@ static void server_info() {
   printf("  Socket path: %s         [TS_SOCKET]\n", socket_path);
   printf("  Read user file from %s  [TS_USER_PATH]\n", get_user_path());
   printf("  Write log file to %s    [TS_LOGFILE_PATH]\n", set_server_logfile());
-  printf("  Extra Bash CMD from `%s`\n\n", GET_PID);
+  setup_kill_sh();
 }
 
 static void server_daemon() {
