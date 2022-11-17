@@ -1,9 +1,8 @@
 PREFIX?=/usr/local
 PREFIX_LOCAL=~
-GLIBCFLAGS=-D_XOPEN_SOURCE=500 -D__STRICT_ANSI__
+GLIBCFLAGS=-D_XOPEN_SOURCE=500
 CPPFLAGS+=$(GLIBCFLAGS)
 CFLAGS?=-pedantic -Wall -g -O2 -std=c11
-LDLIBS+=-lpthread -fopenmp
 OBJECTS=main.o \
 	server.o \
 	server_start.o \
