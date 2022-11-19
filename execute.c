@@ -261,7 +261,6 @@ int run_job(struct Result *res) {
             /* Not reachable, if the 'exec' of the command
              * works. Thus, command exists, etc. */
             fprintf(stderr, "ts could not run the command\n");
-            free(tmpdir);
             exit(-1);
             /* To avoid a compiler warning */
             errorlevel = 0;
