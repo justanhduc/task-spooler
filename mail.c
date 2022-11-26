@@ -50,7 +50,7 @@ static void write_header(int fd, const char *dest, const char *command,
     fd_nprintf(fd, 500, "To: %s\n", dest);
     fd_nprintf(fd, 500, "Subject: the task %i finished with error %i. \n", jobid,
                errorlevel);
-    fd_nprintf(fd, 500, "\nCommand: %s\n", command);
+    fd_nprintf(fd, 12+(int)strlen(command), "\nCommand: %s\n", command);
     fd_nprintf(fd, 500, "Output:\n");
 }
 
