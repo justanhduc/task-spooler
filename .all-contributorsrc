@@ -1,0 +1,25 @@
+{
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "commitConvention": "none",
+  "contributors": [
+    {
+      "login": "justanhduc",
+      "name": "Duc Nguyen",
+      "avatar_url": "https://avatars.githubusercontent.com/u/15206627?v=4",
+      "profile": "https://justanhduc.github.io/",
+      "contributions": [
+        "code"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "skipCi": true,
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "projectName": "_task-spooler",
+  "projectOwner": "justanhduc"
+}

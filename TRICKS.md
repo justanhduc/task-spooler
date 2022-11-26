@@ -28,7 +28,7 @@ ts "$@"
 # Be notified of a task finished
 
 In X windows, inside bash, after submitting the task, I use:
-$ ( ts -w ; xmessage Finished! ) &
+`$ ( ts -w ; xmessage Finished! ) &`
 
 
 # Killing process groups
@@ -48,9 +48,11 @@ killing 'make's.
 Each queued job remains in the system as a waiting process. On environments
 where the number of processes is quite limited, the user can select the amount
 of the maximum number of ts server connections to ts clients. That will be
-read from the environment variable TS_MAXCONN at the server start, and cannot be
+read from the environment variable `TS_MAXCONN` at the server start, and cannot be
 set again once the server runs:
+```
 $ ts -K     # we assure we will start the server at the next ts call
 $ TS_MAXCONN=5 ts
+```
 Internally there is a maximum of 1000 connexions that cannot be exceeded without
 modifying the source code (server.c).

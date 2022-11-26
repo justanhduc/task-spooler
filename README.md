@@ -1,20 +1,14 @@
 # GPU Task Spooler
 
-![github-action](https://github.com/justanhduc/task-spooler/actions/workflows/build.yml/badge.svg)
+## About
 
-Originally, [Task Spooler by Lluís Batlle i Rossell](https://vicerveza.homeunix.net/~viric/soft/ts/).
+### Features
 
-## Introduction 
 
-~~A **CPU-only** version that is more faithful to the original Task Spooler is being actively developed in [here](https://github.com/justanhduc/task-spooler/tree/cpu-only).~~
 
-As in freshmeat.net:
+## Setup
 
-> task spooler is a Unix batch system where the tasks spooled run one after the other. The amount of jobs to run at once can be set at any time. Each user in each system has his own job queue. The tasks are run in the correct context (that of enqueue) from any shell/process, and its output/results can be easily watched. It is very useful when you know that your commands depend on a lot of RAM, a lot of disk use, give a lot of output, or for whatever reason it's better not to run them all at the same time, while you want to keep your resources busy for maximum benfit. Its interface allows using it easily in scripts. 
-
-For your first contact, you can read an article at linux.com, 
-which I like as overview, guide and examples (original url). 
-On more advanced usage, don't neglect the TRICKS file in the package.
+See the installation steps in [INSTALL.md](INSTALL.md).
 
 ### Changelog
 
@@ -24,78 +18,36 @@ See [CHANGELOG](CHANGELOG.md).
 
 A tutorial with colab is available [here](https://librecv.github.io/blog/spooler/task%20manager/deep%20learning/2021/02/09/task-spooler.html).
 
-## Features
+## Tricks
 
-I wrote Task Spooler because I didn't have any comfortable way of running batch jobs in my linux computer. I wanted to:
+See [here](TRICKS.md) for some cool tricks to extend `ts`.
 
-* Queue jobs from different terminals.
-* Use it locally in my machine (not as in network queues).
-* Have a good way of seeing the output of the processes (tail, errorlevels, ...).
-* Easy use: almost no configuration.
-* Easy to use in scripts. 
+### A note for DL/ML researchers
 
-At the end, after some time using and developing ts, it can do something more:
+If the codes are modified after a job is queued,
+the modified version will be executed rather than the version at the time the job is queued.
+To ensure the right version of the codes is executed, it is necessary to use a versioning mechanism.
 
-* It works in most systems I use and some others, like GNU/Linux, Darwin, Cygwin, and FreeBSD.
-* No configuration at all for a simple queue.
-* Good integration with renice, kill, etc. (through `ts -p` and process groups).
-* Have any amount of queues identified by name, writting a simple wrapper script for each (I use ts2, tsio, tsprint, etc).
-* Control how many jobs may run at once in any queue (taking profit of multicores).
-* It never removes the result files, so they can be reached even after we've lost the ts task list.
-* Transparent if used as a subprogram with -nf.
-* Optional separation of stdout and stderr. 
+Personally, I simply clone the whole code base excluding binary files to a temporary location
+and execute the job there.
+Please refer to the below script for an example.
 
-![ts-sample](assets/sample.png)
+```
+#!/bin/bash
 
-## Setup
+rsync ...
+cd ... && ts <your-command>
+```
 
-See the installation steps in [INSTALL.md](INSTALL.md).
+Another way is to use git to check out the right version before running.
 
-## Known issues
-
-- ~~This is not an issue, but when multiple consecutive GPU jobs are queued, 
-  after the first job runs, there is a small delay for the next GPU job to run
-  in order to ensure that the same GPUs are not claimed by different jobs.
-  There was an issue causing this delay significantly longer as reported in [`#2`](https://github.com/justanhduc/task-spooler/issues/2)
-  but has been fixed in [176d0b76](https://github.com/justanhduc/task-spooler/commit/176d0b76).
-  To avoid the delay, you can use `-g` to indicate the exact GPU IDs for the job.~~
+#### Working with remote servers
 
 
-## Mailing list
-
-I created a GoogleGroup for the program. You look for the archive and the join methods in the taskspooler google group page.
-
-Alessandro Öhler once maintained a mailing list for discussing newer functionalities and interchanging use experiences. I think this doesn't work anymore, but you can look at the old archive or even try to subscribe.
-
-## How it works
-
-The queue is maintained by a server process. This server process is started if it isn't there already. The communication goes through a unix socket usually in /tmp/.
-
-When the user requests a job (using a ts client), the client waits for the server message to know when it can start. When the server allows starting , this client usually forks, and runs the command with the proper environment, because the client runs run the job and not the server, like in 'at' or 'cron'. So, the ulimits, environment, pwd,. apply.
-
-When the job finishes, the client notifies the server. At this time, the server may notify any waiting client, and stores the output and the errorlevel of the finished job.
-
-Moreover the client can take advantage of many information from the server: when a job finishes, where does the job output go to, etc.
-
-## History 
-
-Андрей Пантюхин (Andrew Pantyukhin) maintains the BSD port.
-
-Alessandro Öhler provided a Gentoo ebuild for 0.4, which with simple changes I updated to the ebuild for 0.6.4. Moreover, the Gentoo Project Sunrise already has also an ebuild (maybe old) for ts.
-
-Alexander V. Inyukhin maintains unofficial debian packages for several platforms. Find the official packages in the debian package system.
-
-Pascal Bleser packed the program for SuSE and openSuSE in RPMs for various platforms.
-
-Gnomeye maintains the AUR package.
-
-Eric Keller wrote a nodejs web server showing the status of the task spooler queue (github project).
-
-Duc Nguyen took the project and develops a GPU-support version.
 
 ## Manual
 
-See below or `man ts` for more details.
+See below/`man ts`/`ts -h` for more details.
 
 ```
 usage: ts [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]
@@ -160,25 +112,32 @@ Options adding jobs:
   -N <num>     number of slots required by the job (1 default).
 ```
 
-## Thanks
+## Contributors
 
-**Author**
-- Duc Nguyen, <adnguyen@yonsei.ac.kr>
-- Lluís Batlle i Rossell, <lluis@vicerveza.homeunix.net>
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
 
 **Acknowledgement**
+* To Lluís Batlle i Rossell, the author of the original Task Spooler
 * To Raúl Salinas, for his inspiring ideas
-* To Alessandro Öhler, the first non-acquaintance user, who proposed and created the mailing list.
-* Андрею Пантюхину, who created the BSD port.
-* To the useful, although sometimes uncomfortable, UNIX interface.
-* To Alexander V. Inyukhin, for the debian packages.
-* To Pascal Bleser, for the SuSE packages.
-* To Sergio Ballestrero, who sent code and motivated the development of a multislot version of ts.
-* To GNU, an ugly but working and helpful ol' UNIX implementation. 
+* To Alessandro Öhler, the first non-acquaintance user, who proposed and created the mailing list
+* To Андрею Пантюхину, who created the BSD port
+* To the useful, although sometimes uncomfortable, UNIX interface
+* To Alexander V. Inyukhin, for the debian packages
+* To Pascal Bleser, for the SuSE packages
+* To Sergio Ballestrero, who sent code and motivated the development of a multislot version of ts
+* To GNU, an ugly but working and helpful ol' UNIX implementation
 
-**Software**
+**Others**
 
-Memory checks with [Valgrind](https://valgrind.org/).
+Many memory bugs are identified thanks to [Valgrind](https://valgrind.org/).
 
 ## Related projects
 
