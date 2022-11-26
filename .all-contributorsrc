@@ -1,0 +1,25 @@
+{
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "commitConvention": "angular",
+  "contributors": [
+    {
+      "login": "mw75",
+      "name": "mw75",
+      "avatar_url": "https://avatars.githubusercontent.com/u/6930288?v=4",
+      "profile": "https://github.com/mw75",
+      "contributions": [
+        "code"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "skipCi": true,
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "projectName": "task-spooler",
+  "projectOwner": "justanhduc"
+}
