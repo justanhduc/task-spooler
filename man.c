@@ -17,7 +17,7 @@ int main() {
     }
     char manPage[100000];
 #ifndef CPU
-    sprintf(manPage, ".\\\" Copyright Lluís Batlle i Rossell\n"
+    sprintf(manPage, ".\\\" Copyright @ Duc Nguyen & Lluís Batlle i Rossell\n"
                      ".\\\"\n"
                      ".\\\" This file may be copied under the conditions described\n"
                      ".\\\" in the LDP GENERAL PUBLIC LICENSE, Version 1, September 1998\n"
@@ -420,7 +420,7 @@ int main() {
                      "found in the distribution package can show some ideas on special uses of\n"
                      ".B ts.", tm.tm_year + 1900, tm.tm_mon + 1, TS_MAKE_STR(TS_VERSION), TS_MAKE_STR(TS_VERSION));
 #else
-    sprintf(manPage, ".\\\" Copyright Lluís Batlle i Rossell\n"
+    sprintf(manPage, ".\\\" Copyright @ Duc Nguyen & Lluís Batlle i Rossell\n"
                      ".\\\"\n"
                      ".\\\" This file may be copied under the conditions described\n"
                      ".\\\" in the LDP GENERAL PUBLIC LICENSE, Version 1, September 1998\n"

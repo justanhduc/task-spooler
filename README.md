@@ -1,16 +1,36 @@
 # GPU Task Spooler
 
+## Contents
+
+* [About](https://github.com/justanhduc/task-spooler#about)
+* [Setup](https://github.com/justanhduc/task-spooler#setup)
+* [Changelog](https://github.com/justanhduc/task-spooler#changelog)
+
 ## About
 
-### Features
+**GPU Task Spooler**, or `ts` for short, is a spooling system that helps you manage CPU/GPU tasks easily.
+You can think of [SLURM](https://slurm.schedmd.com/elastic_computing.html) but for small individual servers rather 
+than high-performance clusters.
 
+### Features
+`ts` can offer you the following features
+
+* Queue and execute jobs, be it on CPUs or GPUs.
+* Automatically allocate free GPUs for your jobs: 
+just forget `CUDA_VISIBLE_DEVICES`.
+* Control number of jobs running in parallel.
+* View your job outputs in terminal and/or `txt`.
+* Very minimalistic: easy setup and almost no configuration.
+* Terminal agnostic: queue in one terminal and view in another.
+* Jobs can be set to run in foreground or background.
+* Simple CLI, but there is a [GUI addon]().
 
 
 ## Setup
 
 See the installation steps in [INSTALL.md](INSTALL.md).
 
-### Changelog
+## Changelog
 
 See [CHANGELOG](CHANGELOG.md).
 
@@ -63,20 +83,20 @@ Env vars:
   TS_SLOTS   amount of jobs which can run at once, read on server start.
   TMPDIR     directory where to place the output files and the default socket.
 Long option actions:
-  --getenv   [var]                get the value of the specified variable in server environment.
-  --setenv   [var]                set the specified flag to server environment.
-  --unsetenv   [var]              remove the specified flag from server environment.
-  --set_gpu_free_perc   [num]     set the value of GPU memory threshold above which GPUs are considered available (90 by default).
+  --getenv               [var]    get the value of the specified variable in server environment.
+  --setenv               [var]    set the specified flag to server environment.
+--unsetenv               [var]    remove the specified flag from server environment.
+  --set_gpu_free_perc    [num]    set the value of GPU memory threshold above which GPUs are considered available (90 by default).
   --get_gpu_free_perc             get the value of GPU memory threshold above which GPUs are considered available.
   --get_label      || -a [id]     show the job label. Of the last added, if not specified.
   --full_cmd       || -F [id]     show full command. Of the last added, if not specified.
   --count_running  || -R          return the number of running jobs
   --last_queue_id  || -q          show the job ID of the last added.
   --get_logdir                    get the path containing log files.
-  --set_logdir <path>             set the path containing log files. 
+  --set_logdir           [path]   set the path containing log files. 
 Long option adding jobs:
   --gpus           || -G [num]    number of GPUs required by the job (1 default).
-  --gpu_indices    || -g <id,...> the job will be on these GPU indices without checking whether they are free.
+  --gpu_indices    || -g [id,...] the job will be on these GPU indices without checking whether they are free.
 Actions (can be performed only one at a time):
   -K          kill the task spooler server
   -C          clear the list of finished jobs
@@ -94,7 +114,7 @@ Actions (can be performed only one at a time):
   -k [id]     send SIGTERM to the job process group. The last run, if not specified.
   -T          send SIGTERM to all running job groups.
   -u [id]     put that job first. The last added, if not specified.
-  -U <id-id>  swap two jobs in the queue.
+  -U [id-id]  swap two jobs in the queue.
   -B          in case of full queue on the server, quit (2) instead of waiting.
   -h          show this help
   -V          show the program version
@@ -112,7 +132,7 @@ Options adding jobs:
   -N <num>     number of slots required by the job (1 default).
 ```
 
-## Contributors
+## People
 
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
 <!-- prettier-ignore-start -->
