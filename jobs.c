@@ -853,6 +853,11 @@ int next_run_job() {
     while (p != 0) {
         if (p->state == QUEUED || p->state == ALLOCATING) {
 #ifndef CPU
+            if (freeGpuList == NULL) {
+                p = p->next;
+                continue;
+            }
+
             if (p->num_gpus && p->wait_free_gpus) {
                 if (numFree < p->num_gpus) {
                     /* if fewer GPUs than required then next */
