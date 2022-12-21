@@ -71,8 +71,10 @@ int * getGpuList(int *num) {
     nvmlReturn_t result;
 
     result = nvmlInit();
-    if (NVML_SUCCESS != result)
-        error("Failed to initialize NVML: %s", nvmlErrorString(result));
+    if (NVML_SUCCESS != result) {
+        warning("Failed to initialize NVML: %s", nvmlErrorString(result));
+        goto Error;
+    }
 
     visible = malloc(num_total_gpus * sizeof(int));
     numVis = getVisibleGpus(visible);
@@ -90,13 +92,13 @@ int * getGpuList(int *num) {
         nvmlDevice_t dev;
         result = nvmlDeviceGetHandleByIndex_v2(visible[i], &dev);
         if (result != 0) {
-            error("Failed to get GPU handle for GPU %d: %s", visible[i], nvmlErrorString(result));
+            warning("Failed to get GPU handle for GPU %d: %s", visible[i], nvmlErrorString(result));
             goto Error;
         }
 
         result = nvmlDeviceGetMemoryInfo(dev, &mem);
         if (result != 0) {
-            error("Failed to get GPU memory for GPU %d: %s", visible[i], nvmlErrorString(result));
+            warning("Failed to get GPU memory for GPU %d: %s", visible[i], nvmlErrorString(result));
             goto Error;
         }
 
@@ -107,14 +109,14 @@ int * getGpuList(int *num) {
     *num = count;
     result = nvmlShutdown();
     if (NVML_SUCCESS != result)
-        error("Failed to shutdown NVML: %s", nvmlErrorString(result));
+        warning("Failed to shutdown NVML: %s", nvmlErrorString(result));
 
     return gpuList;
 
     Error:
         result = nvmlShutdown();
         if (NVML_SUCCESS != result)
-            error("Failed to shutdown NVML: %s", nvmlErrorString(result));
+            warning("Failed to shutdown NVML: %s", nvmlErrorString(result));
         return NULL;
 }
 
