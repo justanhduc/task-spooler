@@ -160,6 +160,7 @@ void error(const char *str, ...)
     }
 
     problem(ERROR, str, ap);
+    va_end(ap);
     exit(-1);
 }
 
@@ -178,6 +179,7 @@ void debug(const char *str, ...)
     }
 
     problem(DEBUG, str, ap);
+    va_end(ap);
 }
 
 void error_msg(const struct Msg *m, const char *str, ...)
@@ -189,6 +191,7 @@ void error_msg(const struct Msg *m, const char *str, ...)
     real_errno = errno;
 
     problem_msg(ERROR, m, str, ap);
+    va_end(ap);
     exit(-1);
 }
 
@@ -201,6 +204,7 @@ void warning(const char *str, ...)
     real_errno = errno;
 
     problem(WARNING, str, ap);
+    va_end(ap);
 }
 
 void warning_msg(const struct Msg *m, const char *str, ...)
@@ -212,6 +216,7 @@ void warning_msg(const struct Msg *m, const char *str, ...)
     real_errno = errno;
 
     problem_msg(WARNING, m, str, ap);
+    va_end(ap);
 }
 
 static void dump_structs(FILE *out)

@@ -801,5 +801,6 @@ int main() {
                      ".B ts.", tm.tm_year + 1900, tm.tm_mon + 1, TS_MAKE_STR(TS_VERSION), TS_MAKE_STR(TS_VERSION));
 #endif
     fprintf(f, "%s", manPage);
+    fclose(f);
     return 0;
 }

@@ -46,7 +46,7 @@ int fd_nprintf(int fd, int maxsize, const char *fmt, ...)
     }
 
     free(out);
-
+    va_end(ap);
     return size;
 }
 

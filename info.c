@@ -40,7 +40,7 @@ void pinfo_addinfo(struct Procinfo *p, int maxsize, const char *line, ...)
     va_list ap;
 
     int newchars = p->nchars + maxsize;
-    void *newptr;
+    void *newptr = 0;
     int res;
 
     va_start(ap, line);
@@ -57,6 +57,7 @@ void pinfo_addinfo(struct Procinfo *p, int maxsize, const char *line, ...)
         {
             warning("Cannot realloc more memory (%i) in pinfo_addline. "
                     "Not adding the content.", newmem);
+            va_end(ap);
             return;
         }
         p->ptr = (char *) newptr;
@@ -65,6 +66,8 @@ void pinfo_addinfo(struct Procinfo *p, int maxsize, const char *line, ...)
 
     res = vsnprintf(p->ptr + p->nchars, (p->allocchars - p->nchars), line, ap);
     p->nchars += res; /* We don't store the final 0 */
+    free(newptr);
+    va_end(ap);
 }
 
 void pinfo_dump(const struct Procinfo *p, int fd)
