@@ -126,8 +126,6 @@ static struct option longOptions[] = {
         {"gpu_indices",       required_argument, NULL, 'g'},
         {"set_gpu_free_perc", required_argument, NULL, 0},
         {"get_gpu_free_perc", no_argument,       NULL, 0},
-        {"set_gpu_wait",      required_argument, NULL, 0},
-        {"get_gpu_wait",      no_argument,       NULL, 0},
 #endif
         {NULL, 0,                            NULL, 0}
 };
@@ -172,14 +170,6 @@ void parse_opts(int argc, char **argv) {
                     command_line.gpus = atoi(optarg); /* reuse this var */
                 } else if (strcmp(longOptions[optionIdx].name, "get_gpu_free_perc") == 0) {
                     command_line.request = c_GET_FREE_PERC;
-                } else if (strcmp(longOptions[optionIdx].name, "set_gpu_wait") == 0) {
-                    printf("Due to some internal changes, this option has no functionality "
-                           "and will be removed in the next release!\n");
-                    exit(0);
-                } else if (strcmp(longOptions[optionIdx].name, "get_gpu_wait") == 0) {
-                    printf("Due to some internal changes, this option has no functionality "
-                           "and will be removed in the next release!\n");
-                    exit(0);
 #endif
                 } else
                     error("Wrong option %s.", longOptions[optionIdx].name);
