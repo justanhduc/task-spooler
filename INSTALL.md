@@ -69,4 +69,8 @@ For more info, see [here](https://github.com/justanhduc/task-spooler/issues/6) a
 ```
 ./uninstall
 ```
+Or, to remove a local installation:
+```
+make uninstall-local
+```
 Why would you want to do that anyway?
