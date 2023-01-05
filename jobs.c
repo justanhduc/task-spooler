@@ -303,12 +303,12 @@ void s_send_cmd(int s, int jobid) {
 
     if (p == 0) {
         char tmp[50];
-        sprintf(tmp, "Job %i not finished or not running.\n", jobid);
+        sprintf(tmp, "Job %i not found in the queue.\n", jobid);
         send_list_line(s, tmp);
         return;
     }
     cmd = (char *) malloc(strlen(p->command) + 1);
-    sprintf(cmd, "%s\n", p->command);
+    sprintf(cmd, "%s", p->command);
     send_list_line(s, cmd);
     free(cmd);
 }

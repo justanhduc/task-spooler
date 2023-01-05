@@ -797,7 +797,7 @@ void c_show_cmd() {
             if (res != m.u.size)
                 error("Error in show_cmd - line size");
 
-            printf("%s", string);
+            printf("%s\n", string);
             free(string);
             return;
         default:
