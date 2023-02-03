@@ -279,7 +279,6 @@ void s_send_label(int s, int jobid) {
 
 void s_send_cmd(int s, int jobid) {
     struct Job *p = 0;
-    char *cmd;
 
     if (jobid == -1) {
         /* Find the last job added */
@@ -303,14 +302,12 @@ void s_send_cmd(int s, int jobid) {
 
     if (p == 0) {
         char tmp[50];
-        sprintf(tmp, "Job %i not found in the queue.\n", jobid);
+        sprintf(tmp, "Job %i not found in the queue.", jobid);
         send_list_line(s, tmp);
         return;
     }
-    cmd = (char *) malloc(strlen(p->command) + 1);
-    sprintf(cmd, "%s", p->command);
-    send_list_line(s, cmd);
-    free(cmd);
+
+    send_list_line(s, p->command);
 }
 
 void s_mark_job_running(int jobid) {
