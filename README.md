@@ -5,10 +5,15 @@
 * [About](https://github.com/justanhduc/task-spooler#about)
 * [Setup](https://github.com/justanhduc/task-spooler#setup)
 * [Changelog](https://github.com/justanhduc/task-spooler#changelog)
+* [Tutorial](https://github.com/justanhduc/task-spooler#tutorial)
+* [Tricks](https://github.com/justanhduc/task-spooler#tricks)
+* [Manual](https://github.com/justanhduc/task-spooler#manual)
+* [People](https://github.com/justanhduc/task-spooler#people)
+* [Related projects](https://github.com/justanhduc/task-spooler#related-projects)
 
 ## About
 
-**GPU Task Spooler**, or `ts` for short, is a spooling system that helps you manage CPU/GPU tasks easily.
+**GPU Task Spooler**, or `ts` for short, is a spooling system that helps manage CPU/GPU tasks easily.
 You can think of [SLURM](https://slurm.schedmd.com/elastic_computing.html) but for small individual servers rather 
 than high-performance clusters.
 
@@ -47,23 +52,16 @@ See [here](TRICKS.md) for some cool tricks to extend `ts`.
 If the codes are modified after a job is queued,
 the modified version will be executed rather than the version at the time the job is queued.
 To ensure the right version of the codes is executed, it is necessary to use a versioning mechanism.
-
-Personally, I simply clone the whole code base excluding binary files to a temporary location
+Personally, I simply clone the whole code base excluding binary files to a temporary location with `rsync`
 and execute the job there.
-Please refer to the below script for an example.
-
-```
-#!/bin/bash
-
-rsync ...
-cd ... && ts <your-command>
-```
-
-Another way is to use git to check out the right version before running.
+Another way is to use git to check out the right version before running, 
+but it requires committing every small changes.
 
 #### Working with remote servers
 
-
+Like above, one can use `rsync` to copy the code base to a temporary location on the remote server, 
+and use `ssh` to launch the job using `ts`.
+This can be done either with a script or using a small plug-in [here](https://github.com/justanhduc/messenger).
 
 ## Manual
 
