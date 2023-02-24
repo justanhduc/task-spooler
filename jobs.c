@@ -366,7 +366,7 @@ void s_list(int s, int user_id) {
   free(buffer);
 
   /* Show Queued or Running jobs */
-  char buf[256];
+  // char buf[256];
   p = firstjob.next;
   while (p != 0) {
     // sprintf(buf, "jobid = %d\n", p->jobid);

@@ -515,7 +515,7 @@ char* linux_cmd(char* CMD, char* out, int out_size);
 int user_locker;
 time_t locker_time;
 int jobsort_flag;
-FILE* dbf;
+// FILE* dbf;
 int check_ifsleep(int pid);
 struct Job *findjob(int jobid);
 

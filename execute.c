@@ -14,6 +14,8 @@
 #include <sys/times.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+
 #include <time.h>
 #include <unistd.h>
 
@@ -265,6 +267,16 @@ int run_job(int jobid, struct Result *res) {
     pid = fork();
   } else {
     pid = command_line.taskpid;
+    command_line.store_output = 0;
+    char cmd[256], out[256] = "(unkown)";
+    snprintf(cmd, 256, "readlink -f /proc/%d/fd/1", pid);
+    linux_cmd(cmd, out, 256);
+
+    struct stat t_stat;
+    if (stat(out, &t_stat) != -1) {
+      write(p[0], &t_stat.st_ctime, sizeof(t_stat.st_ctime));
+    }
+
     /*
     printf("test\n");
     int namesize = strlen(out) + 1;
@@ -292,6 +304,7 @@ int run_job(int jobid, struct Result *res) {
     errorlevel = 0;
     error("forking");
   default:
+    printf("run_parenet\n");
     close(p[1]);
     run_parent(p[0], pid, res);
     break;

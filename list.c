@@ -210,6 +210,10 @@ static char *print_result(const struct Job *p) {
   /* 20 chars should suffice for a string like "[int,int,..]&& " */
   char dependstr[20] = "";
   float real_ms = p->result.real_ms;
+  if (real_ms == 0.0) {
+    real_ms = p->info.end_time.tv_sec - p->info.start_time.tv_sec;
+    real_ms += 1e-6 * (p->info.end_time.tv_usec - p->info.start_time.tv_usec);
+  }
   char *unit = time_rep(&real_ms);
   int cmd_len;
 
