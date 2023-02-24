@@ -128,7 +128,7 @@ static struct Job *find_previous_job(const struct Job *final) {
   return NULL;
 }
 
-static struct Job *findjob(int jobid) {
+struct Job *findjob(int jobid) {
   struct Job *p;
 
   /* Show Queued or Running jobs */
@@ -366,11 +366,19 @@ void s_list(int s, int user_id) {
   free(buffer);
 
   /* Show Queued or Running jobs */
+  char buf[256];
   p = firstjob.next;
   while (p != 0) {
+    // sprintf(buf, "jobid = %d\n", p->jobid);
+    // send_list_line(s, buf);
+
     if (p->state != HOLDING_CLIENT) {
       if (p->user_id == user_id) {
         buffer = joblist_line(p);
+        // sprintf(buf, "== jobid = %d\n", p->jobid);
+        // send_list_line(s, buf);
+        // fprintf(dbf, "----- %s\n", buffer);
+        // fflush(dbf);
         send_list_line(s, buffer);
         free(buffer);
       }
@@ -378,6 +386,7 @@ void s_list(int s, int user_id) {
     p = p->next;
   }
 
+  
   p = first_finished_job.next;
   if (p != NULL && firstjob.next != NULL)
     send_list_line(s, "----- Finished -----\n");
@@ -390,6 +399,7 @@ void s_list(int s, int user_id) {
     }
     p = p->next;
   }
+  
 }
 
 void s_list_all(int s) {

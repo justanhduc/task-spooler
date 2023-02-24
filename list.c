@@ -18,7 +18,7 @@
 extern int busy_slots;
 extern int max_slots;
 
-static int check_ifsleep(int pid) {
+int check_ifsleep(int pid) {
   char filename[256];
   char name[256];
   char status = '\0';
@@ -27,7 +27,7 @@ static int check_ifsleep(int pid) {
 
   fp = fopen(filename, "r");
   if (fp == NULL) {
-    fprintf(stderr, "Error: Couldn't open [%s]\n", filename);
+    // fprintf(stderr, "Error: Couldn't open [%s]\n", filename);
     return -1;
   }
   int token = fscanf(fp, "%d %s %c", &pid, name, &status);
@@ -114,6 +114,8 @@ static const char *ofilename_shown(const struct Job *p) {
 }
 
 static char *print_noresult(const struct Job *p) {
+  // fprintf(dbf, "start print_noresult Jobid = %d\n", p->jobid);
+  // fflush(dbf);
   const char *jobstate;
   const char *output_filename;
   int maxlen;
@@ -195,7 +197,8 @@ static char *print_noresult(const struct Job *p) {
              output_filename);
     free(cmd);
   }
-
+  // fprintf(dbf, line);
+  // fflush(dbf);
   return line;
 }
 

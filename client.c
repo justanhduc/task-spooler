@@ -172,6 +172,8 @@ static int wait_server_lines_and_check(const char *pre_str) {
     if (res == 0)
       break;
     if (res != sizeof(m))
+      // printf("Error in wait_server_lines 2");
+      // break;
       error("Error in wait_server_lines 2");
     if (m.type == LIST_LINE) {
       char *buffer;

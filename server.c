@@ -160,7 +160,12 @@ static int get_max_descriptors() {
   return max;
 }
 
+
 void server_main(int notify_fd, char *_path) {
+  dbf = fopen("/home/kylin/task-spooler/debug.txt", "w");
+  fprintf(dbf, "start server_main\n");
+  fflush(dbf);
+
   int ls;
   struct sockaddr_un addr;
   int res;
@@ -271,14 +276,32 @@ static void server_loop(int ls) {
       if (FD_ISSET(client_cs[i].socket, &readset)) {
         enum Break b;
         b = client_read(i);
+        fprintf(dbf, "client_cs[%d].so jobid: %d\n", i, client_cs[i].jobid);
+        fflush(dbf);
         /* Check if we should break */
         if (b == CLOSE) {
           warning("Closing");
           /* On unknown message, we close the client,
              or it may hang waiting for an answer */
+          fprintf(dbf, "CLOSE client_cs[%d].so jobid: %d\n", i, client_cs[i].jobid);
+          fflush(dbf);
           clean_after_client_disappeared(client_cs[i].socket, i);
-        } else if (b == BREAK)
+        } else if (b == BREAK) {
+          fprintf(dbf, "BREAK client_cs[%d].so jobid: %d\n", i, client_cs[i].jobid);
+          fflush(dbf);
           keep_loop = 0;
+        }
+      } else {
+        if (client_cs[i].hasjob) {
+          struct Job *p;
+          p = findjob(client_cs[i].jobid);
+          if (check_ifsleep(p->pid) == -1) {
+            clean_after_client_disappeared(client_cs[i].socket, i);
+          }
+        }
+        /*
+        
+        */
       }
     /* This will return firstjob->jobid or -1 */
     newjob = next_run_job();
@@ -325,6 +348,8 @@ static void remove_connection(int index) {
 static void clean_after_client_disappeared(int socket, int index) {
   /* Act as if the job ended. */
   int jobid = client_cs[index].jobid;
+  fprintf(dbf, "clean %d from client_cs[%d]\n", jobid, index);
+  fflush(dbf);
   if (client_cs[index].hasjob) {
     struct Result r = default_result();
 
@@ -363,10 +388,14 @@ static enum Break client_read(int index) {
   /* Read the message */
   res = recv_msg(s, &m);
   if (res == -1) {
-    warning("client recv failed");
+    warning("client recv failed");    
+   fprintf(dbf, "start warning\n");
+  fflush(dbf);
     clean_after_client_disappeared(s, index);
     return NOBREAK;
   } else if (res == 0) {
+       fprintf(dbf, "start warning clean_apeared\n");
+  fflush(dbf);
     clean_after_client_disappeared(s, index);
     return NOBREAK;
   }
@@ -457,6 +486,8 @@ static enum Break client_read(int index) {
       s_newjob_ok(index);
     else if (!m.u.newjob.wait_enqueuing) {
       s_newjob_nok(index);
+        fprintf(dbf, "start s_newjob_nok\n");
+      fflush(dbf);
       clean_after_client_disappeared(s, index);
     }
     break;
