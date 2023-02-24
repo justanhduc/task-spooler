@@ -69,6 +69,7 @@ static void default_command_line() {
   command_line.num_slots = 1;
   command_line.require_elevel = 0;
   command_line.logfile = NULL;
+  command_line.taskpid = 0;
 }
 
 struct Msg default_msg() {
@@ -151,7 +152,7 @@ void parse_opts(int argc, char **argv) {
   /* Parse options */
   while (1) {
     c = getopt_long(argc, argv,
-                    ":AXRTVhKzClnfmBEr:a:F:t:c:o:p:w:k:u:s:U:qi:N:L:dS:D:W:O:",
+                    ":AXRTVhKzClnfmBEZ:a:F:t:c:o:p:w:k:r:u:s:U:qi:N:L:dS:D:W:O:",
                     longOptions, &optionIdx);
 
     if (c == -1)
@@ -213,8 +214,14 @@ void parse_opts(int argc, char **argv) {
       command_line.request = c_REFRESH_USER;
       break;
     case 'k':
+      printf("c_KILL_JOB = %s\n", optarg);
       command_line.request = c_KILL_JOB;
       command_line.jobid = str2int(optarg);
+      break;
+    case 'r':
+      printf("c_REMOVEJOB = %s\n", optarg);
+      command_line.request = c_REMOVEJOB;
+      command_line.jobid = str2int(optarg);    
       break;
     case 'l':
       command_line.request = c_LIST;
@@ -290,9 +297,21 @@ void parse_opts(int argc, char **argv) {
       if (command_line.num_slots < 0)
         command_line.num_slots = 0;
       break;
-    case 'r':
-      command_line.request = c_REMOVEJOB;
-      command_line.jobid = str2int(optarg);
+    case 'Z':
+      command_line.taskpid = str2int(optarg);
+      if (command_line.taskpid <= 0)
+        command_line.taskpid = 0;
+      else {
+        char cmd[256], out[256] = "";
+        snprintf(cmd, sizeof(cmd), "readlink -f /proc/%d/fd/1", command_line.taskpid);
+        linux_cmd(cmd, out, sizeof(out));
+
+        printf("outfile: %s\n", out);
+        if (strlen(out) == 0) {
+          printf("PID: %d is dead\n", command_line.taskpid);
+          return;
+        }
+      }
       break;
     case 'w':
       command_line.request = c_WAITJOB;

@@ -442,6 +442,9 @@ static enum Break client_read(int index) {
       return BREAK; /* break in the parent*/
     break;
   case NEWJOB:
+    if (check_pid(m.u.newjob.taskpid) == 1) {
+      break;
+    }
     if (user_id == -1) {
       break;
     }

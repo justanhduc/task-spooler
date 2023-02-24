@@ -54,7 +54,7 @@ static void run_parent(int fd_read_filename, int pid, struct Result *result) {
   /* All went fine - prepare the SIGINT and send runjob_ok */
   signals_child_pid = pid;
   unblock_sigint_and_install_handler();
-
+  printf("runjob_ok %s\n", ofname);
   c_send_runjob_ok(ofname, pid);
 
   wait(&status);
@@ -260,8 +260,18 @@ int run_job(int jobid, struct Result *res) {
 
   /* Prepare the output filename sending */
   pipe(p);
-
-  pid = fork();
+  
+  if (command_line.taskpid == 0) {
+    pid = fork();
+  } else {
+    pid = command_line.taskpid;
+    /*
+    printf("test\n");
+    int namesize = strlen(out) + 1;
+    write(p[1], (char *)&namesize, sizeof(namesize));
+    write(p[1], out, namesize);
+    */
+  }
 
   switch (pid) {
   case 0:

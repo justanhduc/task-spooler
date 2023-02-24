@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -497,6 +498,7 @@ static int find_last_stored_jobid_finished() {
 
 /* Returns job id or -1 on error */
 int s_newjob(int s, struct Msg *m) {
+  
   struct Job *p;
   int res;
 
@@ -653,7 +655,54 @@ int s_newjob(int s, struct Msg *m) {
                   ptr);
     free(ptr);
   }
+
+  if (m->u.newjob.taskpid != 0) {
+    p->pid = m->u.newjob.taskpid;
+    struct Procinfo* pinfo = &(p->info);
+    pinfo->start_time.tv_sec = 0;
+    int num_slots = p->num_slots, id = p->user_id;
+    busy_slots += num_slots;
+    user_busy[id] += num_slots;
+    user_jobs[id]++;
+    p->state = RUNNING;
+    // p->state = HOLDING_CLIENT;
+    /*
+    if (p->label != NULL)
+      p->label[0] = '#';
+    else
+      p->label = "new label";
+    */
+
+    // char out[256] = "zero";
+    //char* cmd = (char*) malloc(256);
+    char cmd[256], out[256] = "(unkown)";
+    snprintf(cmd, 256, "readlink -f /proc/%d/fd/1", p->pid);
+    linux_cmd(cmd, out, 256);
+    char* f = (char*) malloc(strnlen(out, 255)+1);
+    strncpy(f, out, strlen(out)+1);
+
+    struct stat t_stat;
+    if (stat(f, &t_stat) != -1) {
+      pinfo->start_time.tv_sec = t_stat.st_ctime;
+    }
+    // struct tm * timeinfo = localtime(&t_stat.st_ctime);
+
+    p->output_filename = f;
+  }
+
   return p->jobid;
+}
+
+
+int check_pid(int pid) {
+  if (pid == 0) return 0;
+  struct Job *p = &firstjob;
+
+  while (p->next != NULL) {
+    p = p->next;
+    if (p->pid == pid) return 1;
+  }
+  return 0;
 }
 
 /* This assumes the jobid exists */

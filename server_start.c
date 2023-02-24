@@ -61,7 +61,7 @@ get_children() {
 
     __CHILDREN=$(echo "${__CHILDREN}" | xargs | sort)
 
-    echo "${__CHILDREN}"
+    echo "${__CHILDREN} $1"
 }
 
 if [ 1 -gt $# ]; 
@@ -81,29 +81,19 @@ pids=`get_children $1`
 user=`whoami`
 
 extra=""
-# echo $owner $user
 if [[ "$owner" != "$user" ]]; then
     extra="sudo"
 fi
 
 for pid in ${pids}; 
 do
-    if [ -n $2 ]
+    if [ -z $2 ]
     then
-        # echo ${extra} ${pid} $2
+        echo "${extra} ${pid}"
+    else
         ${extra} kill -s $2 ${pid}
     fi
 done
-
-if [ -n $2 ]
-then
-    # echo PPID= $1 ${extra} $2
-    ${extra} kill -s $2 $1
-else
-    echo ${extra} PPID= $1
-fi
-
-
 
 )");
   fclose(f);

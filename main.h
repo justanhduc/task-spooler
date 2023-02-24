@@ -122,6 +122,7 @@ struct CommandLine {
   } command;
   char *label;
   int num_slots;      /* Slots for the job to use. Default 1 */
+  int taskpid;       /* to restore task by pid */
   int require_elevel; /* whether requires error level of dependencies or not */
   char *logfile;
 };
@@ -152,6 +153,7 @@ struct Msg {
       int depend_on_size;
       int wait_enqueuing;
       int num_slots;
+      int taskpid;
     } newjob;
     struct {
       int ofilename_size;
@@ -507,6 +509,7 @@ void debug_write(const char *str);
 const char *uid2user_name(int uid);
 int read_first_jobid_from_logfile(const char *path);
 void kill_pid(int ppid, const char *signal);
+char* linux_cmd(char* CMD, char* out, int out_size);
 
 /* locker */
 int user_locker;
@@ -529,6 +532,8 @@ void s_unlock_server(int s, int uid);
 int s_check_locker(int s, int uid);
 void s_set_jobids(int i);
 void s_sort_jobs();
+int check_pid(int pid);
+
 
 /* client.c */
 void c_list_jobs_all();

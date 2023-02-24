@@ -41,6 +41,28 @@ int get_env(const char *env, int v0) {
   }
 }
 
+char* linux_cmd(char* CMD, char* out, int out_size) {
+  FILE *fp;
+
+  /* Open the command for reading. */
+  fp = popen(CMD, "r");
+  if (fp == NULL) {
+    printf("Failed to run command: %s\n", CMD);
+    exit(1);
+  }
+
+  /* Read the output a line at a time - output it. */
+  while (fgets(out, out_size, fp) != NULL) {
+    ; // printf("%s", path);
+  }
+  char* end = memchr(out, '\n', out_size);
+  if (end != NULL) *end = '\0';
+  /* close */
+  pclose(fp);
+  return out;
+}
+
+
 long str2int(const char *str) {
   long i;
   if (sscanf(str, "%ld", &i) == 0) {
@@ -232,7 +254,7 @@ void kill_pid(int ppid, const char *signal) {
   char command[1024];
   char *path = get_kill_sh_path();
   sprintf(command, "bash %s %d %s", path, ppid, signal);
-  printf("command = %s\n", command);
+  // printf("command = %s\n", command);
   fp = popen(command, "r");
   free(path);
   pclose(fp);

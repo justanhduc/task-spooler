@@ -55,6 +55,7 @@ char *build_command_string() {
 }
 
 void c_new_job() {
+
   struct Msg m = default_msg();
   char *new_command;
   char *myenv;
@@ -82,7 +83,11 @@ void c_new_job() {
   m.u.newjob.command_size = strlen(new_command) + 1; /* add null */
   m.u.newjob.wait_enqueuing = command_line.wait_enqueuing;
   m.u.newjob.num_slots = command_line.num_slots;
+  m.u.newjob.taskpid = command_line.taskpid;
 
+  
+  
+  
   /* Send the message */
   send_msg(server_socket, &m);
 
@@ -590,6 +595,7 @@ void c_kill_all_jobs() {
 }
 
 void c_remove_job() {
+  printf("c_remove_job()\n");
   struct Msg m = default_msg();
   int res;
   char *string = 0;
