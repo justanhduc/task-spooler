@@ -70,6 +70,7 @@ static void default_command_line() {
   command_line.require_elevel = 0;
   command_line.logfile = NULL;
   command_line.taskpid = 0;
+  command_line.start_time = 0;
 }
 
 struct Msg default_msg() {
@@ -142,6 +143,8 @@ static struct option longOptions[] = {
     {"lock-ts", no_argument, NULL, 0},
     {"unlock-ts", no_argument, NULL, 0},
     {"daemon", no_argument, NULL, 0},
+    {"pid", required_argument, NULL, 0},
+    {"stime", required_argument, NULL, 0},
     {NULL, 0, NULL, 0}};
 
 void parse_opts(int argc, char **argv) {
@@ -152,7 +155,7 @@ void parse_opts(int argc, char **argv) {
   /* Parse options */
   while (1) {
     c = getopt_long(argc, argv,
-                    ":AXRTVhKzClnfmBEZ:a:F:t:c:o:p:w:k:r:u:s:U:qi:N:L:dS:D:W:O:",
+                    ":AXRTVhKzClnfmBE:a:F:t:c:o:p:w:k:r:u:s:U:qi:N:L:dS:D:W:O:",
                     longOptions, &optionIdx);
 
     if (c == -1)
@@ -200,6 +203,24 @@ void parse_opts(int argc, char **argv) {
       } else if (strcmp(longOptions[optionIdx].name, "plain") == 0) {
         command_line.request = c_LIST;
         command_line.plain_list = 1;
+      } else if (strcmp(longOptions[optionIdx].name, "pid") == 0) {
+        command_line.taskpid = str2int(optarg);
+        if (command_line.taskpid <= 0)
+          command_line.taskpid = 0;
+        else {
+          char cmd[256], out[256] = "";
+          snprintf(cmd, sizeof(cmd), "readlink -f /proc/%d/fd/1", command_line.taskpid);
+          linux_cmd(cmd, out, sizeof(out));
+
+          if (strlen(out) == 0) {
+            printf("PID: %d is dead\n", command_line.taskpid);
+            return;
+          } else {
+            printf("tast stdout > %s\n", out);
+          }
+        }
+      } else if (strcmp(longOptions[optionIdx].name, "stime") == 0) {
+        command_line.start_time = str2int(optarg);
       } else
         error("Wrong option %s.", longOptions[optionIdx].name);
       break;
@@ -297,6 +318,7 @@ void parse_opts(int argc, char **argv) {
       if (command_line.num_slots < 0)
         command_line.num_slots = 0;
       break;
+    /*
     case 'Z':
       command_line.taskpid = str2int(optarg);
       if (command_line.taskpid <= 0)
@@ -313,6 +335,7 @@ void parse_opts(int argc, char **argv) {
         }
       }
       break;
+    */
     case 'w':
       command_line.request = c_WAITJOB;
       command_line.jobid = str2int(optarg);

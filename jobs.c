@@ -128,7 +128,8 @@ static struct Job *find_previous_job(const struct Job *final) {
   return NULL;
 }
 
-struct Job *findjob(int jobid) {
+
+static struct Job *findjob(int jobid) {
   struct Job *p;
 
   /* Show Queued or Running jobs */
@@ -141,6 +142,16 @@ struct Job *findjob(int jobid) {
 
   return NULL;
 }
+
+int check_running_dead(int jobid) {
+  struct Job* p = findjob(jobid);
+  if (p->pid != 0 && p->state == RUNNING) {
+    // a task is allocated by a pid and is running
+    return check_ifsleep(p->pid) == -1;
+  }
+  return 0;
+}
+
 
 static struct Job *findjob_holding_client() {
   struct Job *p;
@@ -472,7 +483,7 @@ static struct Job *newjobptr() {
   p->next->next = 0;
   p->next->output_filename = 0;
   p->next->command = 0;
-
+  p->next->pid = 0;
   return p->next;
 }
 
@@ -683,21 +694,21 @@ int s_newjob(int s, struct Msg *m) {
       p->label = "new label";
     */
 
-    // char out[256] = "zero";
-    //char* cmd = (char*) malloc(256);
     char cmd[256], out[256] = "(unkown)";
     snprintf(cmd, 256, "readlink -f /proc/%d/fd/1", p->pid);
     linux_cmd(cmd, out, 256);
     char* f = (char*) malloc(strnlen(out, 255)+1);
     strncpy(f, out, strlen(out)+1);
-
+    p->output_filename = f;
     struct stat t_stat;
     if (stat(f, &t_stat) != -1) {
       pinfo->start_time.tv_sec = t_stat.st_ctime;
+    } else {
+      if (m->u.newjob.start_time != 0) {
+        pinfo->start_time.tv_sec = m->u.newjob.start_time;
+      } 
     }
     // struct tm * timeinfo = localtime(&t_stat.st_ctime);
-
-    p->output_filename = f;
   }
 
   return p->jobid;

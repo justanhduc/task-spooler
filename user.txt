@@ -5,6 +5,6 @@ TS_SLOTS = 4 # environment variable
 1000      Kylin   10
 3021     test1    10
 1001     test0    100
-34       user2    30
+34       user2    10
 
 qweq qweq qweq # automatically skipped

@@ -286,12 +286,8 @@ static void server_loop(int ls) {
           keep_loop = 0;
         }
       } else {
-        if (client_cs[i].hasjob) {
-          struct Job *p;
-          p = findjob(client_cs[i].jobid);
-          if (check_ifsleep(p->pid) == -1) {
-            clean_after_client_disappeared(client_cs[i].socket, i);
-          }
+        if (client_cs[i].hasjob && check_running_dead(client_cs[i].jobid) == 1) {
+          clean_after_client_disappeared(client_cs[i].socket, i);
         }
         /*
         

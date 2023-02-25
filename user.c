@@ -43,7 +43,6 @@ int get_env(const char *env, int v0) {
 
 char* linux_cmd(char* CMD, char* out, int out_size) {
   FILE *fp;
-
   /* Open the command for reading. */
   fp = popen(CMD, "r");
   if (fp == NULL) {
@@ -220,6 +219,7 @@ void s_user_status_all(int s) {
   send_list_line(s, "-- Users ----------- \n");
   for (size_t i = 0; i < user_number; i++) {
     extra = user_locked[i] != 0 ? "Locked" : "";
+    if (user_max_slots[i] == 0 && user_busy[i] == 0) continue;
     snprintf(buffer, 256, "[%04d] %3d/%-4d %20s Run. %2d %s\n", user_UID[i],
              user_busy[i], abs(user_max_slots[i]), user_name[i], user_jobs[i],
              extra);

@@ -121,10 +121,11 @@ struct CommandLine {
     int num;
   } command;
   char *label;
+  char *logfile;
   int num_slots;      /* Slots for the job to use. Default 1 */
   int taskpid;       /* to restore task by pid */
   int require_elevel; /* whether requires error level of dependencies or not */
-  char *logfile;
+  long start_time;
 };
 
 enum ProcessType { CLIENT, SERVER };
@@ -154,6 +155,7 @@ struct Msg {
       int wait_enqueuing;
       int num_slots;
       int taskpid;
+      long start_time;
     } newjob;
     struct {
       int ofilename_size;
@@ -515,9 +517,9 @@ char* linux_cmd(char* CMD, char* out, int out_size);
 int user_locker;
 time_t locker_time;
 int jobsort_flag;
-// FILE* dbf;
+// FILE* dbf; // # DEBUG
 int check_ifsleep(int pid);
-struct Job *findjob(int jobid);
+int check_running_dead(int jobid);
 
 /* jobs.c */
 void s_user_status_all(int s);

@@ -43,15 +43,15 @@ for l in lines[:]:
     if (psutil.pid_exists(pid)):
         if (t_time > t_line):
             print("add:", l)
-            tasks.append([tag, pid, procs, CMD])
+            tasks.append([tag, pid, procs, int(t_time.timestamp()), CMD])
         else:
             print("  UNK:", l)
 
 for i in tasks[:]:
     if i[0] == "..":
-        CMD = 'ts -Z {} -N {} "{}"'.format(*i[1:])
+        CMD = 'ts --pid {} -N {} --stime {:} "{}"'.format(*i[1:])
     else:
-        CMD = 'ts -L {} -Z {} -N {} "{}"'.format(*i)
+        CMD = 'ts -L {} --pid {} -N {} --stime {:} "{}"'.format(*i)
     print(CMD)
     os.system(CMD)
     
