@@ -162,9 +162,9 @@ static int get_max_descriptors() {
 
 
 void server_main(int notify_fd, char *_path) {
-  // dbf = fopen("/home/kylin/task-spooler/debug.txt", "w");
-  // fprintf(dbf, "start server_main\n");
-  // fflush(dbf);
+  FILE* dbf = fopen("/home/kylin/task-spooler/debug.txt", "w");
+  fprintf(dbf, "start server_main\n");
+  fflush(dbf);
 
   int ls;
   struct sockaddr_un addr;
@@ -457,16 +457,14 @@ static enum Break client_read(int index) {
       return BREAK; /* break in the parent*/
     break;
   case NEWJOB:
-    if (check_pid(m.u.newjob.taskpid) == 1) {
-      break;
-    }
-    if (user_id == -1) {
-      break;
-    }
-    if (s_check_locker(s, m.uid)) {
-      break;
-    }
-    client_cs[index].jobid = s_newjob(s, &m);
+    if (m.u.newjob.taskpid != 0) {
+      user_id = check_relink_pid(m.uid, m.u.newjob.taskpid);
+    } 
+
+    if (user_id == -1) { break; }
+    if (s_check_locker(s, m.uid)) { break; }
+
+    client_cs[index].jobid = s_newjob(s, &m, user_id);
     client_cs[index].hasjob = 1;
     if (!job_is_holding_client(client_cs[index].jobid))
       s_newjob_ok(index);

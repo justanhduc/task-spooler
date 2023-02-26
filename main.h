@@ -310,7 +310,7 @@ void s_list_all(int s);
 
 void s_list_plain(int s);
 
-int s_newjob(int s, struct Msg *m);
+int s_newjob(int s, struct Msg *m, int user_id);
 
 void s_removejob(int jobid);
 
@@ -537,7 +537,7 @@ void s_unlock_server(int s, int uid);
 int s_check_locker(int s, int uid);
 void s_set_jobids(int i);
 void s_sort_jobs();
-int check_pid(int pid);
+int check_relink_pid(int uid, int pid);
 
 
 /* client.c */

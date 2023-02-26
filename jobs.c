@@ -518,7 +518,7 @@ static int find_last_stored_jobid_finished() {
 }
 
 /* Returns job id or -1 on error */
-int s_newjob(int s, struct Msg *m) {
+int s_newjob(int s, struct Msg *m, int user_id) {
   
   struct Job *p;
   int res;
@@ -532,7 +532,7 @@ int s_newjob(int s, struct Msg *m) {
     p->state = HOLDING_CLIENT;
 
   // save the user_id and record the number of waiting jobs
-  p->user_id = get_user_id(m->uid);
+  p->user_id = user_id; // get_user_id(m->uid);
   user_queue[p->user_id]++;
 
   p->num_slots = m->u.newjob.num_slots;
@@ -714,8 +714,7 @@ int s_newjob(int s, struct Msg *m) {
   return p->jobid;
 }
 
-
-int check_pid(int pid) {
+static int isrunning_pid(int pid) {
   if (pid == 0) return 0;
   struct Job *p = &firstjob;
 
@@ -724,6 +723,28 @@ int check_pid(int pid) {
     if (p->pid == pid) return 1;
   }
   return 0;
+}
+
+// if any error return 0;
+int check_relink_pid(int uid, int pid) {
+  if (isrunning_pid(pid) == 1) {
+    return -1;
+  }
+
+  char filename[256];
+  struct stat t_stat;
+
+  snprintf(filename, 256, "/proc/%d/stat", pid);
+  if (stat(filename, &t_stat) == -1) {
+      return -1;
+  }
+  if (uid == root_UID) { 
+    return get_user_id(t_stat.st_uid);
+  } else if (uid == t_stat.st_uid) {
+    return get_user_id(t_stat.st_uid);
+  } else {
+    return -1;
+  }
 }
 
 /* This assumes the jobid exists */

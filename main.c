@@ -580,7 +580,10 @@ static void print_help(const char *cmd) {
   printf("  --cont [user]                   For normal user, continue all "
          "paused tasks and lock the account. \n                         "
          "         For root, to unlock all users or single [user].\n");
-
+  printf("  --pid [PID]                     relink the existing tasks from a"
+         "unexpectde failure. [PID] is the process identification number");
+  printf("  --stime [start_time]            reset the start time of the relinked "
+         "by a Unix epoch.");
   printf("Actions:\n");
   printf("  -A           Show all users information\n");
   printf(
