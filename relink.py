@@ -5,7 +5,7 @@ import psutil
 import os
 
 logfile = "/home/kylin/task-spooler/log.txt"
-days_num = 10
+days_num = 1000
 if len(sys.argv) != 1:
     days_num = int(sys.argv[2]);
     exit(1)
@@ -42,16 +42,25 @@ for l in lines[:]:
     user, procs, pid, tag, CMD, t_time = parse(l)
     if (psutil.pid_exists(pid)):
         if (t_time > t_line):
-            print("add:", l)
-            tasks.append([tag, pid, procs, int(t_time.timestamp()), CMD])
+            
+            p = psutil.Process(pid)
+            cmd = " ".join(p.cmdline()).replace("/bin/sh /opt/intel/oneapi/mpi/2021.3.0/bin/mpirun", "mpirun")
+            if (cmd == CMD):
+                print("add:", l)
+                tasks.append([tag, pid, procs, CMD])
+                # tasks.append([tag, pid, procs, int(t_time.timestamp()), CMD])
+            else:
+                print("  N/A:", l) # "#", cmd, p.name(), p.cmdline())
         else:
             print("  UNK:", l)
 
 for i in tasks[:]:
     if i[0] == "..":
-        CMD = 'ts --pid {} -N {} --stime {:} "{}"'.format(*i[1:])
+        CMD = 'ts --pid {} -N {} "{}"'.format(*i[1:])
+        # CMD = 'ts --pid {} -N {} --stime {:} "{}"'.format(*i[1:])
     else:
-        CMD = 'ts -L {} --pid {} -N {} --stime {:} "{}"'.format(*i)
+        CMD = 'ts -L {} --pid {} -N {} "{}"'.format(*i)
+        # CMD = 'ts -L {} --pid {} -N {} --stime {:} "{}"'.format(*i)
     print(CMD)
     os.system(CMD)
     

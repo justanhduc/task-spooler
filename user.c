@@ -6,6 +6,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "main.h"
 #include "user.h"
@@ -27,6 +28,7 @@ const char *get_user_path() {
     return str;
   }
 }
+
 
 int get_env(const char *env, int v0) {
   char *str;
@@ -78,6 +80,29 @@ const char *set_server_logfile() {
   }
   return logfile_path;
 }
+
+void check_running_task(int pid) {
+  char cmd[256], filename[256] = "";
+  snprintf(cmd, sizeof(cmd), "readlink -f /proc/%d/fd/1", command_line.taskpid);
+  linux_cmd(cmd, filename, sizeof(filename));
+  
+  int namesize = strnlen(filename, 255)+1;
+  char* f = (char*) malloc(namesize);
+  strncpy(f, filename, namesize);
+  if (strlen(f) == 0) {
+    error("PID: %d is dead", pid);
+  } else {
+    printf("tast stdout > %s\n", filename);
+  }
+  struct stat t_stat;
+  snprintf(filename, 256, "/proc/%d/stat", pid);
+  if (stat(filename, &t_stat) != -1) {
+    command_line.start_time = t_stat.st_ctime;
+  }
+  command_line.outfile = f;
+}
+
+
 
 void write_logfile(const struct Job *p) {
   // char buf[1024] = "";

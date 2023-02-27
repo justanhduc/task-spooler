@@ -143,6 +143,41 @@ static struct Job *findjob(int jobid) {
   return NULL;
 }
 
+
+static int pid_in_Jobs(int pid) {
+  if (pid == 0) return 0;
+  struct Job *p = &firstjob;
+
+  while (p->next != NULL) {
+    p = p->next;
+    if (p->pid == pid) return 1;
+  }
+  return 0;
+}
+
+// if any error return 0;
+int check_relink_pid(int uid, int pid) {
+  if (pid_in_Jobs(pid) == 1) {
+    return -1;
+  }
+
+  char filename[256];
+  struct stat t_stat;
+
+  snprintf(filename, 256, "/proc/%d/stat", pid);
+  if (stat(filename, &t_stat) == -1) {
+      return -1;
+  }
+  if (uid == root_UID) { 
+    return get_user_id(t_stat.st_uid);
+  } else if (uid == t_stat.st_uid) {
+    return get_user_id(t_stat.st_uid);
+  } else {
+    return -1;
+  }
+}
+
+/*
 int check_running_dead(int jobid) {
   struct Job* p = findjob(jobid);
   if (p->pid != 0 && p->state == RUNNING) {
@@ -151,7 +186,7 @@ int check_running_dead(int jobid) {
   }
   return 0;
 }
-
+*/
 
 static struct Job *findjob_holding_client() {
   struct Job *p;
@@ -362,6 +397,9 @@ const char *jstate2string(enum Jobstate s) {
   case SKIPPED:
   case HOLDING_CLIENT:
     jobstate = "skipped";
+    break;
+  case RELINK:
+    jobstate = "relink";
     break;
   }
   return jobstate;
@@ -677,6 +715,7 @@ int s_newjob(int s, struct Msg *m, int user_id) {
     free(ptr);
   }
 
+  /* for relink running task */
   if (m->u.newjob.taskpid != 0) {
     p->pid = m->u.newjob.taskpid;
     struct Procinfo* pinfo = &(p->info);
@@ -685,66 +724,10 @@ int s_newjob(int s, struct Msg *m, int user_id) {
     busy_slots += num_slots;
     user_busy[id] += num_slots;
     user_jobs[id]++;
-    p->state = RUNNING;
-    // p->state = HOLDING_CLIENT;
-    /*
-    if (p->label != NULL)
-      p->label[0] = '#';
-    else
-      p->label = "new label";
-    */
-
-    char cmd[256], out[256] = "(unkown)";
-    snprintf(cmd, 256, "readlink -f /proc/%d/fd/1", p->pid);
-    linux_cmd(cmd, out, 256);
-    char* f = (char*) malloc(strnlen(out, 255)+1);
-    strncpy(f, out, strlen(out)+1);
-    p->output_filename = f;
-    struct stat t_stat;
-    if (stat(f, &t_stat) != -1) {
-      pinfo->start_time.tv_sec = t_stat.st_ctime;
-    } else {
-      if (m->u.newjob.start_time != 0) {
-        pinfo->start_time.tv_sec = m->u.newjob.start_time;
-      } 
-    }
-    // struct tm * timeinfo = localtime(&t_stat.st_ctime);
+    p->state = RELINK;
   }
 
   return p->jobid;
-}
-
-static int isrunning_pid(int pid) {
-  if (pid == 0) return 0;
-  struct Job *p = &firstjob;
-
-  while (p->next != NULL) {
-    p = p->next;
-    if (p->pid == pid) return 1;
-  }
-  return 0;
-}
-
-// if any error return 0;
-int check_relink_pid(int uid, int pid) {
-  if (isrunning_pid(pid) == 1) {
-    return -1;
-  }
-
-  char filename[256];
-  struct stat t_stat;
-
-  snprintf(filename, 256, "/proc/%d/stat", pid);
-  if (stat(filename, &t_stat) == -1) {
-      return -1;
-  }
-  if (uid == root_UID) { 
-    return get_user_id(t_stat.st_uid);
-  } else if (uid == t_stat.st_uid) {
-    return get_user_id(t_stat.st_uid);
-  } else {
-    return -1;
-  }
 }
 
 /* This assumes the jobid exists */
@@ -781,6 +764,17 @@ void s_removejob(int jobid) {
 /* -1 if no one should be run. */
 int next_run_job() {
   struct Job *p;
+
+  /* If there are no jobs to run... */
+  if (firstjob.next == 0)
+    return -1;
+  p = firstjob.next;
+  while (p != 0) {
+    if (p->state == RELINK) {
+      return p->jobid;
+    }
+    p = p->next;
+  }
   // start from a random sequence
   int uid = rand() % user_number;
 
@@ -790,10 +784,6 @@ int next_run_job() {
    * if the user was running many jobs, and suddenly
    * trimmed the maximum slots down. */
   if (free_slots <= 0)
-    return -1;
-
-  /* If there are no jobs to run... */
-  if (firstjob.next == 0)
     return -1;
 
   /* Look for a runnable task */

@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <sys/inotify.h>
 
 #include <time.h>
 #include <unistd.h>
@@ -24,9 +25,77 @@
 /* from signals.c */
 extern int signals_child_pid; /* 0, not set. otherwise, set. */
 
+
+static int wait_for_pid(int pid)
+{
+    char path[32];
+    int in_fd = inotify_init();
+    sprintf(path, "/proc/%i/exe", pid);
+    if (inotify_add_watch(in_fd, path, IN_CLOSE_NOWRITE) < 0) {
+        close(in_fd);
+        return -1;
+    }
+    sprintf(path, "/proc/%i", pid);
+    int dir_fd = open(path, 0);
+    if (dir_fd < 0) {
+        close(in_fd);
+        return -1;
+    }
+
+    int res = 0;
+    while (1) {
+        struct inotify_event event;
+        if (read(in_fd, &event, sizeof(event)) < 0) {
+            res = -1;
+            break;
+        }
+        int f = openat(dir_fd, "fd", 0);
+        if (f < 0) break;
+        close(f);
+    }
+
+    close(dir_fd);
+    close(in_fd);
+    return res;
+}
+
+static void run_relink(int pid, struct Result *result) {
+  // int status = 0;
+  char *ofname = command_line.outfile;
+  char *command;
+  struct timeval endtv;
+  struct tms cpu_times;
+
+  /* All went fine - prepare the SIGINT and send runjob_ok */
+  signals_child_pid = pid;
+  unblock_sigint_and_install_handler();
+  // printf("runjob_ok %s\n", ofname);
+  c_send_runjob_ok(ofname, pid);
+
+  wait_for_pid(pid);
+
+  command = build_command_string();
+  if (command_line.send_output_by_mail) {
+    send_mail(command_line.jobid, result->errorlevel, ofname, command);
+  }
+  hook_on_finish(command_line.jobid, result->errorlevel, ofname, command);
+  free(command);
+
+  free(ofname);
+
+  /* Calculate times */
+  gettimeofday(&endtv, NULL);
+  result->real_ms = endtv.tv_sec - command_line.start_time +
+                    ((float)(endtv.tv_usec) / 1000000.);
+  times(&cpu_times);
+  /* The times are given in clock ticks. The number of clock ticks per second
+   * is obtained in POSIX using sysconf(). */
+  result->user_ms = (float)cpu_times.tms_cutime / (float)sysconf(_SC_CLK_TCK);
+  result->system_ms = (float)cpu_times.tms_cstime / (float)sysconf(_SC_CLK_TCK);
+}
 /* Returns errorlevel */
 static void run_parent(int fd_read_filename, int pid, struct Result *result) {
-  int status;
+  int status = 0;
   char *ofname = 0;
   int namesize;
   int res;
@@ -52,11 +121,11 @@ static void run_parent(int fd_read_filename, int pid, struct Result *result) {
   if (res != sizeof(starttv))
     error("Reading the the struct timeval");
   close(fd_read_filename);
-
+  
   /* All went fine - prepare the SIGINT and send runjob_ok */
   signals_child_pid = pid;
   unblock_sigint_and_install_handler();
-  printf("runjob_ok %s\n", ofname);
+  // printf("runjob_ok %s\n", ofname);
   c_send_runjob_ok(ofname, pid);
 
   wait(&status);
@@ -243,15 +312,17 @@ static void run_child(int fd_send_filename, const char *tmpdir, int jobid) {
   /* We create a new session, so we can kill process groups as:
        kill -- -`ts -p` */
   setsid();
+  // only execute the command without the relink flag
   execvp(command_line.command.array[0], command_line.command.array);
 }
 
 int run_job(int jobid, struct Result *res) {
   int pid;
-  int errorlevel;
+  int errorlevel = 0;
   int p[2];
   char path[256];
   getcwd(path, 256);
+  printf("start run_job()\n");
   // const char *tmpdir = get_logdir();
   // printf("tmpdir: %s\n", tmpdir);
 
@@ -259,32 +330,15 @@ int run_job(int jobid, struct Result *res) {
   /*program_signal(); Still not needed*/
 
   block_sigint();
-
+  if (command_line.taskpid != 0) {
+    run_relink(command_line.taskpid, res);
+    return errorlevel;
+  }
   /* Prepare the output filename sending */
   pipe(p);
   
-  if (command_line.taskpid == 0) {
-    pid = fork();
-  } else {
-    pid = command_line.taskpid;
-    /*
-    command_line.store_output = 0;
-    char cmd[256], out[256] = "(unkown)";
-    snprintf(cmd, 256, "readlink -f /proc/%d/fd/1", pid);
-    _inux_cmd(cmd, out, 256);
-
-    struct stat t_stat;
-    if (stat(out, &t_stat) != -1) {
-      write(p[0], &t_stat.st_ctime, sizeof(t_stat.st_ctime));
-    }
-    */
-    /*
-    printf("test\n");
-    int namesize = strlen(out) + 1;
-    write(p[1], (char *)&namesize, sizeof(namesize));
-    write(p[1], out, namesize);
-    */
-  }
+  
+  pid = fork();
 
   switch (pid) {
   case 0:
@@ -305,7 +359,6 @@ int run_job(int jobid, struct Result *res) {
     errorlevel = 0;
     error("forking");
   default:
-    printf("run_parenet\n");
     close(p[1]);
     run_parent(p[0], pid, res);
     break;

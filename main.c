@@ -208,16 +208,7 @@ void parse_opts(int argc, char **argv) {
         if (command_line.taskpid <= 0)
           command_line.taskpid = 0;
         else {
-          char cmd[256], out[256] = "";
-          snprintf(cmd, sizeof(cmd), "readlink -f /proc/%d/fd/1", command_line.taskpid);
-          linux_cmd(cmd, out, sizeof(out));
-
-          if (strlen(out) == 0) {
-            printf("PID: %d is dead\n", command_line.taskpid);
-            return;
-          } else {
-            printf("tast stdout > %s\n", out);
-          }
+          check_running_task(command_line.taskpid);
         }
       } else if (strcmp(longOptions[optionIdx].name, "stime") == 0) {
         command_line.start_time = str2int(optarg);
@@ -580,10 +571,8 @@ static void print_help(const char *cmd) {
   printf("  --cont [user]                   For normal user, continue all "
          "paused tasks and lock the account. \n                         "
          "         For root, to unlock all users or single [user].\n");
-  printf("  --pid [PID]                     relink the existing tasks from a"
-         "unexpectde failure. [PID] is the process identification number");
-  printf("  --stime [start_time]            reset the start time of the relinked "
-         "by a Unix epoch.");
+  printf("  --pid [PID]                     Relink the running tasks by its [PID] from an expected failure.\n");
+  printf("  --stime [start_time]            Set the relinked task by starting time (Unix epoch).\n");
   printf("Actions:\n");
   printf("  -A           Show all users information\n");
   printf(

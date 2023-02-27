@@ -151,17 +151,20 @@ Long option actions:
   --get_logdir                    get the path containing log files.
   --set_logdir [path]             set the path containing log files.
   --plain                         list jobs in plain tab-separated texts.
-  --hold_job [jobid]              hold on a task.
-  --restart_job [jobid]           restart a task.
-  --lock                          Locker the server (Timeout: 30 sec.)git For Root, timeout is infinity.
+  --daemon                        Run the server as daemon by Root only.
+  --hold [jobid]                  hold on a task.
+  --restart [jobid]               rerun a hold task.
+  --lock                          Locker the server (Timeout: 30 sec.)For Root, timeout is infinity.
   --unlock                        Unlocker the server.
   --stop [user]                   For normal user, pause all tasks and lock the account.
                                   For root, to lock all users or single [user].
   --cont [user]                   For normal user, continue all paused tasks and lock the account.
                                   For root, to unlock all users or single [user].
-Actions:
+  --pid [PID]                     Relink the running tasks by its [PID] from an expected failure.
+  --stime [start_time]            Set the relinked task by starting time (Unix epoch).
+  Actions:
   -A           Show all users information
-  -X           Refresh the user configuration (only available for root)
+  -X           Refresh the user config by UID (Max. 100 users and only available for root)
   -K           kill the task spooler server (only available for root)
   -C           clear the list of finished jobs for current user
   -l           show the job list (default action)
@@ -210,6 +213,14 @@ using the `TS_USER_PATH` environment variable to specify the path to the user co
 qweq qweq qweq # automatically skipped
 ```
 
+
+## Restore from a failure
+To run the `relink.py` file with the user_log file, it would automatically relink all running tasks in a new task-spooler services.
+```
+# relink.py setup
+logfile = "/home/kylin/task-spooler/log.txt" # Path to the log file of tasks
+days_num = 10 # only tasks starts within [days_num] will be relinked
+```
 ## Thanks
 
 **Author**

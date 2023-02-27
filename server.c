@@ -162,7 +162,7 @@ static int get_max_descriptors() {
 
 
 void server_main(int notify_fd, char *_path) {
-  FILE* dbf = fopen("/home/kylin/task-spooler/debug.txt", "w");
+  dbf = fopen("/home/kylin/task-spooler/debug.txt", "w");
   fprintf(dbf, "start server_main\n");
   fflush(dbf);
 
@@ -286,15 +286,16 @@ static void server_loop(int ls) {
           keep_loop = 0;
         }
       } else {
+        /*
         if (client_cs[i].hasjob && check_running_dead(client_cs[i].jobid) == 1) {
           clean_after_client_disappeared(client_cs[i].socket, i);
         }
-        /*
-        
         */
       }
     /* This will return firstjob->jobid or -1 */
     newjob = next_run_job();
+    fprintf(dbf, "start new job: %d\n", newjob);
+    fflush(dbf);
     if (newjob != -1) {
       int conn, awaken_job;
       conn = get_conn_of_jobid(newjob);
@@ -379,9 +380,13 @@ static enum Break client_read(int index) {
   res = recv_msg(s, &m);
   if (res == -1) {
     warning("client recv failed");    
+    fprintf(dbf, "start clean_after_clieeared\n");
+    fflush(dbf);
     clean_after_client_disappeared(s, index);
     return NOBREAK;
   } else if (res == 0) {
+    fprintf(dbf, "start clean_after_clie2\n");
+    fflush(dbf);
     clean_after_client_disappeared(s, index);
     return NOBREAK;
   }
@@ -458,6 +463,7 @@ static enum Break client_read(int index) {
     break;
   case NEWJOB:
     if (m.u.newjob.taskpid != 0) {
+      // check if taskpid isnot in queue and from a valid user.
       user_id = check_relink_pid(m.uid, m.u.newjob.taskpid);
     } 
 
@@ -650,7 +656,8 @@ static void s_runjob(int jobid, int index) {
     error("Run job of the client %i which doesn't have any job", index);
 
   s = client_cs[index].socket;
-
+  fprintf(dbf, "socket = %d, jobid = %d\n", s, jobid);
+  fflush(dbf);
   s_send_runjob(s, jobid);
 }
 
