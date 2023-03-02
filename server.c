@@ -171,9 +171,9 @@ static int get_max_descriptors() {
 
 
 void server_main(int notify_fd, char *_path) {
-  dbf = fopen("/home/kylin/task-spooler/debug.txt", "w");
-  fprintf(dbf, "start server_main\n");
-  fflush(dbf);
+  // dbf = fopen("/home/kylin/task-spooler/debug.txt", "w");
+  // fprintf(dbf, "start server_main\n");
+  // fflush(dbf);
 
   int ls;
   struct sockaddr_un addr;
@@ -321,8 +321,6 @@ static void server_loop(int ls) {
       }
     /* This will return firstjob->jobid or -1 */
     newjob = next_run_job();
-    fprintf(dbf, "start new job: %d\n", newjob);
-    fflush(dbf);
     if (newjob != -1) {
       int conn, awaken_job;
       conn = get_conn_of_jobid(newjob);
@@ -407,13 +405,9 @@ static enum Break client_read(int index) {
   res = recv_msg(s, &m);
   if (res == -1) {
     warning("client recv failed");    
-    fprintf(dbf, "start clean_after_clieeared\n");
-    fflush(dbf);
     clean_after_client_disappeared(s, index);
     return NOBREAK;
   } else if (res == 0) {
-    fprintf(dbf, "start clean_after_clie2\n");
-    fflush(dbf);
     clean_after_client_disappeared(s, index);
     return NOBREAK;
   }
@@ -488,16 +482,19 @@ static enum Break client_read(int index) {
   case NEWJOB:
     if (m.u.newjob.taskpid != 0) {
       // check if taskpid isnot in queue and from a valid user.
-      fprintf(dbf, "ts_UID = %d, taskpid = %d\n", ts_UID, m.u.newjob.taskpid);
-      ts_UID = ts(ts_UID, m.u.newjob.taskpid);
-      // fprintf(dbf, "ts_UID = %d, taskpid = %d\n", ts_UID, m.u.newjob.taskpid);
-      // fflush(dbf);
+      ts_UID = s_check_relink(s, &m, ts_UID);
     } else {
       if (s_check_locker(s, ts_UID) == 1) { break; }
     }
 
-    if (ts_UID < 0 || ts_UID > USER_MAX) { break; }
-
+    if (ts_UID < 0 || ts_UID > USER_MAX) { 
+      struct Msg m = default_msg();
+      m.type = NEWJOB_PID_NOK;
+      send_msg(s, &m);
+      // close(s);
+      break; 
+    }
+    
     client_cs[index].jobid = s_newjob(s, &m, ts_UID);
     client_cs[index].hasjob = 1;
     if (!job_is_holding_client(client_cs[index].jobid))
@@ -516,7 +513,8 @@ static enum Break client_read(int index) {
       if (res != m.u.output.ofilename_size)
         error("Reading the ofilename");
     }
-    s_process_runjob_ok(client_cs[index].jobid, buffer, m.u.output.pid);
+    if (m.u.output.pid > 0)
+      s_process_runjob_ok(client_cs[index].jobid, buffer, m.u.output.pid);
   } break;
   case KILL_ALL:
     if (ts_UID == 0)

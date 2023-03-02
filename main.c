@@ -230,7 +230,6 @@ void parse_opts(int argc, char **argv) {
       command_line.jobid = str2int(optarg);
       break;
     case 'r':
-      printf("c_REMOVEJOB = %s\n", optarg);
       command_line.request = c_REMOVEJOB;
       command_line.jobid = str2int(optarg);    
       break;
@@ -851,7 +850,6 @@ int main(int argc, char **argv) {
   case c_REMOVEJOB:
     if (!command_line.need_server)
       error("The command %i needs the server", command_line.request);
-    printf("remove the job\n");
     c_remove_job();
     break;
   case c_WAITJOB:

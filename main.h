@@ -46,6 +46,7 @@ enum MsgTypes {
   GET_VERSION,
   VERSION,
   NEWJOB_NOK,
+  NEWJOB_PID_NOK,
   COUNT_RUNNING,
   GET_LABEL,
   LAST_ID,
@@ -222,7 +223,8 @@ struct Job {
 enum ExitCodes {
   EXITCODE_OK = 0,
   EXITCODE_UNKNOWN_ERROR = -1,
-  EXITCODE_QUEUE_FULL = 2
+  EXITCODE_QUEUE_FULL = 2,
+  EXITCODE_RELINK_FAILED = 3
 };
 
 /* main.c */
@@ -518,7 +520,7 @@ void check_running_task(int pid);
 int user_locker;
 time_t locker_time;
 int jobsort_flag;
-FILE* dbf; // # DEBUG
+// FILE* dbf; // # DEBUG
 int check_ifsleep(int pid);
 int check_running_dead(int jobid);
 
@@ -538,7 +540,7 @@ void s_unlock_server(int s, int uid);
 int s_check_locker(int s, int uid);
 void s_set_jobids(int i);
 void s_sort_jobs();
-int check_relink_pid(int uid, int pid);
+int s_check_relink(int s, struct Msg *m, int ts_UID);
 
 
 /* client.c */

@@ -144,20 +144,24 @@ static struct Job *findjob(int jobid) {
 }
 
 
-static int pid_in_Jobs(int pid) {
-  if (pid == 0) return 0;
+static int jobid_from_pid(int pid) {
+  // if (pid == 0) return 0;
   struct Job *p = &firstjob;
 
   while (p->next != NULL) {
     p = p->next;
-    if (p->pid == pid) return 1;
+    if (p->pid == pid) return p->jobid;
   }
-  return 0;
+  return -1;
 }
 
 // if any error return 0;
-int check_relink_pid(int ts_UID, int pid) {
-  if (pid_in_Jobs(pid) == 1) {
+int s_check_relink(int s, struct Msg *m, int ts_UID) {
+  int pid = m->u.newjob.taskpid;
+  int jobid = jobid_from_pid(pid);
+  if (jobid != -1) {
+    sprintf(buff, "  Error: PID [%i] has already in job queue as Jobid: %i\n", pid, jobid);
+    send_list_line(s, buff);
     return -1;
   }
 
@@ -166,6 +170,8 @@ int check_relink_pid(int ts_UID, int pid) {
 
   snprintf(filename, 256, "/proc/%d/stat", pid);
   if (stat(filename, &t_stat) == -1) {
+    sprintf(buff, "  Error: PID [%i] is not running\n", pid);
+    send_list_line(s, buff);
     return -1;
   }
 
@@ -175,6 +181,10 @@ int check_relink_pid(int ts_UID, int pid) {
   } else if (ts_UID == job_tsUID) {
     return job_tsUID;
   } else {
+    sprintf(buff, "  Error: PID [%i] is owned by [%d] `%s` not the user [%d] `%s`\n",
+    pid, user_UID[job_tsUID], user_name[job_tsUID],
+    user_UID[ts_UID], user_name[ts_UID]);
+    send_list_line(s, buff);
     return -1;
   }
 }
@@ -727,6 +737,7 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
     user_busy[id] += num_slots;
     user_jobs[id]++;
     p->state = RELINK;
+    p->info.start_time.tv_sec = m->u.newjob.start_time;
   }
 
   return p->jobid;
@@ -1303,8 +1314,15 @@ int s_remove_job(int s, int *jobid, int client_tsUID) {
 
     if (*jobid == -1)
       snprintf(buff, 255, "The last job cannot be removed.\n");
-    else
-      snprintf(buff, 255, "The job %i cannot be removed.\n", *jobid);
+    else {
+      if (p == NULL) {
+        snprintf(buff, 255, "The job %i is not in queue.\n", *jobid);
+      } else {
+        snprintf(buff, 255, "The job %i is owned by [%d] `%s` not the user [%d] `%s`.\n", 
+        *jobid, user_UID[p->ts_UID], user_name[p->ts_UID],
+        user_UID[client_tsUID], user_name[client_tsUID]);
+      }
+    }
     if (p != NULL) {
       if (p->ts_UID != client_tsUID) {
         snprintf(buff, 255, "The job %i belongs to %s not %s.\n",

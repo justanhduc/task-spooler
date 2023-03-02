@@ -110,6 +110,14 @@ void c_new_job() {
   free(myenv);
 }
 
+static void c_print_line(struct Msg* m) {
+  char *buffer;
+  buffer = (char *)malloc(m->u.size);
+  recv_bytes(server_socket, buffer, m->u.size);
+  printf("%s", buffer);
+  free(buffer);
+}
+
 int c_wait_newjob_ok() {
   struct Msg m = default_msg();
   int res;
@@ -121,9 +129,19 @@ int c_wait_newjob_ok() {
     fprintf(stderr, "Error, queue full\n");
     exit(EXITCODE_QUEUE_FULL);
   }
+
+  if (m.type == LIST_LINE) {
+    c_print_line(&m);
+    return c_wait_newjob_ok();
+  }
+
+  if (m.type == NEWJOB_PID_NOK) {
+    // fprintf(stderr, "Error, queue full\n");
+    exit(EXITCODE_RELINK_FAILED);
+  }
   if (m.type != NEWJOB_OK)
     error("Error getting the newjob_ok");
-
+  
   return m.jobid;
 }
 
@@ -598,7 +616,6 @@ void c_kill_all_jobs() {
 }
 
 void c_remove_job() {
-  printf("c_remove_job()\n");
   struct Msg m = default_msg();
   int res;
   char *string = 0;
@@ -620,9 +637,11 @@ void c_remove_job() {
   case LIST_LINE: /* Only ONE line accepted */
     string = (char *)malloc(m.u.size);
     res = recv_bytes(server_socket, string, m.u.size);
-    fprintf(stderr, "Error in the request: %s", string);
     if (strncmp(string, "Running job", 11) == 0) {
+      printf("%s", string);
       c_kill_job();
+    } else {
+      fprintf(stderr, "Error in the request: %s", string);
     }
     free(string);
     exit(-1);
