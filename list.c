@@ -76,7 +76,7 @@ char *joblist_headers() {
   if (user_locker != -1) {
     time_t dt = time(NULL) - locker_time;
     snprintf(extra, 100, "Locked by `%s` for %ld sec.",
-             uid2user_name(user_locker), dt);
+             user_name[user_locker], dt);
   }
 
   line = malloc(256);
@@ -136,7 +136,7 @@ static char *print_noresult(const struct Job *p) {
   }
   output_filename = ofilename_shown(p);
 
-  char *uname = user_name[p->user_id];
+  char *uname = user_name[p->ts_UID];
   maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1 + 25 + 1 + strlen(p->command) + 20 +
            strlen(uname) + 240 +
            strlen(output_filename); /* 20 is the margin for errors */
@@ -220,7 +220,7 @@ static char *print_result(const struct Job *p) {
   jobstate = jstate2string(p->state);
   output_filename = ofilename_shown(p);
 
-  char *uname = user_name[p->user_id];
+  char *uname = user_name[p->ts_UID];
   maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1 + 25 + 1 + strlen(p->command) + 20 +
            strlen(uname) + 240 +
            strlen(output_filename); /* 20 is the margin for errors */
@@ -281,7 +281,7 @@ static char *plainprint_noresult(const struct Job *p) {
 
   jobstate = jstate2string(p->state);
   output_filename = ofilename_shown(p);
-  char *uname = user_name[p->user_id];
+  char *uname = user_name[p->ts_UID];
   maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1 + 25 + 1 + strlen(p->command) + 20 +
            strlen(uname) + 2; /* 20 is the margin for errors */
 

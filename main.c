@@ -22,7 +22,7 @@
 #include <unistd.h>
 
 #include "main.h"
-
+int client_uid;
 extern char *optarg;
 extern int optind, opterr, optopt;
 
@@ -76,7 +76,6 @@ static void default_command_line() {
 struct Msg default_msg() {
   struct Msg m;
   memset(&m, 0, sizeof(struct Msg));
-  m.uid = getuid();
   return m;
 }
 
@@ -719,7 +718,11 @@ int main(int argc, char **argv) {
         return -1;
       }
     }
-    printf("Stop user ID: %d\n", stop_uid);
+    if (stop_uid != 0) {
+      printf("To stop user ID: %d\n", stop_uid);
+    } else {
+      printf("To stop all users by `Root`\n");
+    }
     c_stop_user(stop_uid);
     c_wait_server_lines();
   } break;
@@ -738,7 +741,11 @@ int main(int argc, char **argv) {
         return -1;
       }
     }
-    printf("Resume user ID: %d\n", cont_uid);
+    if (cont_uid != 0) {
+      printf("To resume user ID: %d\n", cont_uid);
+    } else {
+      printf("To rResume all users by `Root`\n");
+    }
     c_cont_user(cont_uid);
     c_wait_server_lines();
   } break;

@@ -114,12 +114,12 @@ void write_logfile(const struct Job *p) {
   time_t now = time(0);
   strftime(buf, 100, "%Y-%m-%d %H:%M:%S", localtime(&now));
   // snprintf(buf, 1024, "[%d] %s @ %s\n", p->jobid, p->command, date);
-  int user_id = p->user_id;
+  int ts_UID = p->ts_UID;
   char *label = "..";
   if (p->label)
     label = p->label;
   fprintf(f, "[%d] %s P:%d <%s> Pid: %d CMD: %s @ %s\n", p->jobid,
-          user_name[user_id], p->num_slots, label, p->pid, p->command, buf);
+          user_name[ts_UID], p->num_slots, label, p->pid, p->command, buf);
   fclose(f);
 }
 
@@ -205,19 +205,19 @@ void read_user_file(const char *path) {
       printf("error in read %s at line %s", path, line);
       continue;
     } else {
-      int user_id = get_user_id(UID);
-      if (user_id == -1) {
+      int ts_UID = get_tsUID(UID);
+      if (ts_UID == -1) {
         if (user_number >= USER_MAX)
           continue;
 
-        user_id = user_number;
+        ts_UID = user_number;
         user_number++;
 
-        user_UID[user_id] = UID;
-        user_max_slots[user_id] = slots;
-        strncpy(user_name[user_id], name, USER_NAME_WIDTH - 1);
+        user_UID[ts_UID] = UID;
+        user_max_slots[ts_UID] = slots;
+        strncpy(user_name[ts_UID], name, USER_NAME_WIDTH - 1);
       } else {
-        user_max_slots[user_id] = slots;
+        user_max_slots[ts_UID] = slots;
       }
     }
   }
@@ -228,11 +228,11 @@ void read_user_file(const char *path) {
 }
 
 const char *uid2user_name(int uid) {
-  if (uid == 0)
-    return "Root";
-  int user_id = get_user_id(uid);
-  if (user_id != -1) {
-    return user_name[user_id];
+  // if (uid == 0)
+  //  return "Root";
+  int ts_UID = get_tsUID(uid);
+  if (ts_UID != -1) {
+    return user_name[ts_UID];
   } else {
     return "Unknown";
   }
@@ -254,6 +254,7 @@ void s_user_status_all(int s) {
   send_list_line(s, buffer);
 }
 
+// i = ts_UID;
 void s_user_status(int s, int i) {
   char buffer[256];
   char *extra = "";
@@ -265,7 +266,7 @@ void s_user_status(int s, int i) {
   send_list_line(s, buffer);
 }
 
-int get_user_id(int uid) {
+int get_tsUID(int uid) {
   for (int i = 0; i < user_number; i++) {
     if (uid == user_UID[i]) {
       return i;

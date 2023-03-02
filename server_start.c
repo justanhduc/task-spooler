@@ -174,7 +174,7 @@ void wait_server_up(int fd) {
 }
 
 static void server_info() {
-  printf("Start tast-spooler server from root[%d]\n", client_uid);
+  printf("Start tast-spooler server from root[%d]\n", root_UID);
   printf("  Socket path: %s         [TS_SOCKET]\n", socket_path);
   printf("  Read user file from %s  [TS_USER_PATH]\n", get_user_path());
   printf("  Write log file to %s    [TS_LOGFILE_PATH]\n", set_server_logfile());
@@ -244,13 +244,17 @@ int ensure_server_up(int daemonFlag) {
 
   /* If error other than "No one listens on the other end"... */
   if (!(errno == ENOENT || errno == ECONNREFUSED))
-    error("c: cannot connect to the server");
+    error("Error: cannot connect to the server");
 
   if (errno == ECONNREFUSED)
     unlink(socket_path);
 
+  int optval = 1;
+  if (setsockopt(server_socket, SOL_SOCKET, SO_PASSCRED, &optval, sizeof(optval)) == -1)
+    error("Error: cannot setup SO_PASSCRED");
+
   /* Try starting the server */
-  if (client_uid == root_UID) {
+  if (getuid() == root_UID) {
     if (daemonFlag) {
       printf("Start task-spooler server as daemon\n");
       server_daemon();

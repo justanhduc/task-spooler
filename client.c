@@ -14,6 +14,7 @@
 #include <unistd.h>
 
 #include "main.h"
+extern int client_uid;
 
 static void c_end_of_job(const struct Result *res);
 
@@ -68,7 +69,6 @@ void c_new_job() {
 
   /* global */
   m.u.newjob.command_size = strlen(new_command) + 1; /* add null */
-  m.uid = client_uid;
   if (myenv)
     m.u.newjob.env_size = strlen(myenv) + 1; /* add null */
   else
@@ -375,7 +375,7 @@ static void c_end_of_job(const struct Result *res) {
 void c_shutdown_server() {
 
   struct Msg m = default_msg();
-  if (m.uid != 0) {
+  if (client_uid != 0) {
     printf("Only the root can shutdown the ts server\n");
     return;
   }
@@ -394,7 +394,7 @@ void c_shutdown_server() {
 
 void c_clear_finished() {
   struct Msg m = default_msg();
-  if (m.uid == 0) {
+  if (client_uid == 0) {
     char buf[10];
     printf("Do you want to clear all the finished jobs on the task-spooler "
            "server? (Yes/no) ");
@@ -561,7 +561,7 @@ void c_kill_job() {
 
 void c_kill_all_jobs() {
   struct Msg m = default_msg();
-  if (m.uid != 0) {
+  if (client_uid != 0) {
     printf("Only the root can shutdown the ts server\n");
     return;
   }
@@ -606,7 +606,7 @@ void c_remove_job() {
   /* Send the request */
   m.type = REMOVEJOB;
   m.jobid = command_line.jobid;
-  m.uid = client_uid;
+
   send_msg(server_socket, &m);
 
   /* Receive the answer */

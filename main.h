@@ -143,7 +143,6 @@ enum Jobstate { QUEUED, RUNNING, FINISHED, SKIPPED, HOLDING_CLIENT, RELINK };
 
 struct Msg {
   enum MsgTypes type;
-  int uid;
   int jobid;
   union {
     struct {
@@ -208,7 +207,7 @@ struct Job {
   char *output_filename;
   int store_output;
   int pid;
-  int user_id;
+  int ts_UID;
   int should_keep_finished;
   int *depend_on;
   int depend_on_size;
@@ -225,7 +224,7 @@ enum ExitCodes {
   EXITCODE_UNKNOWN_ERROR = -1,
   EXITCODE_QUEUE_FULL = 2
 };
-int client_uid;
+
 /* main.c */
 
 struct Msg default_msg();
@@ -306,12 +305,12 @@ void c_set_env();
 void c_unset_env();
 
 /* jobs.c */
-void s_list(int s, int user_id);
+void s_list(int s, int ts_UID);
 void s_list_all(int s);
 
 void s_list_plain(int s);
 
-int s_newjob(int s, struct Msg *m, int user_id);
+int s_newjob(int s, struct Msg *m, int ts_UID);
 
 void s_removejob(int jobid);
 
@@ -321,7 +320,7 @@ int next_run_job();
 
 void s_mark_job_running(int jobid);
 
-void s_clear_finished(int user_id);
+void s_clear_finished(int ts_UID);
 
 void s_process_runjob_ok(int jobid, char *oname, int pid);
 
@@ -501,7 +500,7 @@ int tail_file(const char *fname, int last_lines);
 static const int root_UID = 0;
 char *get_kill_sh_path();
 void read_user_file(const char *path);
-int get_user_id(int uid);
+int get_tsUID(int uid);
 void c_refresh_user();
 const char *get_user_path();
 const char *set_server_logfile();
@@ -527,7 +526,7 @@ int check_running_dead(int jobid);
 void s_user_status_all(int s);
 void s_user_status(int s, int i);
 void s_refresh_users(int s);
-int s_get_job_uid(int jobid);
+int s_get_job_tsUID(int jobid);
 void s_stop_all_users(int s);
 void s_stop_user(int s, int uid);
 void s_cont_user(int s, int uid);
