@@ -738,6 +738,8 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
     user_jobs[id]++;
     p->state = RELINK;
     p->info.start_time.tv_sec = m->u.newjob.start_time;
+    p->info.start_time.tv_usec = 0;
+
   }
 
   return p->jobid;

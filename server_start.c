@@ -150,6 +150,28 @@ int try_connect(int s) {
   return res;
 }
 
+void c_check_daemon() {
+  int res;
+  server_socket = socket(AF_UNIX, SOCK_STREAM, 0);
+  if (server_socket == -1)
+    error("getting the server socket");
+
+  create_socket_path(&socket_path);
+
+  res = try_connect(server_socket);
+
+  /* Good connection */
+  if (res == 0) {
+    printf("Good connection to the task-spooler server\n");
+    exit(0);
+  } else {
+    printf("Cannot connect to the task-spooler server\n");
+    exit(1);
+  }
+}
+
+
+
 static void try_check_ownership() {
   int res;
   struct stat socketstat;

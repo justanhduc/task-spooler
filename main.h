@@ -66,6 +66,7 @@ enum Request {
   c_LIST,
   c_LIST_ALL,
   c_DAEMON,
+  c_CHECK_DAEMON,
   c_REFRESH_USER,
   c_STOP_USER,
   c_CONT_USER,
@@ -551,3 +552,4 @@ void c_hold_job(int jobid);
 int c_lock_server();
 int c_unlock_server();
 void c_restart_job(int jobid);
+void c_check_daemon();

@@ -144,6 +144,7 @@ static struct option longOptions[] = {
     {"daemon", no_argument, NULL, 0},
     {"pid", required_argument, NULL, 0},
     {"stime", required_argument, NULL, 0},
+    {"check_daemon", no_argument, NULL, 0},
     {NULL, 0, NULL, 0}};
 
 void parse_opts(int argc, char **argv) {
@@ -166,6 +167,9 @@ void parse_opts(int argc, char **argv) {
         command_line.request = c_GET_LOGDIR;
       } else if (strcmp(longOptions[optionIdx].name, "daemon") == 0) {
         command_line.request = c_DAEMON;
+      } else if (strcmp(longOptions[optionIdx].name, "check_daemon") == 0) {
+        command_line.request = c_CHECK_DAEMON;
+        command_line.need_server = 0;
       } else if (strcmp(longOptions[optionIdx].name, "set_logdir") == 0) {
         command_line.request = c_SET_LOGDIR;
         command_line.label = optarg; /* reuse this variable */
@@ -545,6 +549,7 @@ static void print_help(const char *cmd) {
          "added, if not specified.\n");
   printf("  --full_cmd       || -F [id]     show full command. Of the last "
          "added, if not specified.\n");
+  printf("  --check_daemon                  Check the daemon is running or not.");
   printf(
       "  --count_running  || -R          return the number of running jobs\n");
   printf(
@@ -666,6 +671,10 @@ int main(int argc, char **argv) {
   /* This will be inherited by the server, if it's run */
   ignore_sigpipe();
 
+  if (command_line.request == c_CHECK_DAEMON) {
+      c_check_daemon();
+  }
+  
   if (command_line.need_server) {
     if (command_line.request == c_DAEMON) {
       ensure_server_up(1);
@@ -674,6 +683,8 @@ int main(int argc, char **argv) {
     }
     c_check_version();
   }
+  
+  
 
   switch (command_line.request) {
   case c_REFRESH_USER:
@@ -686,6 +697,8 @@ int main(int argc, char **argv) {
 
     break;
   case c_DAEMON:
+    break;
+  case c_CHECK_DAEMON:
     break;
   case c_HOLD_JOB:
     c_hold_job(command_line.jobid);

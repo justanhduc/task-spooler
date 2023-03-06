@@ -5,7 +5,8 @@ import psutil
 import os
 
 logfile = "/home/kylin/task-spooler/log.txt"
-days_num = 1000
+ts_CMD="ts"
+days_num = 30
 if len(sys.argv) != 1:
     days_num = int(sys.argv[2]);
     exit(1)
@@ -36,7 +37,7 @@ with open(logfile, "r") as r:
 t_now = datetime.datetime.now()
 # t_line = time.gmtime() 
 t_line = t_now - datetime.timedelta(days = days_num)
-print(f"  only restore tasks with {days_num} days, start by", t_line)
+print("  only restore tasks with {} days, start by".format(days_num), t_line)
 tasks = []
 for l in lines[:]:
     user, procs, pid, tag, CMD, t_time = parse(l)
@@ -56,10 +57,10 @@ for l in lines[:]:
 
 for i in tasks[:]:
     if i[0] == "..":
-        CMD = 'ts --pid {} -N {} "{}"'.format(*i[1:])
+        CMD = '{} --pid {} -N {} "{}"'.format(ts_CMD, *i[1:])
         # CMD = 'ts --pid {} -N {} --stime {:} "{}"'.format(*i[1:])
     else:
-        CMD = 'ts -L {} --pid {} -N {} "{}"'.format(*i)
+        CMD = '{} -L {} --pid {} -N {} "{}"'.format(ts_CMD, *i)
         # CMD = 'ts -L {} --pid {} -N {} --stime {:} "{}"'.format(*i)
     print(CMD)
     os.system(CMD)
