@@ -14,12 +14,21 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "jerinphilip",
+      "name": "Jerin Philip",
+      "avatar_url": "https://avatars.githubusercontent.com/u/727292?v=4",
+      "profile": "http://jerinphilip.github.io",
+      "contributions": [
+        "infra"
+      ]
     }
   ],
   "contributorsPerLine": 7,
   "skipCi": true,
   "repoType": "github",
   "repoHost": "https://github.com",
-  "projectName": "_task-spooler",
+  "projectName": "task-spooler",
   "projectOwner": "justanhduc"
 }
