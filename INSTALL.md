@@ -6,7 +6,7 @@ First, clone the repository
 git clone https://github.com/justanhduc/task-spooler
 ```
 
-To setup Task Spooler with GPU support, one needs to set a `CUDA_HOME` environment variable.
+To set up Task Spooler with GPU support, one needs to set a `CUDA_HOME` environment variable.
 Then, simple run the provided script
 
 ```
@@ -52,19 +52,15 @@ To use `man`, you may also need to add `$HOME/.local/share/man` to `$MANPATH`.
 
 ## Common problems
 * Cannot find CUDA: Did you set a `CUDA_HOME` flag?
-* ~~`/usr/bin/ld: cannot find -lnvidia-ml`: This lib lies in `$CUDA_HOME/lib64/stubs`.
-  Please append this path to `LD_LIBRARY_PATH`.
-  Sometimes, this problem persists even after adding the lib path.
-  Then one can add `-L$(CUDA_HOME)/lib64/stubs` to [this line](./Makefile#L29) in the Makefile.~~
 * `list.c:22:5: error: implicitly declaring library function 'snprintf' with type 'int (char *, unsigned long, const char *, ...)'`: 
-Please remove `-D_XOPEN_SOURCE=500 -D__STRICT_ANSI__` in the Makefile as reported [here](https://github.com/justanhduc/task-spooler/issues/4).
+Please remove `-D_XOPEN_SOURCE=500` in the Makefile as reported [here](https://github.com/justanhduc/task-spooler/issues/4).
 * `Error calling recv_msg in c_check_version` and/or `Wrong server version`: This is because another version of `ts`
 is still running. If you want to upgrade, please use the `reinstall` script as instructed above.
 If you installed `ts` via `apt` before, you have to uninstall it and remove the server 
 file in `/tmp` first before installing this `ts`. 
 For more info, see [here](https://github.com/justanhduc/task-spooler/issues/6) and [here](https://github.com/justanhduc/task-spooler/issues/21).
 
-# Uinstall Task Spooler
+# Uninstall Task Spooler
 
 ```
 ./uninstall
