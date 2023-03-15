@@ -112,10 +112,11 @@ int strtok_int(char* str, char* delim, int* ids) {
 }
 
 static struct option longOptions[] = {
-        {"get_label",         optional_argument, NULL, 'a'},
+        {"get_label",         required_argument, NULL, 'a'},
         {"count_running",     no_argument,       NULL, 'R'},
         {"last_queue_id",     no_argument,       NULL, 'q'},
-        {"full_cmd",          optional_argument, NULL, 'F'},
+        {"full_cmd",          required_argument, NULL, 'F'},
+        {"serialize",         required_argument, NULL, 'M'},
         {"getenv",            required_argument, NULL, 0},
         {"setenv",            required_argument, NULL, 0},
         {"unsetenv",          required_argument, NULL, 0},
@@ -326,6 +327,20 @@ void parse_opts(int argc, char **argv) {
             case 'R':
                 command_line.request = c_COUNT_RUNNING;
                 break;
+            case 'M':
+                command_line.request = c_LIST;
+
+                if (strcmp(optarg, "default") == 0)
+                    command_line.list_format = DEFAULT;
+                else if (strcmp(optarg, "json") == 0)
+                    command_line.list_format = JSON;
+                else if (strcmp(optarg, "tab") == 0)
+                    command_line.list_format = TAB;
+                else {
+                    fprintf(stderr, "Invalid argument for option M: %s.\n", optarg);
+                    exit(-1);
+                }
+                break;
             case ':':
                 switch (optopt) {
                     case 't':
@@ -383,6 +398,10 @@ void parse_opts(int argc, char **argv) {
                         command_line.request = c_SHOW_CMD;
                         command_line.jobid = -1;
                         break;
+                    case 'M':
+                        command_line.request = c_LIST;
+                        command_line.list_format = DEFAULT;
+                        break;
 #ifndef CPU
                     case 'g':
                         command_line.request = c_LIST_GPU;
@@ -392,23 +411,6 @@ void parse_opts(int argc, char **argv) {
                         fprintf(stderr, "Option %c missing argument.\n",
                                 optopt);
                         exit(-1);
-                }
-                break;
-            case 'M':
-                if (command_line.request != c_LIST) {
-                    fprintf(stderr, "-M can only be used when listing jobs.\n");
-                    exit(-1);
-                }
-
-                if (strcmp(optarg, "default") == 0)
-                    command_line.list_format = DEFAULT;
-                else if (strcmp(optarg, "json") == 0)
-                    command_line.list_format = JSON;
-                else if (strcmp(optarg, "tab") == 0)
-                    command_line.list_format = TAB;
-                else {
-                    fprintf(stderr, "Invalid argument for option M: %s.\n", optarg);
-                    exit(-1);
                 }
                 break;
             case '?':
@@ -483,31 +485,32 @@ static void print_help(const char *cmd) {
 #ifndef CPU
     printf("  TS_VISIBLE_DEVICES  the GPU IDs that are visible to ts. Jobs will be run on these GPUs only.\n");
 #endif
-    printf("  TS_SOCKET  the path to the unix socket used by the ts command.\n");
-    printf("  TS_MAILTO  where to mail the result (on -m). Local user by default.\n");
-    printf("  TS_MAXFINISHED  maximum finished jobs in the queue.\n");
-    printf("  TS_MAXCONN  maximum number of ts connections at once.\n");
-    printf("  TS_ONFINISH  binary called on job end (passes jobid, error, outfile, command).\n");
-    printf("  TS_ENV  command called on enqueue. Its output determines the job information.\n");
-    printf("  TS_SAVELIST  filename which will store the list, if the server dies.\n");
-    printf("  TS_SLOTS   amount of jobs which can run at once, read on server start.\n");
-    printf("  TMPDIR     directory where to place the output files and the default socket.\n");
+    printf("  TS_SOCKET           the path to the unix socket used by the ts command.\n");
+    printf("  TS_MAILTO           where to mail the result (on -m). Local user by default.\n");
+    printf("  TS_MAXFINISHED      maximum finished jobs in the queue.\n");
+    printf("  TS_MAXCONN          maximum number of ts connections at once.\n");
+    printf("  TS_ONFINISH         binary called on job end (passes jobid, error, outfile, command).\n");
+    printf("  TS_ENV              command called on enqueue. Its output determines the job information.\n");
+    printf("  TS_SAVELIST         filename which will store the list, if the server dies.\n");
+    printf("  TS_SLOTS            amount of jobs which can run at once, read on server start.\n");
+    printf("  TMPDIR              directory where to place the output files and the default socket.\n");
     printf("Long option actions:\n");
-    printf("  --getenv   [var]                get the value of the specified variable in server environment.\n");
-    printf("  --setenv   [var]                set the specified flag to server environment.\n");
-    printf("  --unsetenv   [var]              remove the specified flag from server environment.\n");
-    printf("  --get_label      || -a [id]     show the job label. Of the last added, if not specified.\n");
-    printf("  --full_cmd       || -F [id]     show full command. Of the last added, if not specified.\n");
-    printf("  --count_running  || -R          return the number of running jobs\n");
-    printf("  --last_queue_id  || -q          show the job ID of the last added.\n");
-    printf("  --get_logdir                    get the path containing log files.\n");
-    printf("  --set_logdir [path]             set the path containing log files.\n");
+    printf("  --getenv [var]                         get the value of the specified variable in server environment.\n");
+    printf("  --setenv [var]                         set the specified flag to server environment.\n");
+    printf("  --unsetenv [var]                       remove the specified flag from server environment.\n");
+    printf("  --get_label           || -a [id]       show the job label. Of the last added, if not specified.\n");
+    printf("  --full_cmd            || -F [id]       show full command. Of the last added, if not specified.\n");
+    printf("  --count_running       || -R            return the number of running jobs\n");
+    printf("  --last_queue_id       || -q            show the job ID of the last added.\n");
+    printf("  --get_logdir                           get the path containing log files.\n");
+    printf("  --set_logdir [path]                    set the path containing log files.\n");
+    printf("  --serialize [format]  || -M [format]   serialize the job list to the specified format. Choices: {default, json, tab}.\n");
 #ifndef CPU
-    printf("  --set_gpu_free_perc   [num]     set the value of GPU memory threshold above which GPUs are considered available (90 by default).\n");
-    printf("  --get_gpu_free_perc             get the value of GPU memory threshold above which GPUs are considered available.\n");
+    printf("  --set_gpu_free_perc   [num]                   set the value of GPU memory threshold above which GPUs are considered available (90 by default).\n");
+    printf("  --get_gpu_free_perc                           get the value of GPU memory threshold above which GPUs are considered available.\n");
     printf("Long option adding jobs:\n");
-    printf("  --gpus           || -G [num]    number of GPUs required by the job (1 default).\n");
-    printf("  --gpu_indices    || -g [id,...] the job will be on these GPU indices without checking whether they are free.\n");
+    printf("  --gpus                       || -G [num]      number of GPUs required by the job (1 default).\n");
+    printf("  --gpu_indices                || -g [id,...]   the job will be on these GPU indices without checking whether they are free.\n");
 #endif
     printf("Actions (can be performed only one at a time):\n");
     printf("  -K           kill the task spooler server\n");
@@ -529,7 +532,6 @@ static void print_help(const char *cmd) {
     printf("  -T           send SIGTERM to all running job groups.\n");
     printf("  -u [id]      put that job first. The last added, if not specified.\n");
     printf("  -U [id-id]   swap two jobs in the queue.\n");
-    printf("  -M [format]  Print output in a machine-readable format. Choices: {default, json, tab}.\n");
     printf("  -h           show this help\n");
     printf("  -V           show the program version\n");
     printf("Options adding jobs:\n");
