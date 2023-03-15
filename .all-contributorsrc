@@ -12,7 +12,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/15206627?v=4",
       "profile": "https://justanhduc.github.io/",
       "contributions": [
-        "code"
+        "code",
+        "maintenance"
       ]
     }
   ],
@@ -20,6 +21,6 @@
   "skipCi": true,
   "repoType": "github",
   "repoHost": "https://github.com",
-  "projectName": "_task-spooler",
+  "projectName": "task-spooler",
   "projectOwner": "justanhduc"
 }
