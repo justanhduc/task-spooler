@@ -453,7 +453,7 @@ static int add_job_to_json_array(struct Job *p, cJSON *jobs) {
 
 void s_list(int s, enum ListFormat listFormat) {
     struct Job *p;
-    char *buffer;
+    char *buffer = 0;
 
     if (listFormat == DEFAULT) {
         /* Times:   0.00/0.00/0.00 - 4+4+4+2 = 14*/
@@ -522,9 +522,11 @@ void s_list(int s, enum ListFormat listFormat) {
         // append newline
         size_t buffer_strlen = strlen(buffer);
         buffer = realloc(buffer, buffer_strlen+1+1);
-        buffer[buffer_strlen] = '\n';
+        strcat(buffer, "\n");
 
         send_list_line(s, buffer);
+        goto end;
+
     end:
         cJSON_Delete(jobs);
         free(buffer);
