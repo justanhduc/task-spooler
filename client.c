@@ -179,6 +179,7 @@ int c_wait_server_commands() {
   return -1;
 }
 
+// check weather the return is line message with a specific header [pre_str].
 static int wait_server_lines_and_check(const char *pre_str) {
   struct Msg m = default_msg();
   int res;
@@ -507,12 +508,15 @@ void c_restart_job(int jobid) {
   // printf("kill the pid: %d\n", pid);
   /* Send SIGTERM to the process group, as pid is for process group */
   // kill(-pid, SIGCONT);
-  kill_pid(pid, "CONT");
 
   struct Msg m = default_msg();
   m.type = RESTART_JOB;
   m.jobid = jobid;
   send_msg(server_socket, &m);
+  // not error, restart job
+  if (wait_server_lines_and_check("Error") == 0) {
+    kill_pid(pid, "CONT");
+  }
 }
 
 int c_tail() {

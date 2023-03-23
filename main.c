@@ -707,7 +707,7 @@ int main(int argc, char **argv) {
     break;
   case c_RESTART_JOB:
     c_restart_job(command_line.jobid);
-    c_wait_server_lines();
+    // c_wait_server_lines();
     break;
   case c_LOCK_SERVER:
     errorlevel = c_lock_server();
