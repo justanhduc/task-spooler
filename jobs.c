@@ -559,7 +559,11 @@ static struct Job *newjobptr() {
   info->enqueue_time.tv_usec = 0;
   info->start_time.tv_usec   = 0;
   info->end_time.tv_usec     = 0;
-  
+  struct Result* result = &(p->next->result);
+  result->user_ms = 0.0;
+  result->system_ms = 0.0;
+  result->real_ms = 0.0;
+
   return p->next;
 }
 
@@ -1108,7 +1112,7 @@ static void s_add_job(struct Job* j, struct Job** p) {
       int ts_UID = j->ts_UID;
       user_jobs[ts_UID]++;
 
-      if (j->state == RUNNING && check_ifsleep(j->pid) == 1) {
+      if (j->state == RUNNING && check_ifsleep(j->pid) == 0) {
         int slots = j->num_slots;
         user_busy[ts_UID] += slots;
         busy_slots += slots;

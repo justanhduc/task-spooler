@@ -256,7 +256,7 @@ int ensure_server_up(int daemonFlag) {
     error("getting the server socket");
 
   create_socket_path(&socket_path);
-
+  if (daemonFlag == 1) remove(socket_path); // try to delete it
   res = try_connect(server_socket);
 
   /* Good connection */
