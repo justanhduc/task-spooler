@@ -4,8 +4,13 @@
 
     Please find the license in the provided COPYING file.
 */
+#include <stdio.h>
+#include <sys/time.h>
 
-enum { CMD_LEN = 500, PROTOCOL_VERSION = 730 };
+enum { 
+  CMD_LEN = 500, 
+  PROTOCOL_VERSION = 730 
+};
 
 enum MsgTypes {
   KILL_SERVER,
@@ -321,7 +326,7 @@ void s_list_plain(int s);
 
 int s_newjob(int s, struct Msg *m, int ts_UID, int socket);
 
-void s_removejob(int jobid);
+void s_delete_job(int jobid);
 
 void job_finished(const struct Result *result, int jobid);
 
@@ -577,3 +582,13 @@ void set_jobids_DB(int value);
 int get_jobids_DB();
 int jobDB_num, jobDB_wait_num;
 struct Job** jobDB_Jobs;
+
+/* print.c */
+char* ints_to_chars(int n, int *array, const char *delim);
+int*  chars_to_ints(int *size, char* str, const char* delim);
+
+/* taskset.c */
+void init_taskset();
+int set_task_cores(struct Job* p);
+void unlock_core_by_job(struct Job* p);
+

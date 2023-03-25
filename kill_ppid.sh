@@ -41,10 +41,10 @@ fi
 
 for pid in ${pids}; 
 do
-    if [ -z $2 ]
+    if [ -z "$2" ]
     then
         echo "${extra} ${pid}"
     else
-        ${extra} kill -s $2 ${pid}
+        ${extra} $2 ${pid}
     fi
 done

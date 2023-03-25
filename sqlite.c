@@ -1,9 +1,7 @@
 #include <sqlite3.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <sys/time.h>
 
 #include "main.h"
 #include "default_path.h"
@@ -20,38 +18,6 @@ const char *get_sqlite_path() {
   }
 }
 
-static char* int_array_to_string(int size, int* array) {
-    char *result = malloc(size * 12 + 1);
-    result[0] = '\0';
-    for (int i = 0; i < size; i++) {
-        char buffer[12];
-        sprintf(buffer, "%d", array[i]);
-        strcat(result, buffer);
-        if (i < size - 1) {
-            strcat(result, ",");
-        }
-    }
-    return result;
-}
-
-static int* string_to_intArray(int *size, char* str) {
-    int count = 0;
-    for (int i = 0; str[i]; i++) {
-        if (str[i] == ',') {
-            count++;
-        }
-    }
-    count++;
-    int *result = malloc(count * sizeof(int));
-    char *token = strtok(str, ",");
-    int index = 0;
-    while (token != NULL) {
-        result[index++] = atoi(token);
-        token = strtok(NULL, ",");
-    }
-    *size = count;
-    return result;
-}
 
 static int callback(void *max, int argc, char **argv, char **azColName) {
     if (argv[0]) {
@@ -240,8 +206,8 @@ static int edit_DB(struct Job* job, const char* table, const char* action) {
     if (order_id == 0) {
         order_id = max_order_id() + 1;
     }
-    char* depend_on = int_array_to_string(job->depend_on_size, job->depend_on);
-    char* notify_errorlevel_to = int_array_to_string(job->notify_errorlevel_to_size, job->notify_errorlevel_to);
+    char* depend_on = ints_to_chars(job->depend_on_size, job->depend_on, ",");
+    char* notify_errorlevel_to = ints_to_chars(job->notify_errorlevel_to_size, job->notify_errorlevel_to, ",");
 
     sprintf(sql, "%s INTO %s (jobid, command, state, output_filename, store_output, pid, ts_UID, should_keep_finished, depend_on, depend_on_size," \
                 "notify_errorlevel_to, notify_errorlevel_to_size, dependency_errorlevel,label,num_slots,errorlevel,died_by_signal," \
@@ -428,10 +394,10 @@ struct Job* read_DB(int jobid, const char* table) {
         // job->depend_on_size = sqlite3_column_bytes(stmt, 9);
         // job->notify_errorlevel_to_size = sqlite3_column_bytes(stmt, 11);
         strcpy(sql, (const char*) sqlite3_column_text(stmt, 8));
-        job->depend_on = string_to_intArray(&size, sql);        
+        job->depend_on = chars_to_ints(&size, sql, ",");        
         job->depend_on_size = size;
         strcpy(sql, (const char*) sqlite3_column_text(stmt, 8));
-        job->notify_errorlevel_to = string_to_intArray(&size, sql);
+        job->notify_errorlevel_to = chars_to_ints(&size, sql, ",");
         job->notify_errorlevel_to_size = size;
         
         

@@ -18,6 +18,7 @@
 extern int busy_slots;
 extern int max_slots;
 
+/* return 0 for run and 1 for running and -1 for error */
 int check_ifsleep(int pid) {
   char filename[256];
   char name[256];
@@ -27,11 +28,12 @@ int check_ifsleep(int pid) {
 
   fp = fopen(filename, "r");
   if (fp == NULL) {
-    // fprintf(stderr, "Error: Couldn't open [%s]\n", filename);
+    fprintf(stderr, "Error: Couldn't open [%s]\n", filename);
     return -1;
   }
   int token = fscanf(fp, "%d %s %c", &pid, name, &status);
   if (token < 3) {
+    fprintf(stderr, "Error: not enough (3) tokens\n");
     return -1;
   }
   fclose(fp);

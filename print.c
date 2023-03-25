@@ -45,3 +45,37 @@ int fd_nprintf(int fd, int maxsize, const char *fmt, ...) {
 
     return size;
 }
+
+
+char *ints_to_chars(int n, int *array, const char *delim) {
+    int size = n * 12 + n * strlen(delim) + 1;
+    char *tmp = (char*) malloc(size * sizeof(char));
+    int j = 0;
+    for (int i = 0; i < n; i++) {
+        j += sprintf(tmp + j, "%d", array[i]);
+        if (i < n - 1) {
+            strcat(tmp, delim);
+            j += strlen(delim);
+        }
+    }
+    return tmp;
+}
+
+int* chars_to_ints(int *size, char* str, const char* delim) {
+    int count = 0;
+    for (int i = 0; str[i]; i++) {
+        if (str[i] == delim[0]) {
+            count++;
+        }
+    }
+    count++;
+    int *result = malloc(count * sizeof(int));
+    char *token = strtok(str, delim);
+    int index = 0;
+    while (token != NULL) {
+        result[index++] = atoi(token);
+        token = strtok(NULL, delim);
+    }
+    *size = count;
+    return result;
+}

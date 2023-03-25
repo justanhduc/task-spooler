@@ -263,7 +263,7 @@ void server_main(int notify_fd, char *_path) {
   }
   jobDB_num = jobDB_wait_num = 0;
   jobDB_Jobs = NULL;
-
+  init_taskset();
   set_server_logfile();
   // int jobid = read_first_jobid_from_logfile(logfile_path);
   read_user_file(get_user_path());
@@ -407,7 +407,7 @@ static void remove_connection(int index) {
   int i;
 
   if (client_cs[index].hasjob) {
-    s_removejob(client_cs[index].jobid);
+    s_delete_job(client_cs[index].jobid);
   }
 
   for (i = index; i < (nconnections - 1); ++i) {

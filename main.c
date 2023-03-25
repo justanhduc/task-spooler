@@ -711,7 +711,7 @@ int main(int argc, char **argv) {
     break;
   case c_PAUSE_JOB:
     c_pause_job(command_line.jobid);
-    c_wait_server_lines();
+    // c_wait_server_lines();
 
     break;
   case c_RERUN_JOB:

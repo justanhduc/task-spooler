@@ -809,13 +809,15 @@ int s_newjob(int s, struct Msg *m, int ts_UID, int socket) {
     p->info.start_time.tv_usec = 0;
 
   }
-  if(waitjob_flag == 0) insert_DB(p, "Jobs");
+  if(waitjob_flag == 0) { 
+    insert_DB(p, "Jobs");
+  }
   set_jobids_DB(jobids);
   return p->jobid;
 }
 
 /* This assumes the jobid exists */
-void s_removejob(int jobid) {
+void s_delete_job(int jobid) {
   struct Job *p;
   struct Job *newnext;
   /*
@@ -952,6 +954,7 @@ static void new_finished_job(struct Job *j) {
 
   delete_DB(j->jobid, "Jobs");
   insert_DB(j, "Finished");
+  unlock_core_by_job(j);
 }
 
 static int job_is_in_state(int jobid, enum Jobstate state) {
@@ -1116,6 +1119,7 @@ static void s_add_job(struct Job* j, struct Job** p) {
         int slots = j->num_slots;
         user_busy[ts_UID] += slots;
         busy_slots += slots;
+        set_task_cores(j);
       }
 
       jobDB_Jobs[jobDB_num] = j;
@@ -1235,7 +1239,9 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
   p->pid = pid;
   p->output_filename = oname;
   pinfo_set_start_time(&p->info);
+
   insert_or_replace_DB(p, "Jobs");
+  set_task_cores(p);
   write_logfile(p);
 }
 
@@ -1373,6 +1379,7 @@ void s_cont_user(int s, int ts_UID) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
         kill_pid(p->pid, "kill -s CONT");
+        set_task_cores(p);
       }
     }
     p = p->next;
@@ -1396,6 +1403,7 @@ void s_stop_user(int s, int ts_UID) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
         kill_pid(p->pid, "kill -s STOP");
+        unlock_core_by_job(p);
       } else {
         char *label = "(...)";
         if (p->label != NULL)
@@ -1731,6 +1739,7 @@ void s_pause_job(int s, int jobid, int ts_UID) {
     send_list_line(s, buff);
     return;
   }
+
   if (check_ifsleep(p->pid) == 1) {
     snprintf(buff, 255, "job [%d] is aleady in PAUSE.\n", jobid);
     send_list_line(s, buff);
@@ -1742,13 +1751,12 @@ void s_pause_job(int s, int jobid, int ts_UID) {
     busy_slots -= p->num_slots;
     user_queue[ts_UID]--;
     user_jobs[ts_UID]--;
+    unlock_core_by_job(p);
     snprintf(buff, 255, "To pause job [%d] successfully!\n", jobid);
-
   } else {
     snprintf(buff, 255, "Error: cannot pause job [%d]\n", jobid);
   }
   send_list_line(s, buff);
-
 }
 
 void s_rerun_job(int s, int jobid, int ts_UID) {
@@ -1774,6 +1782,7 @@ void s_rerun_job(int s, int jobid, int ts_UID) {
       busy_slots += num_slots;
       user_queue[ts_UID]++;
       user_jobs[ts_UID]++;
+      set_task_cores(p);
       snprintf(buff, 255, "To rerun job [%d] successfully!\n", jobid);
     } else {
       snprintf(buff, 255, "Error: not enough slots [%d]\n", jobid);

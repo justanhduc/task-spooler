@@ -20,7 +20,8 @@ OBJECTS=main.o \
 	env.o \
 	tail.o \
 	user.o \
-	sqlite.o
+	sqlite.o \
+	taskset.o
 TARGET=ts
 INSTALL=install -c
 
@@ -54,9 +55,10 @@ signals.o: signals.c main.h
 list.o: list.c main.h
 tail.o: tail.c main.h
 sqlite.o: sqlite.c main.h
+taskset.o: taskset.c main.h
 
 clean:
-	rm -f *.o $(TARGET); killall ts;
+	rm -f *.o $(TARGET); killall ts; rm ts;
 
 install: $(TARGET)
 	$(INSTALL) -d $(PREFIX)/bin

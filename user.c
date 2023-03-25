@@ -1,7 +1,6 @@
 
 #define _GNU_SOURCE
 #include <errno.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -295,11 +294,11 @@ int get_tsUID(int uid) {
   return -1;
 }
 
-void kill_pid(int ppid, const char *signal) {
+void kill_pid(int pid, const char *signal) {
   FILE *fp;
   char command[1024];
   char *path = get_kill_sh_path();
-  sprintf(command, "bash %s %d \"%s\"", path, ppid, signal);
+  sprintf(command, "bash %s %d \"%s\"", path, pid, signal);
   // printf("command = %s\n", command);
   fp = popen(command, "r");
   free(path);
