@@ -495,7 +495,7 @@ void c_pause_job(int jobid) {
   // printf("kill the pid: %d\n", pid);
   /* Send SIGTERM to the process group, as pid is for process group */
   // kill(-pid, SIGSTOP);
-  kill_pid(pid, "STOP");
+  kill_pid(pid, "kill -s STOP");
 
   struct Msg m = default_msg();
   m.type = PAUSE_JOB;
@@ -523,7 +523,7 @@ void c_rerun_job(int jobid) {
   send_msg(server_socket, &m);
   // not error, restart job
   if (wait_server_lines_and_check("Error") == 0) {
-    kill_pid(pid, "CONT");
+    kill_pid(pid, "kill -s CONT");
   }
 }
 

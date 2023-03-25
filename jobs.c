@@ -1372,8 +1372,7 @@ void s_cont_user(int s, int ts_UID) {
     if (p->ts_UID == ts_UID && p->state == RUNNING) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
-        // kill(p->pid, SIGCONT);
-        kill_pid(p->pid, "CONT");
+        kill_pid(p->pid, "kill -s CONT");
       }
     }
     p = p->next;
@@ -1396,8 +1395,7 @@ void s_stop_user(int s, int ts_UID) {
     if (p->ts_UID == ts_UID && p->state == RUNNING) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
-        // kill(p->pid, SIGSTOP);
-        kill_pid(p->pid, "STOP");
+        kill_pid(p->pid, "kill -s STOP");
       } else {
         char *label = "(...)";
         if (p->label != NULL)
@@ -1567,9 +1565,6 @@ int s_remove_job(int s, int *jobid, int client_tsUID) {
 
   if (p->state == RUNNING) {
     if (p->pid != 0 && (p->ts_UID == client_tsUID)) {
-      // kill((p->pid), SIGTERM);
-      // kill_pid(p->pid, "-9");
-
       if (*jobid == -1)
         snprintf(buff, 255, "Running job of last job is removed.\n");
       else
@@ -1743,8 +1738,6 @@ void s_pause_job(int s, int jobid, int ts_UID) {
   }
   int job_tsUID = p->ts_UID;
   if (p->pid != 0 && (job_tsUID = ts_UID || ts_UID == 0)) {
-    // kill(p->pid, SIGSTOP);
-    // kill_pid(p->pid, "-stop");
     user_busy[ts_UID] -= p->num_slots;
     busy_slots -= p->num_slots;
     user_queue[ts_UID]--;
@@ -1775,8 +1768,6 @@ void s_rerun_job(int s, int jobid, int ts_UID) {
   }
   int job_tsUID = p->ts_UID;
   if (p->pid != 0 && (job_tsUID = ts_UID || ts_UID == 0)) {
-    // kill(p->pid, SIGCONT);
-    // kill_pid(p->pid, "-cont");
     int num_slots = p->num_slots;
     if (user_busy[ts_UID] + num_slots < user_max_slots[ts_UID] && busy_slots + num_slots <= max_slots) {
       user_busy[ts_UID] += num_slots;

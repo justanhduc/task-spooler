@@ -299,7 +299,7 @@ void kill_pid(int ppid, const char *signal) {
   FILE *fp;
   char command[1024];
   char *path = get_kill_sh_path();
-  sprintf(command, "bash %s %d %s", path, ppid, signal);
+  sprintf(command, "bash %s %d \"%s\"", path, ppid, signal);
   // printf("command = %s\n", command);
   fp = popen(command, "r");
   free(path);

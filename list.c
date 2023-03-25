@@ -412,15 +412,15 @@ char *joblistdump_torun(const struct Job *p) {
 char *time_rep(float *t) {
   float time_in_sec = *t;
   char *unit = "s";
-  if (time_in_sec > 60) {
+  if (time_in_sec > 250) {
     time_in_sec /= 60;
     unit = "m";
 
-    if (time_in_sec > 60) {
+    if (time_in_sec > 100) {
       time_in_sec /= 60;
       unit = "h";
 
-      if (time_in_sec > 24) {
+      if (time_in_sec > 50) {
         time_in_sec /= 24;
         unit = "d";
       }
