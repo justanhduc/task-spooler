@@ -18,8 +18,8 @@ enum MsgTypes {
   LIST_ALL,
   LIST_LINE,
   REFRESH_USERS,
-  HOLD_JOB,
-  RESTART_JOB,
+  PAUSE_JOB,
+  RERUN_JOB,
   LOCK_SERVER,
   UNLOCK_SERVER,
   STOP_USER,
@@ -72,8 +72,8 @@ enum Request {
   c_CONT_USER,
   c_LOCK_SERVER,
   c_UNLOCK_SERVER,
-  c_HOLD_JOB,
-  c_RESTART_JOB,
+  c_PAUSE_JOB,
+  c_RERUN_JOB,
   c_CLEAR_FINISHED,
   c_SHOW_HELP,
   c_SHOW_VERSION,
@@ -122,6 +122,7 @@ struct CommandLine {
     char **array;
     int num;
   } command;
+  char *linux_cmd;
   char *label;
   char *logfile;
   char *outfile;
@@ -141,7 +142,8 @@ extern int term_width;
 
 struct Msg;
 
-enum Jobstate { QUEUED, RUNNING, FINISHED, SKIPPED, HOLDING_CLIENT, RELINK };
+enum Jobstate { QUEUED, RUNNING, FINISHED, SKIPPED, 
+  HOLDING_CLIENT, RELINK, WAIT};
 
 struct Msg {
   enum MsgTypes type;
@@ -149,6 +151,8 @@ struct Msg {
   union {
     struct {
       int command_size;
+      int command_size_strip;
+      int path_size;
       int store_output;
       int should_keep_finished;
       int label_size;
@@ -204,6 +208,8 @@ struct Job {
   struct Job *next;
   int jobid;
   char *command;
+  char *work_dir;
+  int command_strip;
   enum Jobstate state;
   struct Result result; /* Defined in msg.h */
   char *output_filename;
@@ -313,7 +319,7 @@ void s_list_all(int s);
 
 void s_list_plain(int s);
 
-int s_newjob(int s, struct Msg *m, int ts_UID);
+int s_newjob(int s, struct Msg *m, int ts_UID, int socket);
 
 void s_removejob(int jobid);
 
@@ -515,15 +521,16 @@ const char *uid2user_name(int uid);
 int read_first_jobid_from_logfile(const char *path);
 void kill_pid(int ppid, const char *signal);
 char* linux_cmd(char* CMD, char* out, int out_size);
+char **split_str(const char *str, int *size);
 void check_running_task(int pid);
+char *charArray_string(int num, char** array);
 
 /* locker */
 int user_locker;
 time_t locker_time;
 int jobsort_flag;
-// FILE* dbf; // # DEBUG
 int check_ifsleep(int pid);
-int check_running_dead(int jobid);
+// int check_running_dead(int jobid);
 
 /* jobs.c */
 void s_user_status_all(int s);
@@ -534,22 +541,39 @@ void s_stop_all_users(int s);
 void s_stop_user(int s, int uid);
 void s_cont_user(int s, int uid);
 void s_cont_all_users(int s);
-void s_hold_job(int s, int jobid, int uid);
-void s_restart_job(int s, int jobid, int uid);
+void s_pause_job(int s, int jobid, int uid);
+void s_rerun_job(int s, int jobid, int uid);
 void s_lock_server(int s, int uid);
 void s_unlock_server(int s, int uid);
 int s_check_locker(int s, int uid);
 void s_set_jobids(int i);
 void s_sort_jobs();
 int s_check_relink(int s, struct Msg *m, int ts_UID);
-
+void s_read_sqlite();
+int s_check_running_pid(int pid);
 
 /* client.c */
 void c_list_jobs_all();
 void c_stop_user(int uid);
 void c_cont_user(int uid);
-void c_hold_job(int jobid);
+void c_pause_job(int jobid);
+void c_rerun_job(int jobid);
 int c_lock_server();
 int c_unlock_server();
-void c_restart_job(int jobid);
 void c_check_daemon();
+
+/* sqlite.c */
+const char *get_sqlite_path();
+int open_sqlite();
+void close_sqlite();
+int insert_DB(struct Job* job, const char* table);
+int insert_or_replace_DB(struct Job* job, const char* table);
+struct Job* read_DB(int jobid, const char* table);
+int read_jobid_DB(int** jobids, const char* table);
+int delete_DB(int jobid, const char* table);
+void movetop_DB(int jobid);
+void swap_DB(int, int);
+void set_jobids_DB(int value);
+int get_jobids_DB();
+int jobDB_num, jobDB_wait_num;
+struct Job** jobDB_Jobs;

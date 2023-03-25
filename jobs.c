@@ -49,16 +49,22 @@ static struct Job *get_job(int jobid);
 
 void notify_errorlevel(struct Job *p);
 
-void s_set_jobids(int i) { jobids = i; }
+void s_set_jobids(int i) { 
+  jobids = i; 
+  set_jobids_DB(i);
+}
 
 static void destroy_job(struct Job *p) {
-  free(p->notify_errorlevel_to);
-  free(p->command);
-  free(p->output_filename);
-  pinfo_free(&p->info);
-  free(p->depend_on);
-  free(p->label);
-  free(p);
+  if (p != NULL) {
+    free(p->notify_errorlevel_to);
+    free(p->command);
+    free(p->work_dir);
+    free(p->output_filename);
+    pinfo_free(&p->info);
+    free(p->depend_on);
+    free(p->label);
+    free(p);
+  }
 }
 
 void send_list_line(int s, const char *str) {
@@ -153,6 +159,14 @@ static int jobid_from_pid(int pid) {
     if (p->pid == pid) return p->jobid;
   }
   return -1;
+}
+
+// return 1 for running, other is dead
+int s_check_running_pid(int pid) {
+  char cmd[256], filename[256] = "";
+  snprintf(cmd, sizeof(cmd), "readlink -f /proc/%d/fd/1", pid);
+  linux_cmd(cmd, filename, sizeof(filename));
+  return strlen(filename) != 0;
 }
 
 // if any error return 0;
@@ -413,6 +427,9 @@ const char *jstate2string(enum Jobstate s) {
   case RELINK:
     jobstate = "relink";
     break;
+  case WAIT:
+    jobstate = "wait";
+    break;
   }
   return jobstate;
 }
@@ -438,8 +455,6 @@ void s_list(int s, int ts_UID) {
         buffer = joblist_line(p);
         // sprintf(buf, "== jobid = %d\n", p->jobid);
         // send_list_line(s, buf);
-        // fprintf(dbf, "----- %s\n", buffer);
-        // fflush(dbf);
         send_list_line(s, buffer);
         free(buffer);
       }
@@ -532,8 +547,19 @@ static struct Job *newjobptr() {
   p->next = (struct Job *)malloc(sizeof(*p));
   p->next->next = 0;
   p->next->output_filename = 0;
-  p->next->command = 0;
   p->next->pid = 0;
+  p->next->command  = NULL;
+  p->next->work_dir = NULL;
+  p->next->command_strip = 0;
+  
+  struct Procinfo* info= &(p->next->info);
+  info->enqueue_time.tv_sec  = 0;
+  info->start_time.tv_sec    = 0;
+  info->end_time.tv_sec      = 0;
+  info->enqueue_time.tv_usec = 0;
+  info->start_time.tv_usec   = 0;
+  info->end_time.tv_usec     = 0;
+  
   return p->next;
 }
 
@@ -568,19 +594,35 @@ static int find_last_stored_jobid_finished() {
 }
 
 /* Returns job id or -1 on error */
-int s_newjob(int s, struct Msg *m, int ts_UID) {
+int s_newjob(int s, struct Msg *m, int ts_UID, int socket) {
   
   struct Job *p;
   int res;
+  int waitjob_flag = 0;
+  if (m->jobid != 0) {
+    p = findjob(m->jobid);
+    if (p != NULL && p->state == WAIT) {
+      jobDB_wait_num--;
+      waitjob_flag = 1;
+      p->state = QUEUED;
+    } else {
+      return -1;
+    }
+  }
 
-  p = newjobptr();
-
-  p->jobid = jobids++;
-  if (count_not_finished_jobs() < max_jobs)
-    p->state = QUEUED;
-  else
-    p->state = HOLDING_CLIENT;
-
+  if (waitjob_flag == 0) {
+    p = newjobptr();
+    if (m->jobid != 0) {
+      p->jobid = m->jobid;
+      jobids = jobids > m->jobid ? jobids : m->jobid + 1;
+    } else {
+      p->jobid = jobids++;
+    }
+    if (count_not_finished_jobs() < max_jobs) {
+      p->state = QUEUED;
+    } else
+      p->state = HOLDING_CLIENT;
+  }
   // save the ts_UID and record the number of waiting jobs
   p->ts_UID = ts_UID; // get_tsUID(m->uid);
   user_queue[p->ts_UID]++;
@@ -690,13 +732,35 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
   pinfo_set_enqueue_time(&p->info);
 
   /* load the command */
-  p->command = malloc(m->u.newjob.command_size);
-  if (p->command == 0)
+
+  char* buff = malloc(m->u.newjob.command_size);
+  if (buff == 0)
     error("Cannot allocate memory in s_newjob command_size (%i)",
           m->u.newjob.command_size);
-  res = recv_bytes(s, p->command, m->u.newjob.command_size);
+  res = recv_bytes(s, buff, m->u.newjob.command_size);
   if (res == -1)
     error("wrong bytes received");
+
+  if (1) { // waitjob_flag == 0
+    p->command = buff;
+    p->command_strip = m->u.newjob.command_size_strip;
+  } else {
+    free(buff);
+  }
+  
+  /* load the work dir */
+  p->work_dir = 0;
+  if (m->u.newjob.path_size > 0) {
+    char *ptr;
+    ptr = (char *)malloc(m->u.newjob.path_size);
+    if (ptr == 0)
+      error("Cannot allocate memory in s_newjob path_size(%i)",
+            m->u.newjob.path_size);
+    res = recv_bytes(s, ptr, m->u.newjob.path_size);
+    if (res == -1)
+      error("wrong bytes received");
+    p->work_dir = ptr;
+  }
 
   /* load the label */
   p->label = 0;
@@ -741,7 +805,8 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
     p->info.start_time.tv_usec = 0;
 
   }
-
+  if(waitjob_flag == 0) insert_DB(p, "Jobs");
+  set_jobids_DB(jobids);
   return p->jobid;
 }
 
@@ -880,6 +945,9 @@ static void new_finished_job(struct Job *j) {
   }
   p->next = j;
   p->next->next = 0;
+
+  delete_DB(j->jobid, "Jobs");
+  insert_DB(j, "Finished");
 }
 
 static int job_is_in_state(int jobid, enum Jobstate state) {
@@ -973,6 +1041,162 @@ void job_finished(const struct Result *result, int jobid) {
     jpointer->next = newfirst;
   }
 }
+static int fork_cmd(int UID, const char* path, const char* cmd) {
+    int pid = -1; //定义一个进程ID变量
+    int fd[2]; //定义一个管道数组
+    // char buffer[10]; //定义一个缓冲区
+    if (pipe(fd) < 0) //创建一个管道
+    {
+        perror("pipe error"); //打印错误信息
+        return -1;
+    }
+    pid = fork(); //调用fork()函数创建子进程
+    if (pid < 0) //如果返回值小于0，表示fork失败
+    {
+        perror("fork error"); //打印错误信息
+        return -1;
+    }
+    else if (pid == 0) //如果返回值等于0，表示子进程正在运行
+    {
+        // printf("This is child process, pid = %d\n", getpid()); //打印子进程的ID
+        close(fd[0]); //关闭管道的读端
+        /*
+        if (setuid(UID) < 0) {
+          sprintf(buffer, "%d", -1); //将子进程的ID转换为字符串
+        } else {
+          sprintf(buffer, "%d", getpid()); //将子进程的ID转换为字符串
+        }
+        write(fd[1], buffer, sizeof(buffer)); //将字符串写入管道的写端
+        */
+        setuid(UID);
+        close(fd[1]); //关闭管道的写端
+
+        if (path != NULL) chdir(path);
+        system(cmd);
+        exit(0);
+        /*
+        int cmd_array_size;
+        printf("cmd = %s\n", cmd);
+        char** cmd_arry = split_str(cmd, &cmd_array_size);
+        if (cmd_array_size > 0) {
+          printf("run cmd %s\n", cmd_arry[0]);
+          system(cmd);
+          exit(0);
+          // execvp(cmd_arry[0], cmd_arry);
+        }
+        // execlp("ls", "-l", NULL); //执行ls -l命令，替换当前进程
+        */
+        return -1;
+    }
+    else //如果返回值大于0，表示父进程正在运行
+    {
+        // printf("This is parent process, pid = %d\n", getpid()); //打印父进程的ID
+        // close(fd[1]); //关闭管道的写端
+        // read(fd[0], buffer, sizeof(buffer)); //从管道的读端读取字符串
+        printf("[Child PID:%d] Add queued job: %s\n", pid, cmd); //打印子进程的ID
+        // close(fd[0]); //关闭管道的读端
+        //wait(NULL); //等待子进程结束
+    }
+    return pid;
+}
+// TODO add the check of running state.
+static void s_add_job(struct Job* j, struct Job** p) {
+  if (j->state == RUNNING || j->state == HOLDING_CLIENT || j->state == RELINK) {
+    if (j->pid > 0 && s_check_running_pid(j->pid) == 1) {
+      printf("add job %d\n", j->jobid);
+      
+      int ts_UID = j->ts_UID;
+      user_jobs[ts_UID]++;
+
+      if (j->state == RUNNING) {
+        int slots = j->num_slots;
+        user_busy[ts_UID] += slots;
+        busy_slots += slots;
+      }
+
+      jobDB_Jobs[jobDB_num] = j;
+      jobDB_num++;
+      (*p)->next = j;
+      (*p) = j;
+
+      jobids = jobids > j->jobid ? jobids : j->jobid + 1;
+      j = NULL;
+    }
+  } else if (j->state == QUEUED) {
+    printf("add the queue job %d\n", j->jobid);
+    j->state = WAIT;
+    jobDB_wait_num++;
+    (*p)->next = j;
+    (*p) = j;
+
+
+    
+    char c[32]; //创建一个存储数字的字符串
+    sprintf(c, "-J %d ", j->jobid); //将数字转换为字符串
+    int len = strlen(j->command) + strlen(c) + 1; //计算新字符串的长度
+    char *str = (char *)calloc(0, len * sizeof(char)); //用malloc函数分配内存
+    if (str == NULL) //判断是否分配成功
+    {
+      printf("Memory allocation failed.\n");
+      return;
+    }
+    strncpy(str, j->command, j->command_strip); //将s数组的前t个字符复制到str中
+    strcat(str, c); //将数字字符串连接到str后面
+    strcat(str, (j->command + j->command_strip)); //将s剩余的字符串连接到str后面
+    fork_cmd(user_UID[j->ts_UID], j->work_dir, str);
+    jobids = jobids > j->jobid ? jobids : j->jobid + 1;
+    j = NULL;
+
+    /*
+    printf("add job %d; CMD = %s\n", j->jobid, j->command);
+    jobDB_Jobs[jobDB_num] = j;
+    jobDB_num++;
+    user_queue[j->ts_UID]++;
+    (*p)->next = j;
+    (*p) = j;
+    */
+  }
+  
+  destroy_job(j);
+}
+
+void s_read_sqlite() {
+  int num_jobs, *jobs_DB = NULL;
+  struct Job *job, *p;
+  p = &firstjob;
+  num_jobs = read_jobid_DB(&(jobs_DB), "Jobs");
+  // printf("read from jobs %d\n", num_jobs);
+  jobDB_Jobs = (struct Job**)malloc(sizeof(struct Job*) * num_jobs);
+  printf("Jobs:\n");
+  for (int i = 0; i < num_jobs; i++) {
+    job = read_DB(jobs_DB[i], "Jobs");
+    if (job == NULL) {
+      printf("Error in reading DB %d\n", jobs_DB[i]);
+    } else {
+      s_add_job(job, &p);
+    }
+  }
+  p->next = NULL;
+  // clear_DB("Jobs");
+
+  // finished jobs
+  p = &first_finished_job;
+  num_jobs = read_jobid_DB(&(jobs_DB), "Finished");
+  printf("Finished:\n");
+  for (int i = 0; i < num_jobs; i++) {
+    job = read_DB(jobs_DB[i], "Finished");
+    if (job == NULL) {
+      printf("Error in reading DB %d\n", jobs_DB[i]);
+    } else {
+      printf("add job: %d from %d\n", job->jobid, jobs_DB[i]);
+      p->next = job;
+      p = job;
+    }
+  }
+  p->next = NULL;
+  free(jobs_DB);
+  set_jobids_DB(jobids);
+}
 
 void s_clear_finished(int ts_UID) {
   struct Job *p, *other_user_job = &first_finished_job;
@@ -985,6 +1209,7 @@ void s_clear_finished(int ts_UID) {
     struct Job *tmp;
     tmp = p->next;
     if (p->ts_UID == ts_UID || ts_UID == 0) {
+      delete_DB(p->jobid, "Finished");
       destroy_job(p);
     } else {
       other_user_job->next = p;
@@ -1006,6 +1231,7 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
   p->pid = pid;
   p->output_filename = oname;
   pinfo_set_start_time(&p->info);
+  insert_or_replace_DB(p, "Jobs");
   write_logfile(p);
 }
 
@@ -1362,7 +1588,7 @@ int s_remove_job(int s, int *jobid, int client_tsUID) {
   */
   /* Return the jobid found */
   *jobid = p->jobid;
-
+  delete_DB(p->jobid, "Jobs");
   /* Tricks for the check_notify_list */
   p->state = FINISHED;
   p->result.errorlevel = -1;
@@ -1498,7 +1724,7 @@ void s_unlock_server(int s, int ts_UID) {
   send_list_line(s, buff);
 }
 
-void s_hold_job(int s, int jobid, int ts_UID) {
+void s_pause_job(int s, int jobid, int ts_UID) {
   struct Job *p;
   p = findjob(jobid);
   if (p == 0) {
@@ -1506,7 +1732,11 @@ void s_hold_job(int s, int jobid, int ts_UID) {
     send_list_line(s, buff);
     return;
   }
-
+  if (check_ifsleep(p->pid) == 1) {
+    snprintf(buff, 255, "job [%d] is aleady in PAUSE.\n", jobid);
+    send_list_line(s, buff);
+    return;
+  }
   int job_tsUID = p->ts_UID;
   if (p->pid != 0 && (job_tsUID = ts_UID || ts_UID == 0)) {
     // kill(p->pid, SIGSTOP);
@@ -1515,25 +1745,30 @@ void s_hold_job(int s, int jobid, int ts_UID) {
     busy_slots -= p->num_slots;
     user_queue[ts_UID]--;
     user_jobs[ts_UID]--;
-    snprintf(buff, 255, "Hold on job [%d] successfully!\n", jobid);
+    snprintf(buff, 255, "To pause job [%d] successfully!\n", jobid);
 
   } else {
-    snprintf(buff, 255, "Error: cannot hold on job [%d]\n", jobid);
+    snprintf(buff, 255, "Error: cannot pause job [%d]\n", jobid);
   }
   send_list_line(s, buff);
+
 }
 
-void s_restart_job(int s, int jobid, int ts_UID) {
+void s_rerun_job(int s, int jobid, int ts_UID) {
   struct Job *p;
 
   p = findjob(jobid);
   if (p == 0) {
     snprintf(buff, 255, "Error: cannot find job [%d]\n", jobid);
     send_list_line(s, buff);
-
     return;
   }
-
+  
+  if (check_ifsleep(p->pid) == 0) {
+    snprintf(buff, 255, "job [%d] is aleady in RUNNING.\n", jobid);
+    send_list_line(s, buff);
+    return;
+  }
   int job_tsUID = p->ts_UID;
   if (p->pid != 0 && (job_tsUID = ts_UID || ts_UID == 0)) {
     // kill(p->pid, SIGCONT);
@@ -1544,12 +1779,12 @@ void s_restart_job(int s, int jobid, int ts_UID) {
       busy_slots += num_slots;
       user_queue[ts_UID]++;
       user_jobs[ts_UID]++;
-      snprintf(buff, 255, "Restart job [%d] successfully!\n", jobid);
+      snprintf(buff, 255, "To rerun job [%d] successfully!\n", jobid);
     } else {
       snprintf(buff, 255, "Error: not enough slots [%d]\n", jobid);
     }
   } else {
-    snprintf(buff, 255, "Error: cannot hold on job [%d]\n", jobid);
+    snprintf(buff, 255, "Error: cannot rerun job [%d]\n", jobid);
   }
   send_list_line(s, buff);
 }
@@ -1741,6 +1976,7 @@ void s_get_max_slots(int s) {
   send_msg(s, &m);
 }
 
+/* move jobid upto the top of list */
 void s_move_urgent(int s, int jobid) {
   struct Job *p = 0;
   struct Job *tmp1;
@@ -1778,6 +2014,7 @@ void s_move_urgent(int s, int jobid) {
   tmp1->next = p->next;
   p->next = firstjob.next;
   firstjob.next = p;
+  movetop_DB(jobid);
   send_urgent_ok(s);
 }
 
@@ -1804,7 +2041,7 @@ void s_swap_jobs(int s, int jobid1, int jobid2) {
   tmp = p1->next;
   p1->next = p2->next;
   p2->next = tmp;
-
+  swap_DB(jobid1, jobid2);
   send_swap_jobs_ok(s);
 }
 

@@ -7,12 +7,11 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 #include "main.h"
 #include "user.h"
-
-#define DEFAUL_USER_PATH "/home/kylin/task-spooler/user.txt"
-#define DEFAUL_LOG_PATH "/home/kylin/task-spooler/log.txt"
+#include "default_path.h"
 
 void send_list_line(int s, const char *str);
 void error(const char *str, ...);
@@ -23,7 +22,7 @@ const char *get_user_path() {
   char *str;
   str = getenv("TS_USER_PATH");
   if (str == NULL || strlen(str) == 0) {
-    return DEFAUL_USER_PATH;
+    return DEFAULT_USER_PATH;
   } else {
     return str;
   }
@@ -41,6 +40,27 @@ int get_env(const char *env, int v0) {
       i = v0;
     return i;
   }
+}
+
+//按空格自动分割子串的函数
+char **split_str(const char *str0, int *size) {
+    char **result = (char**)malloc(sizeof(char*)); //存储分割后的子串
+    char *str = (char*) malloc(sizeof(char)*strlen(str0));
+    strcpy(str, str0);
+    int n = 0; //数组的大小
+    char *token; //分割得到的子串
+    token = strtok(str, " "); //以空格为分隔符分割字符串
+    while (token != NULL) { //循环分割，直到遇到NULL
+        result = realloc(result, (n + 1) * sizeof(char *)); //重新分配内存空间，增加一个元素
+        if (result == NULL) { //如果内存分配失败，返回NULL
+            return NULL;
+        }
+        result[n] = token; //将子串存入数组
+        n++; //更新数组的大小
+        token = strtok(NULL, " "); //继续分割
+    }
+    *size = n; //返回数组的大小
+    return result; //返回数组
 }
 
 char* linux_cmd(char* CMD, char* out, int out_size) {
@@ -76,7 +96,7 @@ long str2int(const char *str) {
 const char *set_server_logfile() {
   logfile_path = getenv("TS_LOGFILE_PATH");
   if (logfile_path == NULL || strlen(logfile_path) == 0) {
-    logfile_path = DEFAUL_LOG_PATH;
+    logfile_path = DEFAULT_LOG_PATH;
   }
   return logfile_path;
 }

@@ -60,7 +60,8 @@ static void default_command_line() {
   command_line.should_keep_finished = 1;
   command_line.gzip = 0;
   command_line.send_output_by_mail = 0;
-  command_line.label = 0;
+  command_line.linux_cmd = NULL;
+  command_line.label = NULL;
   command_line.depend_on_size = 0;
   command_line.depend_on = NULL; /* -1 means depend on previous */
   command_line.max_slots = 1;
@@ -71,6 +72,7 @@ static void default_command_line() {
   command_line.logfile = NULL;
   command_line.taskpid = 0;
   command_line.start_time = 0;
+  command_line.jobid = 0;
 }
 
 struct Msg default_msg() {
@@ -137,8 +139,8 @@ static struct option longOptions[] = {
     {"unsetenv", required_argument, NULL, 0},
     {"stop", optional_argument, NULL, 0},
     {"cont", optional_argument, NULL, 0},
-    {"hold", required_argument, NULL, 0},
-    {"restart", required_argument, NULL, 0},
+    {"pause", required_argument, NULL, 0},
+    {"rerun", required_argument, NULL, 0},
     {"lock-ts", no_argument, NULL, 0},
     {"unlock-ts", no_argument, NULL, 0},
     {"daemon", no_argument, NULL, 0},
@@ -155,7 +157,7 @@ void parse_opts(int argc, char **argv) {
   /* Parse options */
   while (1) {
     c = getopt_long(argc, argv,
-                    ":AXRTVhKzClnfmBE:a:F:t:c:o:p:w:k:r:u:s:U:qi:N:L:dS:D:W:O:",
+                    ":AXRTVhKzClnfmBE:a:F:t:c:o:p:w:k:r:u:s:U:qi:N:J:L:dS:D:W:O:",
                     longOptions, &optionIdx);
 
     if (c == -1)
@@ -178,11 +180,11 @@ void parse_opts(int argc, char **argv) {
       } else if (strcmp(longOptions[optionIdx].name, "get_label") == 0) {
         command_line.request = c_GET_LABEL;
         command_line.jobid = str2int(optarg);
-      } else if (strcmp(longOptions[optionIdx].name, "hold") == 0) {
-        command_line.request = c_HOLD_JOB;
+      } else if (strcmp(longOptions[optionIdx].name, "pause") == 0) {
+        command_line.request = c_PAUSE_JOB;
         command_line.jobid = str2int(optarg);
-      } else if (strcmp(longOptions[optionIdx].name, "restart") == 0) {
-        command_line.request = c_RESTART_JOB;
+      } else if (strcmp(longOptions[optionIdx].name, "rerun") == 0) {
+        command_line.request = c_RERUN_JOB;
         command_line.jobid = str2int(optarg);
       } else if (strcmp(longOptions[optionIdx].name, "lock-ts") == 0) {
         command_line.request = c_LOCK_SERVER;
@@ -311,6 +313,11 @@ void parse_opts(int argc, char **argv) {
       if (command_line.num_slots < 0)
         command_line.num_slots = 0;
       break;
+    case 'J':
+      command_line.jobid = str2int(optarg);
+      if (command_line.jobid < 0)
+        command_line.jobid = 0;
+      break;    
     /*
     case 'Z':
       command_line.taskpid = str2int(optarg);
@@ -460,6 +467,8 @@ void parse_opts(int argc, char **argv) {
     get_command(optind, argc, argv);
   }
 
+  command_line.linux_cmd = charArray_string(argc, argv);
+
   if (command_line.request != c_SHOW_HELP &&
       command_line.request != c_SHOW_VERSION)
     command_line.need_server = 1;
@@ -562,8 +571,8 @@ static void print_help(const char *cmd) {
          "texts.\n");
   printf("  --daemon                        Run the server as daemon by Root "
          "only.\n");
-  printf("  --hold [jobid]                  hold on a task.\n");
-  printf("  --restart [jobid]               rerun a hold task.\n");
+  printf("  --pause [jobid]                 hold on a task.\n");
+  printf("  --rerun [jobid]                 rerun a paused task.\n");
   printf("  --lock                          Locker the server (Timeout: 30 "
          "sec.)"
          "For Root, timeout is infinity.\n");
@@ -700,14 +709,14 @@ int main(int argc, char **argv) {
     break;
   case c_CHECK_DAEMON:
     break;
-  case c_HOLD_JOB:
-    c_hold_job(command_line.jobid);
+  case c_PAUSE_JOB:
+    c_pause_job(command_line.jobid);
     c_wait_server_lines();
 
     break;
-  case c_RESTART_JOB:
-    c_restart_job(command_line.jobid);
-    // c_wait_server_lines();
+  case c_RERUN_JOB:
+    c_rerun_job(command_line.jobid);
+    c_wait_server_lines();
     break;
   case c_LOCK_SERVER:
     errorlevel = c_lock_server();

@@ -155,6 +155,7 @@ void error(const char *str, ...) {
     }
 
     problem(ERROR, str, ap);
+    close_sqlite();
     exit(-1);
 }
 

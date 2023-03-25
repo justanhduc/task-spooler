@@ -19,7 +19,8 @@ OBJECTS=main.o \
 	info.o \
 	env.o \
 	tail.o \
-	user.o
+	user.o \
+	sqlite.o
 TARGET=ts
 INSTALL=install -c
 
@@ -28,7 +29,7 @@ GIT_REPO=$(shell git rev-parse --is-inside-work-tree)
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $(TARGET) $^
+	$(CC) $(LDFLAGS) -o $(TARGET) $^ -lsqlite3
 
 %.o : %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
@@ -52,6 +53,7 @@ error.o: error.c main.h
 signals.o: signals.c main.h
 list.o: list.c main.h
 tail.o: tail.c main.h
+sqlite.o: sqlite.c main.h
 
 clean:
 	rm -f *.o $(TARGET); killall ts;

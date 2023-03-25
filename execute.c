@@ -74,7 +74,7 @@ static void run_relink(int pid, struct Result *result) {
 
   wait_for_pid(pid);
 
-  command = build_command_string();
+  command = command_line.linux_cmd; // build_command_string();
   if (command_line.send_output_by_mail) {
     send_mail(command_line.jobid, result->errorlevel, ofname, command);
   }
@@ -148,7 +148,7 @@ static void run_parent(int fd_read_filename, int pid, struct Result *result) {
     result->errorlevel = -1;
   }
 
-  command = build_command_string();
+  command = command_line.linux_cmd; // build_command_string();
   if (command_line.send_output_by_mail) {
     send_mail(command_line.jobid, result->errorlevel, ofname, command);
   }
@@ -320,9 +320,8 @@ int run_job(int jobid, struct Result *res) {
   int pid;
   int errorlevel = 0;
   int p[2];
-  char path[256];
-  getcwd(path, 256);
-  printf("start run_job()\n");
+  char path[1024];
+  getcwd(path, 1024);
   // const char *tmpdir = get_logdir();
   // printf("tmpdir: %s\n", tmpdir);
 

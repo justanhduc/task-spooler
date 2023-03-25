@@ -114,8 +114,6 @@ static const char *ofilename_shown(const struct Job *p) {
 }
 
 static char *print_noresult(const struct Job *p) {
-  // fprintf(dbf, "start print_noresult Jobid = %d\n", p->jobid);
-  // fflush(dbf);
   const char *jobstate;
   const char *output_filename;
   int maxlen;
@@ -130,7 +128,7 @@ static char *print_noresult(const struct Job *p) {
       jobstate = "N/A";
     } else {
       if (check_ifsleep(p->pid) == 1) {
-        jobstate = "holdon";
+        jobstate = "pause";
       }
     }
   }
@@ -181,24 +179,22 @@ static char *print_noresult(const struct Job *p) {
     error("Malloc for %i failed.\n", maxlen);
 
   cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
-  char *cmd = shorten(p->command, cmd_len);
+  char *cmd = shorten(p->command + p->command_strip, cmd_len);
   if (p->label) {
     char *label = shorten(p->label, 10);
-    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-20s | %s\n",
+    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-21s | %s\n",
              p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
              output_filename);
     free(label);
     free(cmd);
   } else {
-    char *cmd = shorten(p->command, cmd_len);
+    char *cmd = shorten(p->command + p->command_strip, cmd_len);
     char *label = "(..)";
-    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-20s| %s\n",
+    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-21s | %s\n",
              p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
              output_filename);
     free(cmd);
   }
-  // fprintf(dbf, line);
-  // fflush(dbf);
   return line;
 }
 
@@ -251,18 +247,18 @@ static char *print_result(const struct Job *p) {
     error("Malloc for %i failed.\n", maxlen);
 
   cmd_len = max((strlen(p->command) + (term_width - maxlen)), 20);
-  char *cmd = shorten(p->command, cmd_len);
+  char *cmd = shorten(p->command + p->command_strip, cmd_len);
   if (p->label) {
     char *label = shorten(p->label, 10);
-    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-20s | %s\n",
+    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-21s | %s\n",
              p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
              output_filename);
     free(label);
     free(cmd);
   } else {
-    char *cmd = shorten(p->command, cmd_len);
+    char *cmd = shorten(p->command + p->command_strip, cmd_len);
     char *label = "(..)";
-    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-20s | %s\n",
+    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-21s | %s\n",
              p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
              output_filename);
     free(cmd);
@@ -314,10 +310,10 @@ static char *plainprint_noresult(const struct Job *p) {
   if (p->label)
     snprintf(line, maxlen, "%i\t%s\t%s\t%s\t%s\t%s\t[%s]\t%s\n", p->jobid,
              jobstate, output_filename, "", "", dependstr, p->label,
-             p->command);
+             p->command + p->command_strip);
   else
     snprintf(line, maxlen, "%i\t%s\t%s\t%s\t%s\t%s\t\t%s\n", p->jobid, jobstate,
-             output_filename, "", "", dependstr, p->command);
+             output_filename, "", "", dependstr, p->command + p->command_strip);
 
   return line;
 }
@@ -367,11 +363,11 @@ static char *plainprint_result(const struct Job *p) {
   if (p->label)
     snprintf(line, maxlen, "%i\t%s\t%s\t%i\t%.2f\t%s\t%s\t[%s]\t%s\n", p->jobid,
              jobstate, output_filename, p->result.errorlevel, real_ms, unit,
-             dependstr, p->label, p->command);
+             dependstr, p->label, p->command + p->command_strip);
   else
     snprintf(line, maxlen, "%i\t%s\t%s\t%i\t%.2f\t%s\t%s\t\t%s\n", p->jobid,
              jobstate, output_filename, p->result.errorlevel, real_ms, unit,
-             dependstr, p->command);
+             dependstr, p->command + p->command_strip);
 
   return line;
 }
@@ -408,7 +404,7 @@ char *joblistdump_torun(const struct Job *p) {
   if (line == NULL)
     error("Malloc for %i failed.\n", maxlen);
 
-  snprintf(line, maxlen, "ts %s\n", p->command);
+  snprintf(line, maxlen, "%s\n", p->command);
 
   return line;
 }

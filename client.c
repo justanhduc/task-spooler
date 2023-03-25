@@ -23,15 +23,15 @@ static void c_wait_job_send();
 static void c_wait_running_job_send();
 
 char *build_command_string() {
+  return charArray_string(command_line.command.num, command_line.command.array);
+}
+
+char *charArray_string(int num, char** array) {
   int size;
   int i;
-  int num;
-  char **array;
   char *commandstring;
 
   size = 0;
-  num = command_line.command.num;
-  array = command_line.command.array;
 
   /* Count bytes needed */
   for (i = 0; i < num; ++i) {
@@ -58,17 +58,22 @@ char *build_command_string() {
 void c_new_job() {
 
   struct Msg m = default_msg();
-  char *new_command;
+  char *new_command, path[1024];
   char *myenv;
 
   m.type = NEWJOB;
 
-  new_command = build_command_string();
+  getcwd(path, 1024);
+  new_command = command_line.linux_cmd; // build_command_string();
+  char* old_command = build_command_string();
 
   myenv = get_environment();
 
   /* global */
+  m.jobid = command_line.jobid;
   m.u.newjob.command_size = strlen(new_command) + 1; /* add null */
+  m.u.newjob.command_size_strip = strlen(new_command) - strlen(old_command);
+  m.u.newjob.path_size = strlen(path) + 1; /* add null */
   if (myenv)
     m.u.newjob.env_size = strlen(myenv) + 1; /* add null */
   else
@@ -100,6 +105,9 @@ void c_new_job() {
   /* Send the command */
   send_bytes(server_socket, new_command, m.u.newjob.command_size);
 
+  /* Send the work dir */
+  send_bytes(server_socket, path, m.u.newjob.path_size);
+
   /* Send the label */
   send_bytes(server_socket, command_line.label, m.u.newjob.label_size);
 
@@ -126,7 +134,7 @@ int c_wait_newjob_ok() {
   if (res == -1)
     error("Error in wait_newjob_ok");
   if (m.type == NEWJOB_NOK) {
-    fprintf(stderr, "Error, queue full\n");
+    fprintf(stderr, "Error, queue full or conflict jobid\n");
     exit(EXITCODE_QUEUE_FULL);
   }
 
@@ -474,7 +482,7 @@ static char *get_output_file(int *pid) {
   return 0;
 }
 
-void c_hold_job(int jobid) {
+void c_pause_job(int jobid) {
   int pid = 0;
   /* This will exit if there is any error */
   get_output_file(&pid);
@@ -490,12 +498,12 @@ void c_hold_job(int jobid) {
   kill_pid(pid, "STOP");
 
   struct Msg m = default_msg();
-  m.type = HOLD_JOB;
+  m.type = PAUSE_JOB;
   m.jobid = jobid;
   send_msg(server_socket, &m);
 }
 
-void c_restart_job(int jobid) {
+void c_rerun_job(int jobid) {
   int pid = 0;
   /* This will exit if there is any error */
   get_output_file(&pid);
@@ -510,7 +518,7 @@ void c_restart_job(int jobid) {
   // kill(-pid, SIGCONT);
 
   struct Msg m = default_msg();
-  m.type = RESTART_JOB;
+  m.type = RERUN_JOB;
   m.jobid = jobid;
   send_msg(server_socket, &m);
   // not error, restart job

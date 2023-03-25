@@ -200,6 +200,8 @@ static void server_info() {
   printf("  Socket path: %s         [TS_SOCKET]\n", socket_path);
   printf("  Read user file from %s  [TS_USER_PATH]\n", get_user_path());
   printf("  Write log file to %s    [TS_LOGFILE_PATH]\n", set_server_logfile());
+  printf("  Sqlite Database @ %s    [TS_SQLITE_PATH]\n", get_sqlite_path());
+
   setup_kill_sh();
 }
 

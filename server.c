@@ -7,6 +7,7 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 #ifdef linux
 #include <sys/time.h>
@@ -169,16 +170,55 @@ static int get_max_descriptors() {
   return max;
 }
 
+static void check_jobDB() {
+  struct Job* p;
+  for (int i = 0; i < jobDB_num; i++) {
+    p = jobDB_Jobs[i];
+    if (p->pid != 0 && s_check_running_pid(p->pid) != 1) {
+      struct Result r = default_result();
+
+      r.errorlevel = -1;
+      r.died_by_signal = 1;
+      r.signal = SIGKILL;
+      r.user_ms = 0;
+      r.system_ms = 0;
+      r.real_ms = 0;
+      r.skipped = 0;
+
+      // warning("JobID %i quit while running.", jobid);
+      job_finished(&r, p->jobid);
+      check_notify_list(p->jobid);
+
+      jobDB_num--;
+      jobDB_Jobs[i] = jobDB_Jobs[jobDB_num];
+      return;
+    }
+  }
+}
+
+
+/*
+int s_add_connection(int jobid, int socket, int hasjob, int ts_UID) {
+  if (nconnections < MAXCONN) {
+    client_cs[nconnections].jobid = jobid;
+    client_cs[nconnections].socket = socket;
+    client_cs[nconnections].hasjob = hasjob;
+    client_cs[nconnections].ts_UID = ts_UID;
+    nconnections++;
+    return 0;
+  } else {
+    return 1;
+  }
+}
+*/
 
 void server_main(int notify_fd, char *_path) {
-  // dbf = fopen("/home/kylin/task-spooler/debug.txt", "w");
-  // fprintf(dbf, "start server_main\n");
-  // fflush(dbf);
-
   int ls;
   struct sockaddr_un addr;
   int res;
   char *dirpath;
+  signal(SIGCLD, SIG_IGN);
+  signal(SIGCHLD, SIG_IGN);
 
   process_type = SERVER;
   max_descriptors = get_max_descriptors();
@@ -221,15 +261,14 @@ void server_main(int notify_fd, char *_path) {
     user_jobs[i] = 0;
     user_queue[i] = 0;
   }
+  jobDB_num = jobDB_wait_num = 0;
+  jobDB_Jobs = NULL;
 
   set_server_logfile();
-  int jobid = read_first_jobid_from_logfile(logfile_path);
-  s_set_jobids(get_env("TS_FIRST_JOBID", jobid));
-  jobsort_flag = get_env("TS_SORTJOBS", 0);
-
+  // int jobid = read_first_jobid_from_logfile(logfile_path);
   read_user_file(get_user_path());
   set_socket_model(_path);
-
+  
   install_sigterm_handler();
 
   set_default_maxslots();
@@ -238,9 +277,21 @@ void server_main(int notify_fd, char *_path) {
 
   if (notify_fd != 0)
     notify_parent(notify_fd);
+
+  if (open_sqlite() != 0) {
+    debug_write("Cannot open sqlite database");
+    error("Cannot open sqlite database");
+  }
+
+  // printf("jobids = %d\n", get_jobids_DB());
+  jobsort_flag = get_env("TS_SORTJOBS", 0);
+  s_set_jobids(get_env("TS_FIRST_JOBID", get_jobids_DB()));
+  s_read_sqlite();
   printf("Start main server loops...\n");
   server_loop(ls);
 }
+
+
 
 static int get_conn_of_jobid(int jobid) {
   int i;
@@ -295,7 +346,7 @@ static void server_loop(int ls) {
       if (client_cs[nconnections].ts_UID == -1) {
         close(cs);
       } else {
-        ++nconnections;
+        nconnections++;
       }
     }
 
@@ -320,7 +371,11 @@ static void server_loop(int ls) {
         */
       }
     /* This will return firstjob->jobid or -1 */
+    if (jobDB_num > 0) {
+      check_jobDB();
+    }
     newjob = next_run_job();
+    
     if (newjob != -1) {
       int conn, awaken_job;
       conn = get_conn_of_jobid(newjob);
@@ -335,7 +390,7 @@ static void server_loop(int ls) {
         s_newjob_ok(wake_conn);
       }
     }
-  }
+  } // end of while (keep_loop)
 
   end_server(ls);
 }
@@ -364,8 +419,6 @@ static void remove_connection(int index) {
 static void clean_after_client_disappeared(int socket, int index) {
   /* Act as if the job ended. */
   int jobid = client_cs[index].jobid;
-  // fprintf(dbf, "clean %d from client_cs[%d]\n", jobid, index);
-  // fflush(dbf);
   if (client_cs[index].hasjob) {
     struct Result r = default_result();
 
@@ -432,13 +485,13 @@ static enum Break client_read(int index) {
     close(s);
     remove_connection(index);
     break;
-  case HOLD_JOB:
-    s_hold_job(s, m.jobid, ts_UID);
+  case PAUSE_JOB:
+    s_pause_job(s, m.jobid, ts_UID);
     close(s);
     remove_connection(index);
     break;
-  case RESTART_JOB:
-    s_restart_job(s, m.jobid, ts_UID);
+  case RERUN_JOB:
+    s_rerun_job(s, m.jobid, ts_UID);
     close(s);
     remove_connection(index);
     break;
@@ -495,8 +548,14 @@ static enum Break client_read(int index) {
       break; 
     }
     
-    client_cs[index].jobid = s_newjob(s, &m, ts_UID);
+    client_cs[index].jobid = s_newjob(s, &m, ts_UID, s);
     client_cs[index].hasjob = 1;
+    if (client_cs[index].jobid == -1) {
+      s_newjob_nok(index);
+      client_cs[index].hasjob = 0;
+      clean_after_client_disappeared(s, index);
+      break;
+    }
     if (!job_is_holding_client(client_cs[index].jobid))
       s_newjob_ok(index);
     else if (!m.u.newjob.wait_enqueuing) {
@@ -677,8 +736,6 @@ static void s_runjob(int jobid, int index) {
     error("Run job of the client %i which doesn't have any job", index);
 
   s = client_cs[index].socket;
-  // fprintf(dbf, "socket = %d, jobid = %d\n", s, jobid);
-  // fflush(dbf);
   s_send_runjob(s, jobid);
 }
 
