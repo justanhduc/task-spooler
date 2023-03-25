@@ -5,7 +5,6 @@
     Please find the license in the provided COPYING file.
 */
 #include <assert.h>
-#include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,6 +18,8 @@
 
 #include <time.h>
 #include <unistd.h>
+
+#include <fcntl.h>
 
 #include "main.h"
 

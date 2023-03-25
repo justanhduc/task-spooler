@@ -1099,7 +1099,7 @@ static int fork_cmd(int UID, const char* path, const char* cmd) {
     }
     return pid;
 }
-// TODO add the check of running state.
+
 static void s_add_job(struct Job* j, struct Job** p) {
   if (j->state == RUNNING || j->state == HOLDING_CLIENT || j->state == RELINK) {
     if (j->pid > 0 && s_check_running_pid(j->pid) == 1) {
@@ -1108,7 +1108,7 @@ static void s_add_job(struct Job* j, struct Job** p) {
       int ts_UID = j->ts_UID;
       user_jobs[ts_UID]++;
 
-      if (j->state == RUNNING) {
+      if (j->state == RUNNING && check_ifsleep(j->pid) == 1) {
         int slots = j->num_slots;
         user_busy[ts_UID] += slots;
         busy_slots += slots;
