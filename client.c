@@ -501,7 +501,7 @@ void c_pause_job(int jobid) {
   m.jobid = jobid;
   send_msg(server_socket, &m);
   c_wait_server_lines();
-  kill_pid(pid, "kill -s STOP");
+  kill_pid(pid, "kill -s STOP", NULL);
 }
 
 void c_rerun_job(int jobid) {
@@ -525,10 +525,11 @@ void c_rerun_job(int jobid) {
   // not error, restart job
   if (wait_server_lines_and_check("Error") == 0) {
     c_wait_server_lines();
-    kill_pid(pid, "kill -s CONT");
+    kill_pid(pid, "kill -s CONT", NULL);
   }
 
 }
+
 
 int c_tail() {
   char *str;
@@ -594,13 +595,14 @@ void c_kill_job() {
 
 void c_kill_all_jobs() {
   struct Msg m = default_msg();
-  if (client_uid != 0) {
-    printf("Only the root can shutdown the ts server\n");
-    return;
-  }
   int res;
   char buf[10];
-  printf("Do you want to kill all jobs? (Yes/n) ");
+  if (client_uid == 0) {
+    printf("Do you want to kill all jobs in [Root]? (Yes/n) ");
+  } else {
+    printf("Do you want to kill all jobs by this user? (Yes/n) ");
+  }
+
   scanf("%3s", buf);
   if (strcmp(buf, "Yes") != 0) {
     return;

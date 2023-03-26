@@ -64,6 +64,9 @@ static void destroy_job(struct Job *p) {
     free(p->depend_on);
     free(p->label);
     free(p);
+    #ifdef TASKSET
+    free(p->cores);
+    #endif
   }
 }
 
@@ -74,18 +77,35 @@ static void free_cores(struct Job* p) {
   busy_slots -= p->num_slots;
   // user_queue[ts_UID]--;
   user_jobs[ts_UID]--;
+#ifdef TASKSET
   unlock_core_by_job(p);
+#endif
 }
 
-static int allocate_cores(struct Job* p) {
-  if (p == NULL) return 0;
+static void allocate_cores(struct Job* p) {
+  if (p == NULL) return;
   int ts_UID = p->ts_UID;
   user_busy[ts_UID] += p->num_slots;
   busy_slots += p->num_slots;
   // user_queue[ts_UID]++;
   user_jobs[ts_UID]++;
-  return set_task_cores(p);
+#ifdef TASKSET
+  set_task_cores(p, NULL);
+#endif
 }
+
+static void allocate_cores_and_cont(struct Job* p) {
+  if (p == NULL) return;
+  int ts_UID = p->ts_UID;
+  user_busy[ts_UID] += p->num_slots;
+  busy_slots += p->num_slots;
+  // user_queue[ts_UID]++;
+  user_jobs[ts_UID]++;
+#ifdef TASKSET
+  set_task_cores(p, "kill -s CONT");
+#endif
+}
+
 
 void send_list_line(int s, const char *str) {
   struct Msg m = default_msg();
@@ -155,7 +175,7 @@ static struct Job *find_previous_job(const struct Job *final) {
 }
 
 
-static struct Job *findjob(int jobid) {
+struct Job *findjob(int jobid) {
   struct Job *p;
 
   /* Show Queued or Running jobs */
@@ -290,22 +310,22 @@ static void add_notify_errorlevel_to(struct Job *job, int jobid) {
   job->notify_errorlevel_to[job->notify_errorlevel_to_size - 1] = jobid;
 }
 
-void s_kill_all_jobs(int s) {
+void s_kill_all_jobs(int s, int ts_UID) {
 
   struct Job *p;
-  s_count_running_jobs(s);
+  s_count_running_jobs(s, ts_UID);
 
   /* send running job PIDs */
   p = firstjob.next;
   while (p != 0) {
-    if (p->state == RUNNING)
+    if (p->state == RUNNING && (ts_UID == 0 || p->ts_UID == ts_UID))
       send(s, &p->pid, sizeof(int), 0);
-
+    
     p = p->next;
   }
 }
 
-void s_count_running_jobs(int s) {
+void s_count_running_jobs(int s, int ts_UID) {
   int count = 0;
   struct Job *p;
   struct Msg m = default_msg();
@@ -313,7 +333,7 @@ void s_count_running_jobs(int s) {
   /* Count running jobs */
   p = firstjob.next;
   while (p != 0) {
-    if (p->state == RUNNING)
+    if (p->state == RUNNING && (ts_UID == 0 || p->ts_UID == ts_UID))
       ++count;
 
     p = p->next;
@@ -571,7 +591,13 @@ static struct Job *newjobptr() {
   p->next->command  = NULL;
   p->next->work_dir = NULL;
   p->next->command_strip = 0;
-  
+  p->next->depend_on = NULL;
+  p->next->notify_errorlevel_to = NULL;
+  #ifdef TASKSET
+  p->next->cores = NULL;
+  #endif
+
+
   struct Procinfo* info= &(p->next->info);
   info->enqueue_time.tv_sec  = 0;
   info->start_time.tv_sec    = 0;
@@ -974,7 +1000,9 @@ static void new_finished_job(struct Job *j) {
 
   delete_DB(j->jobid, "Jobs");
   insert_DB(j, "Finished");
-  unlock_core_by_job(j);
+  #ifdef TASKSET
+    unlock_core_by_job(j);
+  #endif
 }
 
 static int job_is_in_state(int jobid, enum Jobstate state) {
@@ -1007,16 +1035,17 @@ static int in_notify_list(int jobid) {
   return 0;
 }
 
+/* job_finished from running to jobid */
 void job_finished(const struct Result *result, int jobid) {
   struct Job *p;
 
-  if (busy_slots <= 0)
+  if (busy_slots < 0)
     error(
         "Wrong state in the server. busy_slots = %i instead of greater than 0",
         busy_slots);
 
   p = findjob(jobid);
-  if (p == 0)
+  if (p == NULL)
     error("on jobid %i finished, it doesn't exist", jobid);
 
   /* The job may be not only in running state, but also in other states, as
@@ -1033,6 +1062,7 @@ void job_finished(const struct Result *result, int jobid) {
     p->state = SKIPPED;
   else
     p->state = FINISHED;
+
   p->result = *result;
   last_finished_jobid = p->jobid;
   notify_errorlevel(p);
@@ -1139,7 +1169,9 @@ static void s_add_job(struct Job* j, struct Job** p) {
         int slots = j->num_slots;
         user_busy[ts_UID] += slots;
         busy_slots += slots;
-        set_task_cores(j);
+        #ifdef TASKSET
+          set_task_cores(j, NULL);
+        #endif
       }
 
       jobDB_Jobs[jobDB_num] = j;
@@ -1261,7 +1293,9 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
   pinfo_set_start_time(&p->info);
 
   insert_or_replace_DB(p, "Jobs");
-  set_task_cores(p);
+  #ifdef TASKSET
+    set_task_cores(p, NULL);
+  #endif
   write_logfile(p);
 }
 
@@ -1329,6 +1363,8 @@ void s_job_info(int s, int jobid) {
   }
 
   m.type = INFO_DATA;
+
+  float t;
   send_msg(s, &m);
   pinfo_dump(&p->info, s);
   fd_nprintf(s, 100, "Command: ");
@@ -1338,26 +1374,32 @@ void s_job_info(int s, int jobid) {
       fd_nprintf(s, 100, ",%i", p->depend_on[i]);
     fd_nprintf(s, 100, "]&& ");
   }
-  write(s, p->command, strlen(p->command));
+  write(s, p->command + p->command_strip, strlen(p->command + p->command_strip));
   fd_nprintf(s, 100, "\n");
   fd_nprintf(s, 100, "User: %s [%d]\n", user_name[p->ts_UID], user_UID[p->ts_UID]);
-  fd_nprintf(s, 100, "Slots required: %4i;  PID: %d\n",
-        p->num_slots, p->pid);
+  fd_nprintf(s, 100, "State: %-7s  PID: %-6d\n", 
+      jstate2string(p->state), p->pid);
+
+  #ifdef TASKSET
+  if (p->cores != NULL) {
+    fd_nprintf(s, 100, "Slots: %-3d \tTaskset: %s\n", p->num_slots, p->cores);
+  }
+  #elif
+    fd_nprintf(s, 100, "Slots: %-3d\n", p->num_slots);
+  #endif
   fd_nprintf(s, 100, "Output: %s\n", p->output_filename);
   fd_nprintf(s, 100, "Enqueue time: %s", ctime(&p->info.enqueue_time.tv_sec));
+  fd_nprintf(s, 100, "Start time: %s", ctime(&p->info.start_time.tv_sec));
   if (p->state == RUNNING) {
-    fd_nprintf(s, 100, "Start time: %s", ctime(&p->info.start_time.tv_sec));
-    float t = pinfo_time_until_now(&p->info);
-    char *unit = time_rep(&t);
-    fd_nprintf(s, 100, "Time running: %f%s\n", t, unit);
+    t = pinfo_time_until_now(&p->info);
   } else if (p->state == FINISHED) {
-    fd_nprintf(s, 100, "Start time: %s", ctime(&p->info.start_time.tv_sec));
+    t = pinfo_time_run(&p->info);
     fd_nprintf(s, 100, "End time: %s", ctime(&p->info.end_time.tv_sec));
-    float t = pinfo_time_run(&p->info);
-    char *unit = time_rep(&t);
-    fd_nprintf(s, 100, "Time run: %:.4f %s\n", t, unit);
   }
-  fd_nprintf(s, 100, "\n");
+  char *unit = time_rep(&t);
+  fd_nprintf(s, 100, "Time running: %.4f %s\n", t, unit);
+
+  // fd_nprintf(s, 100, "\n");
 }
 
 void s_send_last_id(int s) {
@@ -1399,9 +1441,9 @@ void s_cont_user(int s, int ts_UID) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
         if (check_ifsleep(p->pid) == 1) {
-          allocate_cores(p);
+          allocate_cores_and_cont(p);
         }
-        kill_pid(p->pid, "kill -s CONT");
+        // kill_pid(p->pid, "kill -s CONT");
       }
     }
     p = p->next;
@@ -1427,7 +1469,7 @@ void s_stop_user(int s, int ts_UID) {
         if (check_ifsleep(p->pid) == 0) {
           free_cores(p);
         }
-        kill_pid(p->pid, "kill -s STOP");
+        kill_pid(p->pid, "kill -s STOP", NULL);
       } else {
         char *label = "(...)";
         if (p->label != NULL)

@@ -349,6 +349,7 @@ int read_jobid_DB(int** jobids, const char* table) {
 
 struct Job* read_DB(int jobid, const char* table) {
     struct Job* job = (struct Job*)malloc(sizeof(struct Job)*1);
+    job->cores = NULL;
     struct Result* result = &(job->result);
     struct Procinfo* info= &(job->info);
 

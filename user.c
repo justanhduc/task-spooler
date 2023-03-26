@@ -294,13 +294,18 @@ int get_tsUID(int uid) {
   return -1;
 }
 
-void kill_pid(int pid, const char *signal) {
-  FILE *fp;
+
+void kill_pid(int pid, const char *signal, const char* extra) {
   char command[1024];
-  char *path = get_kill_sh_path();
-  sprintf(command, "bash %s %d \"%s\"", path, pid, signal);
+  const char *path = get_kill_sh_path();
+  if (extra == NULL) {
+    sprintf(command, "bash %s %d \"%s\"", path, pid, signal);
+  } else {
+    sprintf(command, "bash %s %d \"%s\" \"%s\"", path, pid, signal, extra);
+  }
   // printf("command = %s\n", command);
-  fp = popen(command, "r");
-  free(path);
-  pclose(fp);
+  // fp = popen(command, "r");
+  system(command);
+  // pclose(fp);
 }
+

@@ -19,26 +19,30 @@
 #include "main.h"
 
 int server_socket;
+char kill_sh_path[1024] = {0};
 
 static char *socket_path;
 static int should_check_owner = 0;
 
 static int fork_server();
 
-char *get_kill_sh_path() {
+const char *get_kill_sh_path() { return kill_sh_path; }
+
+static const char *set_kill_sh_path() {
   char *tmpdir;
   tmpdir = getenv("TMPDIR");
   if (tmpdir == NULL)
     tmpdir = "/tmp";
-  char *path = NULL;
+  // char *path = NULL;
   int size = strlen(tmpdir) + strlen("/kill_ppid.sh") + 1;
-  path = (char *)malloc(size);
-  snprintf(path, size, "%s/kill_ppid.sh", tmpdir);
-  return path;
+  // path = (char *)malloc(size);
+  snprintf(kill_sh_path, size, "%s/kill_ppid.sh", tmpdir);
+  return kill_sh_path;
 }
 
 static void setup_kill_sh() {
-  char *path = get_kill_sh_path();
+  set_kill_sh_path();
+  const char* path = get_kill_sh_path();
   FILE *f = fopen(path, "w");
   if (f == NULL) {
     printf("Cannot create `kill_ppide.sh` file at %s\n", path);
@@ -85,21 +89,31 @@ if [[ "$owner" != "$user" ]]; then
     extra="sudo"
 fi
 
-for pid in ${pids}; 
-do
+if [ -z "$3" ]
+then
     if [ -z "$2" ]
     then
-        echo "${extra} ${pid}"
+        for pid in ${pids};
+        do
+            ${extra} echo ${pid}
+        done
     else
-        ${extra} $2 ${pid}
+        for pid in ${pids};
+        do
+            ${extra} $2 ${pid}
+        done
     fi
-done
-
+else
+    for pid in ${pids};
+    do
+        ${extra} $2 ${pid}
+        ${extra} $3 ${pid}
+    done
+fi
 )");
   fclose(f);
 
   printf("  Kill_PPID.sh at `%s`\n\n", path);
-  free(path);
 }
 
 void create_socket_path(char **path) {

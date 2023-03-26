@@ -15,15 +15,16 @@ int task_array_id[MAX_CORE_NUM] = {0};
 int task_core_num, core_usage;
 
 void init_taskset() {
-    printf("CPU taskset()\n");
+    // printf("CPU taskset()\n");
     task_core_num = 0;
     core_usage = 0;
-    
+    #ifdef TASKSET
     for (int i = 0; i < MAX_CORE_NUM; i++) {
         core_id[i] = i / 2 + ((i % 2) + (i >= MAX_CORE_NUM_HALF)) * MAX_CORE_NUM_QUAD;
         printf("[%3d] => %3d\t", i, core_id[i]);
         if ((i+1)%8 == 0) printf("\n");
     }
+    #endif
 }
 
 int allocate_cores(int N) {
@@ -59,10 +60,13 @@ void unlock_core_by_job(struct Job* p) {
             core_usage--;
         }
     }
+    free(p->cores);
+    p->cores = NULL;
 }
 
-int set_task_cores(struct Job* p) {
+int set_task_cores(struct Job* p, const char* extra) {
     if (p == NULL || p->pid <= 0 || p->state != RUNNING) return -1;
+#ifdef TASKSET
     int N = p->num_slots;
 
     if (allocate_cores(N) != N) {
@@ -72,15 +76,20 @@ int set_task_cores(struct Job* p) {
     lock_core_by_job(p);
     
     char* core_str = ints_to_chars(N, task_cores_id, ",");
-    int size = strlen(core_str) + 25;
+    int size = strlen(core_str) + 30;
     char* cmd = (char*) malloc(sizeof(char) * size);
     sprintf(cmd, "taskset -cp %s ", core_str);
-    printf("[CMD] %s %d\n", cmd, p->pid);
+    if (extra == NULL) {
+        printf("[CMD] %s %d\n", cmd, p->pid);
+    } else {       
+        printf("[CMD] %s %d; %s %d\n", cmd, p->pid, extra, p->pid);
+    }
 
-    kill_pid(p->pid, cmd);
-
-    free(core_str);
+    kill_pid(p->pid, cmd, extra);
+    p->cores = core_str;
+    // free(core_str);
     free(cmd);
+#endif
     return 0;
 }
 

@@ -130,7 +130,7 @@ static struct option longOptions[] = {
     {"count_running", no_argument, NULL, 'R'},
     {"help", no_argument, NULL, 0},
     {"last_queue_id", no_argument, NULL, 'q'},
-    {"full_cmd", optional_argument, NULL, 'F'},
+    {"full_cmd", required_argument, NULL, 'F'},
     {"plain", no_argument, NULL, 0},
     {"get_logdir", no_argument, NULL, 0},
     {"set_logdir", required_argument, NULL, 0},
@@ -144,7 +144,7 @@ static struct option longOptions[] = {
     {"lock-ts", no_argument, NULL, 0},
     {"unlock-ts", no_argument, NULL, 0},
     {"daemon", no_argument, NULL, 0},
-    {"pid", required_argument, NULL, 0},
+    {"relink", required_argument, NULL, 0},
     {"stime", required_argument, NULL, 0},
     {"check_daemon", no_argument, NULL, 0},
     {NULL, 0, NULL, 0}};
@@ -208,7 +208,14 @@ void parse_opts(int argc, char **argv) {
       } else if (strcmp(longOptions[optionIdx].name, "plain") == 0) {
         command_line.request = c_LIST;
         command_line.plain_list = 1;
-      } else if (strcmp(longOptions[optionIdx].name, "pid") == 0) {
+      } else if (strcmp(longOptions[optionIdx].name, "full_cmd") == 0) {
+        command_line.request = c_SHOW_CMD;
+        if (optarg != NULL) {
+          command_line.jobid = -1; // str2int(optarg);
+        } else {
+          command_line.jobid = -1;
+        }
+      } else if (strcmp(longOptions[optionIdx].name, "relink") == 0) {
         command_line.taskpid = str2int(optarg);
         if (command_line.taskpid <= 0)
           command_line.taskpid = 0;
@@ -583,7 +590,7 @@ static void print_help(const char *cmd) {
   printf("  --cont [user]                   For normal user, continue all "
          "paused tasks and lock the account. \n                         "
          "         For root, to unlock all users or single [user].\n");
-  printf("  --pid [PID]                     Relink the running tasks by its [PID] from an expected failure.\n");
+  printf("  --relink [PID]                  Relink the running tasks by its [PID] from an expected failure.\n");
   printf("  --stime [start_time]            Set the relinked task by starting time (Unix epoch).\n");
   printf("Actions:\n");
   printf("  -A           Show all users information\n");

@@ -230,6 +230,9 @@ struct Job {
   char *label;
   struct Procinfo info;
   int num_slots;
+#ifdef TASKSET
+  char* cores;
+#endif
 };
 
 enum ExitCodes {
@@ -356,7 +359,7 @@ void s_send_state(int s, int jobid);
 
 void s_swap_jobs(int s, int jobid1, int jobid2);
 
-void s_count_running_jobs(int s);
+void s_count_running_jobs(int s, int ts_UID);
 
 void dump_jobs_struct(FILE *out);
 
@@ -384,7 +387,7 @@ int wake_hold_client();
 
 void s_get_label(int s, int jobid);
 
-void s_kill_all_jobs(int s);
+void s_kill_all_jobs(int s, int ts_UID);
 
 void s_get_logdir(int s);
 
@@ -512,7 +515,7 @@ int tail_file(const char *fname, int last_lines);
 
 /* user.c */
 static const int root_UID = 0;
-char *get_kill_sh_path();
+const char *get_kill_sh_path();
 void read_user_file(const char *path);
 int get_tsUID(int uid);
 void c_refresh_user();
@@ -524,7 +527,7 @@ long str2int(const char *str);
 void debug_write(const char *str);
 const char *uid2user_name(int uid);
 int read_first_jobid_from_logfile(const char *path);
-void kill_pid(int ppid, const char *signal);
+void kill_pid(int ppid, const char *signal, const char* extra);
 char* linux_cmd(char* CMD, char* out, int out_size);
 char **split_str(const char *str, int *size);
 void check_running_task(int pid);
@@ -556,6 +559,7 @@ void s_sort_jobs();
 int s_check_relink(int s, struct Msg *m, int ts_UID);
 void s_read_sqlite();
 int s_check_running_pid(int pid);
+struct Job *findjob(int jobid);
 
 /* client.c */
 void c_list_jobs_all();
@@ -589,6 +593,6 @@ int*  chars_to_ints(int *size, char* str, const char* delim);
 
 /* taskset.c */
 void init_taskset();
-int set_task_cores(struct Job* p);
+int set_task_cores(struct Job* p, const char* extra);
 void unlock_core_by_job(struct Job* p);
 

@@ -416,6 +416,7 @@ static void remove_connection(int index) {
   nconnections--;
 }
 
+
 static void clean_after_client_disappeared(int socket, int index) {
   /* Act as if the job ended. */
   int jobid = client_cs[index].jobid;
@@ -445,6 +446,25 @@ static void clean_after_client_disappeared(int socket, int index) {
 
   close(socket);
   remove_connection(index);
+}
+
+
+static void s_remove_all_queues(int ts_UID) {
+  int i = 0;
+  struct Job* p;
+  while(i < nconnections - 1) {
+    if (ts_UID == 0 || client_cs[i].ts_UID == ts_UID) {
+      p = findjob(client_cs[i].jobid);
+      if (p->state != RUNNING) {
+        pinfo_set_start_time(&p->info);
+        clean_after_client_disappeared(client_cs[i].socket, i);
+      } else {
+        i++; // To next one
+      }
+    } else {
+      i++; // To next one
+    }
+  }
 }
 
 static enum Break client_read(int index) {
@@ -576,9 +596,14 @@ static enum Break client_read(int index) {
       s_process_runjob_ok(client_cs[index].jobid, buffer, m.u.output.pid);
   } break;
   case KILL_ALL:
-    if (ts_UID == 0)
-      s_kill_all_jobs(s);
-    break;
+      s_kill_all_jobs(s, ts_UID);
+      s_remove_all_queues(ts_UID);
+      /* TODO to remove the queued jobs
+      for (int i = 0; i < nconnections; i++) {
+        client_cs[].hasjob = 0;
+        clean_after_client_disappeared(s, index);
+      }
+      */
   case LIST:
     term_width = m.u.list.term_width;
     if (m.u.list.plain_list)
@@ -657,7 +682,7 @@ static enum Break client_read(int index) {
     s_wait_running_job(s, m.jobid);
     break;
   case COUNT_RUNNING:
-    s_count_running_jobs(s);
+    s_count_running_jobs(s, ts_UID);
     break;
   case URGENT:
     if (ts_UID == 0 || ts_UID == s_get_job_tsUID(m.jobid)) {

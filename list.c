@@ -83,10 +83,9 @@ char *joblist_headers() {
 
   line = malloc(256);
   snprintf(line, 256,
-           "%-4s %-7s %-7s %-6s %-10s %6s  %-20s   %s [run=%i/%i %d %.2f%%] %s\n",
+           "%-4s %-7s %-7s %-6s %-10s %6s  %-20s   %s [run=%i/%i %.2f%%] Core: %-3d %s\n",
            "ID", "State", "Proc.", "User", "Label", "Time", "Command", "Log",
-           busy_slots, max_slots, core_usage, 100.0 * busy_slots / max_slots, extra);
-
+           busy_slots, max_slots, 100.0 * busy_slots / max_slots, core_usage, extra);
   return line;
 }
 
