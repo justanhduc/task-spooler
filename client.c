@@ -524,8 +524,10 @@ void c_rerun_job(int jobid) {
   send_msg(server_socket, &m);
   // not error, restart job
   if (wait_server_lines_and_check("Error") == 0) {
+    c_wait_server_lines();
     kill_pid(pid, "kill -s CONT");
   }
+
 }
 
 int c_tail() {

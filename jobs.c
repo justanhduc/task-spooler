@@ -67,6 +67,26 @@ static void destroy_job(struct Job *p) {
   }
 }
 
+static void free_cores(struct Job* p) {
+  if (p == NULL) return;
+  int ts_UID = p->ts_UID;
+  user_busy[ts_UID] -= p->num_slots;
+  busy_slots -= p->num_slots;
+  // user_queue[ts_UID]--;
+  user_jobs[ts_UID]--;
+  unlock_core_by_job(p);
+}
+
+static int allocate_cores(struct Job* p) {
+  if (p == NULL) return 0;
+  int ts_UID = p->ts_UID;
+  user_busy[ts_UID] += p->num_slots;
+  busy_slots += p->num_slots;
+  // user_queue[ts_UID]++;
+  user_jobs[ts_UID]++;
+  return set_task_cores(p);
+}
+
 void send_list_line(int s, const char *str) {
   struct Msg m = default_msg();
 
@@ -1378,8 +1398,10 @@ void s_cont_user(int s, int ts_UID) {
     if (p->ts_UID == ts_UID && p->state == RUNNING) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
+        if (check_ifsleep(p->pid) == 1) {
+          allocate_cores(p);
+        }
         kill_pid(p->pid, "kill -s CONT");
-        set_task_cores(p);
       }
     }
     p = p->next;
@@ -1402,8 +1424,10 @@ void s_stop_user(int s, int ts_UID) {
     if (p->ts_UID == ts_UID && p->state == RUNNING) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
+        if (check_ifsleep(p->pid) == 0) {
+          free_cores(p);
+        }
         kill_pid(p->pid, "kill -s STOP");
-        unlock_core_by_job(p);
       } else {
         char *label = "(...)";
         if (p->label != NULL)
@@ -1747,11 +1771,7 @@ void s_pause_job(int s, int jobid, int ts_UID) {
   }
   int job_tsUID = p->ts_UID;
   if (p->pid != 0 && (job_tsUID = ts_UID || ts_UID == 0)) {
-    user_busy[ts_UID] -= p->num_slots;
-    busy_slots -= p->num_slots;
-    user_queue[ts_UID]--;
-    user_jobs[ts_UID]--;
-    unlock_core_by_job(p);
+    free_cores(p);
     snprintf(buff, 255, "To pause job [%d] successfully!\n", jobid);
   } else {
     snprintf(buff, 255, "Error: cannot pause job [%d]\n", jobid);
@@ -1774,15 +1794,12 @@ void s_rerun_job(int s, int jobid, int ts_UID) {
     send_list_line(s, buff);
     return;
   }
+
   int job_tsUID = p->ts_UID;
   if (p->pid != 0 && (job_tsUID = ts_UID || ts_UID == 0)) {
     int num_slots = p->num_slots;
     if (user_busy[ts_UID] + num_slots < user_max_slots[ts_UID] && busy_slots + num_slots <= max_slots) {
-      user_busy[ts_UID] += num_slots;
-      busy_slots += num_slots;
-      user_queue[ts_UID]++;
-      user_jobs[ts_UID]++;
-      set_task_cores(p);
+      allocate_cores(p);
       snprintf(buff, 255, "To rerun job [%d] successfully!\n", jobid);
     } else {
       snprintf(buff, 255, "Error: not enough slots [%d]\n", jobid);

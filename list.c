@@ -17,7 +17,7 @@
 /* From jobs.c */
 extern int busy_slots;
 extern int max_slots;
-
+extern int core_usage;
 /* return 0 for run and 1 for running and -1 for error */
 int check_ifsleep(int pid) {
   char filename[256];
@@ -83,9 +83,9 @@ char *joblist_headers() {
 
   line = malloc(256);
   snprintf(line, 256,
-           "%-4s %-7s %-7s %-6s %-10s %6s  %-20s   %s [run=%i/%i %.2f%%] %s\n",
+           "%-4s %-7s %-7s %-6s %-10s %6s  %-20s   %s [run=%i/%i %d %.2f%%] %s\n",
            "ID", "State", "Proc.", "User", "Label", "Time", "Command", "Log",
-           busy_slots, max_slots, 100.0 * busy_slots / max_slots, extra);
+           busy_slots, max_slots, core_usage, 100.0 * busy_slots / max_slots, extra);
 
   return line;
 }
