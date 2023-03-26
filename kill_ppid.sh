@@ -39,12 +39,28 @@ if [[ "$owner" != "$user" ]]; then
     extra="sudo"
 fi
 
-for pid in ${pids}; 
-do
+
+if [ -z "$3" ]
+then
     if [ -z "$2" ]
     then
-        echo "${extra} ${pid}"
+        for pid in ${pids};
+        do
+            ${extra} echo ${pid}
+        done
     else
-        ${extra} $2 ${pid}
+        for pid in ${pids};
+        do
+            ${extra} $2 ${pid}
+        done
     fi
-done
+else
+    for pid in ${pids};
+    do
+        ${extra} $2 ${pid}
+        ${extra} $3 ${pid}
+    done
+fi
+
+
+
