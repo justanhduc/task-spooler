@@ -326,7 +326,9 @@ int s_check_running_pid(int pid) {
   // char cmd[256], filename[256] = "";
   // snprintf(cmd, sizeof(cmd), "readlink -f /proc/%d/fd/1", pid);
   // linux_cmd(cmd, filename, sizeof(filename));
-  return kill(pid, 0) == 0;
+  int res = kill(pid, 0);
+  // printf("res = %d\n", res);
+  return res == 0;
 }
 
 // if any error return non-0;
@@ -1313,13 +1315,7 @@ void job_finished(const struct Result *result, int jobid) {
 }
 static int fork_cmd(int UID, const char* path, const char* cmd) {
     int pid = -1; //定义一个进程ID变量
-    int fd[2]; //定义一个管道数组
-    // char buffer[10]; //定义一个缓冲区
-    if (pipe(fd) < 0) //创建一个管道
-    {
-        perror("pipe error"); //打印错误信息
-        return -1;
-    }
+
     pid = fork(); //调用fork()函数创建子进程
     if (pid < 0) //如果返回值小于0，表示fork失败
     {
@@ -1328,19 +1324,7 @@ static int fork_cmd(int UID, const char* path, const char* cmd) {
     }
     else if (pid == 0) //如果返回值等于0，表示子进程正在运行
     {
-        // printf("This is child process, pid = %d\n", getpid()); //打印子进程的ID
-        close(fd[0]); //关闭管道的读端
-        /*
-        if (setuid(UID) < 0) {
-          sprintf(buffer, "%d", -1); //将子进程的ID转换为字符串
-        } else {
-          sprintf(buffer, "%d", getpid()); //将子进程的ID转换为字符串
-        }
-        write(fd[1], buffer, sizeof(buffer)); //将字符串写入管道的写端
-        */
         setuid(UID);
-        close(fd[1]); //关闭管道的写端
-
         if (path != NULL) chdir(path);
         system(cmd);
         exit(0);
@@ -1360,12 +1344,7 @@ static int fork_cmd(int UID, const char* path, const char* cmd) {
     }
     else //如果返回值大于0，表示父进程正在运行
     {
-        // printf("This is parent process, pid = %d\n", getpid()); //打印父进程的ID
-        // close(fd[1]); //关闭管道的写端
-        // read(fd[0], buffer, sizeof(buffer)); //从管道的读端读取字符串
         printf("[Child PID:%d] Add queued job: %s\n", pid, cmd); //打印子进程的ID
-        // close(fd[0]); //关闭管道的读端
-        //wait(NULL); //等待子进程结束
     }
     return pid;
 }
@@ -1384,9 +1363,7 @@ static void s_add_job(struct Job* j, struct Job** p) {
         int slots = j->num_slots;
         user_busy[ts_UID] += slots;
         busy_slots += slots;
-        #ifdef TASKSET
-          set_task_cores(j, NULL);
-        #endif
+
       }
       j->state = DELINK;
 
@@ -1400,7 +1377,8 @@ static void s_add_job(struct Job* j, struct Job** p) {
       sprintf(c, " --relink %d -J %d ", j->pid, j->jobid); 
       char* str = insert_chars(j->command_strip, j->command, c);
 
-      fork_cmd(user_UID[j->ts_UID], j->work_dir, str);
+      // fork_cmd(user_UID[j->ts_UID], j->work_dir, str);
+      fork_cmd(0, j->work_dir, str);
 
       jobids = jobids > j->jobid ? jobids : j->jobid + 1;
       j = NULL;
@@ -1507,7 +1485,9 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
     error("Job %i not running, but %i on runjob_ok", jobid, p->state);
 
   p->pid = pid;
-  p->output_filename = oname;
+  if (strlen(oname) != 0) {
+    p->output_filename = oname;
+  }
   pinfo_set_start_time_check(&p->info);
 
   insert_or_replace_DB(p, "Jobs");

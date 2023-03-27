@@ -26,7 +26,7 @@
 /* from signals.c */
 extern int signals_child_pid; /* 0, not set. otherwise, set. */
 
-
+/**/
 static int wait_for_pid(int pid)
 {
     char path[32];
@@ -36,6 +36,7 @@ static int wait_for_pid(int pid)
         close(in_fd);
         return -1;
     }
+    
     sprintf(path, "/proc/%i", pid);
     int dir_fd = open(path, 0);
     if (dir_fd < 0) {

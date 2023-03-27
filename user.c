@@ -106,9 +106,9 @@ void check_running_task(int pid) {
   snprintf(path, 255, "/proc/%d/fd/1", command_line.taskpid);
   int len = readlink(path, buff, sizeof(buff));
 
-  
+  // printf("path = %s, buff = %s\n", path, buff); 
   if (strlen(buff) == 0 || len == -1) {
-    error("Client: PID[%d] is dead", pid);
+    error("Client: PID[%d] is dead\n", pid);
   } else {
     printf("Client: PID[%d] => %s\n", pid, buff);
   }
