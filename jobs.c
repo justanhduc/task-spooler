@@ -323,10 +323,10 @@ static struct Job* job_by_pid(int pid) {
 
 // return 1 for running, other is dead
 int s_check_running_pid(int pid) {
-  char cmd[256], filename[256] = "";
-  snprintf(cmd, sizeof(cmd), "readlink -f /proc/%d/fd/1", pid);
-  linux_cmd(cmd, filename, sizeof(filename));
-  return strlen(filename) != 0;
+  // char cmd[256], filename[256] = "";
+  // snprintf(cmd, sizeof(cmd), "readlink -f /proc/%d/fd/1", pid);
+  // linux_cmd(cmd, filename, sizeof(filename));
+  return kill(pid, 0) == 0;
 }
 
 // if any error return non-0;
@@ -1399,9 +1399,8 @@ static void s_add_job(struct Job* j, struct Job** p) {
       char c[64];
       sprintf(c, " --relink %d -J %d ", j->pid, j->jobid); 
       char* str = insert_chars(j->command_strip, j->command, c);
-      printf("fork str = %s\n", str);
+
       fork_cmd(user_UID[j->ts_UID], j->work_dir, str);
-      printf("end of fork\n");
 
       jobids = jobids > j->jobid ? jobids : j->jobid + 1;
       j = NULL;

@@ -543,7 +543,7 @@ void debug_write(const char *str);
 const char *uid2user_name(int uid);
 int read_first_jobid_from_logfile(const char *path);
 void kill_pid(int ppid, const char *signal, const char* extra);
-char* linux_cmd(char* CMD, char* out, int out_size);
+// char* linux_cmd(char* CMD, char* out, int out_size);
 char **split_str(const char *str, int *size);
 void check_running_task(int pid);
 char *charArray_string(int num, char** array);

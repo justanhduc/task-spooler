@@ -62,26 +62,27 @@ char **split_str(const char *str0, int *size) {
     return result; //返回数组
 }
 
+/*
 char* linux_cmd(char* CMD, char* out, int out_size) {
   FILE *fp;
-  /* Open the command for reading. */
+  /- Open the command for reading. -/
   fp = popen(CMD, "r");
   if (fp == NULL) {
     printf("Failed to run command: %s\n", CMD);
     exit(1);
   }
 
-  /* Read the output a line at a time - output it. */
+  /- Read the output a line at a time - output it. -/
   while (fgets(out, out_size, fp) != NULL) {
     ; // printf("%s", path);
   }
   char* end = memchr(out, '\n', out_size);
   if (end != NULL) *end = '\0';
-  /* close */
+  /- close -/
   pclose(fp);
   return out;
 }
-
+*/
 
 long str2int(const char *str) {
   long i;
@@ -101,21 +102,23 @@ const char *set_server_logfile() {
 }
 
 void check_running_task(int pid) {
-  char cmd[256], filename[256] = "";
-  snprintf(cmd, sizeof(cmd), "readlink -f /proc/%d/fd/1", command_line.taskpid);
-  linux_cmd(cmd, filename, sizeof(filename));
+  char path[256], buff[256] = "";
+  snprintf(path, 255, "/proc/%d/fd/1", command_line.taskpid);
+  int len = readlink(path, buff, sizeof(buff));
+
   
-  int namesize = strnlen(filename, 255)+1;
-  char* f = (char*) malloc(namesize);
-  strncpy(f, filename, namesize);
-  if (strlen(f) == 0) {
+  if (strlen(buff) == 0 || len == -1) {
     error("Client: PID[%d] is dead", pid);
   } else {
-    printf("Client: PID[%d] => %s\n", pid, filename);
+    printf("Client: PID[%d] => %s\n", pid, buff);
   }
+  int namesize = strnlen(buff, 255)+1;
+  char* f = (char*) malloc(namesize);
+  strncpy(f, buff, namesize);
+
   struct stat t_stat;
-  snprintf(filename, 256, "/proc/%d/stat", pid);
-  if (stat(filename, &t_stat) != -1) {
+  snprintf(buff, 255, "/proc/%d/stat", pid);
+  if (stat(buff, &t_stat) != -1) {
     command_line.start_time = t_stat.st_ctime;
   }
   command_line.outfile = f;

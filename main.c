@@ -145,6 +145,7 @@ static struct option longOptions[] = {
     {"unlock-ts", no_argument, NULL, 0},
     {"daemon", no_argument, NULL, 0},
     {"relink", required_argument, NULL, 0},
+    {"jobid", required_argument, NULL, 'J'},
     {"stime", required_argument, NULL, 0},
     {"check_daemon", no_argument, NULL, 0},
     {NULL, 0, NULL, 0}};
@@ -590,7 +591,7 @@ static void print_help(const char *cmd) {
   printf(
       "  --set_logdir [path]             set the path containing log files.\n");
   printf(
-      "  --serialize [format]  || -M [format]   serialize the job list to the specified format. Choices: {default, json, tab}.\n");
+      "  --serialize   ||  -M [format]   serialize the job list to the specified format. Choices: {default, json, tab}.\n");
   printf("  --daemon                        Run the server as daemon by Root "
          "only.\n");
   printf("  --pause [jobid]                 hold on a task.\n");
@@ -606,7 +607,9 @@ static void print_help(const char *cmd) {
          "paused tasks and lock the account. \n                         "
          "         For root, to unlock all users or single [user].\n");
   printf("  --relink [PID]                  Relink the running tasks by its [PID] from an expected failure.\n");
-  printf("  --stime [start_time]            Set the relinked task by starting time (Unix epoch).\n");
+  printf(
+      "  --job [joibid] || -J [joibid]   set the new or relink job ID by jobid\n");
+  // printf("  --stime [start_time]            Set the relinked task by starting time (Unix epoch).\n");
   printf("Actions:\n");
   printf("  -A           Show all users information\n");
   printf(
