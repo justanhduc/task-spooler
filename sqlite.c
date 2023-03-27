@@ -4,7 +4,7 @@
 #include <time.h>
 
 #include "main.h"
-#include "default_path.h"
+#include "default.inc"
 
 sqlite3 *db = NULL;
 

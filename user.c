@@ -10,7 +10,7 @@
 
 #include "main.h"
 #include "user.h"
-#include "default_path.h"
+#include "default.inc"
 
 void send_list_line(int s, const char *str);
 void error(const char *str, ...);
