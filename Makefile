@@ -20,6 +20,7 @@ OBJECTS=main.o \
 	env.o \
 	tail.o \
 	user.o \
+	cJSON.o \
 	sqlite.o \
 	taskset.o
 TARGET=ts
@@ -54,8 +55,11 @@ error.o: error.c main.h
 signals.o: signals.c main.h
 list.o: list.c main.h
 tail.o: tail.c main.h
+cJSON.o: cjson/cJSON.c cjson/cJSON.h
 sqlite.o: sqlite.c main.h
 taskset.o: taskset.c main.h
+cJSON.o : cjson/cJSON.c cjson/cJSON.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 clean:
 	rm -f *.o $(TARGET); killall ts; rm ts;

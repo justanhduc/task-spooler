@@ -64,6 +64,12 @@ enum MsgTypes {
   UNSET_ENV
 };
 
+enum ListFormat {
+    DEFAULT,
+    JSON,
+    TAB
+};
+
 enum Request {
   c_QUEUE,
   c_TAIL,
@@ -108,7 +114,6 @@ enum Request {
 
 struct CommandLine {
   enum Request request;
-  int plain_list;
   int need_server;
   int store_output;
   int stderr_apart;
@@ -135,6 +140,7 @@ struct CommandLine {
   int taskpid;       /* to restore task by pid */
   int require_elevel; /* whether requires error level of dependencies or not */
   long start_time;
+  enum ListFormat list_format;
 };
 
 enum ProcessType { CLIENT, SERVER };
@@ -194,8 +200,8 @@ struct Msg {
     int count_running;
     char *label;
     struct {
-      int plain_list;
       int term_width;
+      enum ListFormat list_format;
     } list;
   } u;
 };
@@ -322,8 +328,8 @@ void c_set_env();
 void c_unset_env();
 
 /* jobs.c */
-void s_list(int s, int ts_UID);
-void s_list_all(int s);
+void s_list(int s, int ts_UID, enum ListFormat listFormat);
+void s_list_all(int s, enum ListFormat listFormat);
 
 void s_list_plain(int s);
 
@@ -480,7 +486,7 @@ char *joblistdump_torun(const struct Job *p);
 
 char *joblistdump_headers();
 
-char *time_rep(float *t);
+const char *time_rep(float *t);
 
 /* print.c */
 int fd_nprintf(int fd, int maxsize, const char *fmt, ...);

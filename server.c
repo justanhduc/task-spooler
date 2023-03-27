@@ -451,12 +451,9 @@ static void clean_after_client_disappeared(int socket, int index) {
 
 static void s_remove_all_queues(int ts_UID) {
   int i = 0;
-  struct Job* p;
   while(i < nconnections - 1) {
     if (ts_UID == 0 || client_cs[i].ts_UID == ts_UID) {
-      p = findjob(client_cs[i].jobid);
-      if (p->state != RUNNING) {
-        pinfo_set_start_time(&p->info);
+      if (job_is_running(client_cs[i].jobid) != 1) {
         clean_after_client_disappeared(client_cs[i].socket, i);
       } else {
         i++; // To next one
@@ -477,7 +474,7 @@ static enum Break client_read(int index) {
   /* Read the message */
   res = recv_msg(s, &m);
   if (res == -1) {
-    warning("client recv failed");    
+    warning("client recv failed");
     clean_after_client_disappeared(s, index);
     return NOBREAK;
   } else if (res == 0) {
@@ -606,22 +603,16 @@ static enum Break client_read(int index) {
       */
   case LIST:
     term_width = m.u.list.term_width;
-    if (m.u.list.plain_list)
-      s_list_plain(s);
-    else
-      s_list(s, ts_UID);
-    s_user_status(s, ts_UID);
+    s_list(s, ts_UID, m.u.list.list_format); // list ts_UID user
+
     /* We must actively close, meaning End of Lines */
     close(s);
     remove_connection(index);
     break;
   case LIST_ALL:
     term_width = m.u.list.term_width;
-    if (m.u.list.plain_list)
-      s_list_plain(s);
-    else
-      s_list_all(s);
-    s_user_status_all(s);
+    s_list(s, 0, m.u.list.list_format); // list all
+
     /* We must actively close, meaning End of Lines */
     close(s);
     remove_connection(index);

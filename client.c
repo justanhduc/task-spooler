@@ -114,7 +114,7 @@ void c_new_job() {
   /* Send the environment */
   send_bytes(server_socket, myenv, m.u.newjob.env_size);
 
-  free(new_command);
+  // free(new_command);
   free(myenv);
 }
 
@@ -178,8 +178,9 @@ int c_wait_server_commands() {
         result.real_ms = 0.;
         result.skipped = 1;
         c_send_runjob_ok(0, -1);
-      } else
+      } else {
         run_job(m.jobid, &result);
+      }
       c_end_of_job(&result);
       return result.errorlevel;
     }
@@ -223,8 +224,9 @@ void c_list_jobs() {
   struct Msg m = default_msg();
 
   m.type = LIST;
-  m.u.list.plain_list = command_line.plain_list;
+  m.u.list.list_format = command_line.list_format;
   m.u.list.term_width = term_width;
+  // m.u.term_width = term_width;
   send_msg(server_socket, &m);
 }
 
@@ -232,8 +234,9 @@ void c_list_jobs_all() {
   struct Msg m = default_msg();
 
   m.type = LIST_ALL;
-  m.u.list.plain_list = command_line.plain_list;
+  m.u.list.list_format = command_line.list_format;
   m.u.list.term_width = term_width;
+  // m.u.list.plain_list = command_line.plain_list;
   send_msg(server_socket, &m);
 }
 

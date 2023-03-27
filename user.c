@@ -122,7 +122,10 @@ void check_running_task(int pid) {
 }
 
 
-
+/*
+  ts_UID from user_number is 1-indexing
+  The minimal ts_UID for a valid user is 1;
+*/
 void write_logfile(const struct Job *p) {
   // char buf[1024] = "";
   FILE *f = fopen(logfile_path, "a");

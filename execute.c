@@ -80,9 +80,6 @@ static void run_relink(int pid, struct Result *result) {
     send_mail(command_line.jobid, result->errorlevel, ofname, command);
   }
   hook_on_finish(command_line.jobid, result->errorlevel, ofname, command);
-  free(command);
-
-  free(ofname);
 
   /* Calculate times */
   gettimeofday(&endtv, NULL);
@@ -93,6 +90,9 @@ static void run_relink(int pid, struct Result *result) {
    * is obtained in POSIX using sysconf(). */
   result->user_ms = (float)cpu_times.tms_cutime / (float)sysconf(_SC_CLK_TCK);
   result->system_ms = (float)cpu_times.tms_cstime / (float)sysconf(_SC_CLK_TCK);
+
+  free(command);
+  free(ofname);
 }
 /* Returns errorlevel */
 static void run_parent(int fd_read_filename, int pid, struct Result *result) {
@@ -154,9 +154,6 @@ static void run_parent(int fd_read_filename, int pid, struct Result *result) {
     send_mail(command_line.jobid, result->errorlevel, ofname, command);
   }
   hook_on_finish(command_line.jobid, result->errorlevel, ofname, command);
-  free(command);
-
-  free(ofname);
 
   /* Calculate times */
   gettimeofday(&endtv, NULL);
@@ -167,6 +164,9 @@ static void run_parent(int fd_read_filename, int pid, struct Result *result) {
    * is obtained in POSIX using sysconf(). */
   result->user_ms = (float)cpu_times.tms_cutime / (float)sysconf(_SC_CLK_TCK);
   result->system_ms = (float)cpu_times.tms_cstime / (float)sysconf(_SC_CLK_TCK);
+
+  free(command);
+  free(ofname);
 }
 
 void create_closed_read_on(int dest) {

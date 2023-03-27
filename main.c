@@ -53,7 +53,6 @@ static void init_version() {
 
 static void default_command_line() {
   command_line.request = c_LIST;
-  command_line.plain_list = 0;
   command_line.need_server = 0;
   command_line.store_output = 1;
   command_line.should_go_background = 1;
@@ -73,6 +72,7 @@ static void default_command_line() {
   command_line.taskpid = 0;
   command_line.start_time = 0;
   command_line.jobid = 0;
+  command_line.list_format = DEFAULT;
 }
 
 struct Msg default_msg() {
@@ -126,16 +126,16 @@ int strtok_int(char *str, char *delim, int *ids) {
 }
 
 static struct option longOptions[] = {
-    {"get_label", required_argument, NULL, 'a'},
-    {"count_running", no_argument, NULL, 'R'},
-    {"help", no_argument, NULL, 0},
-    {"last_queue_id", no_argument, NULL, 'q'},
-    {"full_cmd", required_argument, NULL, 'F'},
-    {"plain", no_argument, NULL, 0},
-    {"get_logdir", no_argument, NULL, 0},
-    {"set_logdir", required_argument, NULL, 0},
-    {"getenv", required_argument, NULL, 0},
-    {"setenv", required_argument, NULL, 0},
+    {"get_label",       required_argument, NULL, 'a'},
+    {"count_running",   no_argument, NULL, 'R'},
+    {"help",            no_argument, NULL, 0},
+    {"serialize",       required_argument, NULL, 'M'},
+    {"last_queue_id",   no_argument, NULL, 'q'},
+    {"full_cmd",        required_argument, NULL, 'F'},
+    {"get_logdir",      no_argument, NULL, 0},
+    {"set_logdir",      required_argument, NULL, 0},
+    {"getenv",          required_argument, NULL, 0},
+    {"setenv",          required_argument, NULL, 0},
     {"unsetenv", required_argument, NULL, 0},
     {"stop", optional_argument, NULL, 0},
     {"cont", optional_argument, NULL, 0},
@@ -157,7 +157,7 @@ void parse_opts(int argc, char **argv) {
   /* Parse options */
   while (1) {
     c = getopt_long(argc, argv,
-                    ":AXRTVhKzClnfmBE:a:F:t:c:o:p:w:k:r:u:s:U:qi:N:J:L:dS:D:W:O:",
+                    ":AXRTVhKzClnfmBE:a:F:t:c:o:p:w:k:r:u:s:U:qi:N:J:L:dS:D:W:O:M:",
                     longOptions, &optionIdx);
 
     if (c == -1)
@@ -205,9 +205,6 @@ void parse_opts(int argc, char **argv) {
       } else if (strcmp(longOptions[optionIdx].name, "unsetenv") == 0) {
         command_line.request = c_UNSET_ENV;
         command_line.label = optarg; /* reuse this var */
-      } else if (strcmp(longOptions[optionIdx].name, "plain") == 0) {
-        command_line.request = c_LIST;
-        command_line.plain_list = 1;
       } else if (strcmp(longOptions[optionIdx].name, "full_cmd") == 0) {
         command_line.request = c_SHOW_CMD;
         if (optarg != NULL) {
@@ -397,6 +394,20 @@ void parse_opts(int argc, char **argv) {
     case 'R':
       command_line.request = c_COUNT_RUNNING;
       break;
+    case 'M':
+      command_line.request = c_LIST;
+
+      if (strcmp(optarg, "default") == 0)
+        command_line.list_format = DEFAULT;
+      else if (strcmp(optarg, "json") == 0)
+        command_line.list_format = JSON;
+      else if (strcmp(optarg, "tab") == 0)
+        command_line.list_format = TAB;
+      else {
+        fprintf(stderr, "Invalid argument for option M: %s.\n", optarg);
+        exit(-1);
+      }
+      break;
     case ':':
       switch (optopt) {
       case 't':
@@ -453,6 +464,10 @@ void parse_opts(int argc, char **argv) {
       case 'F':
         command_line.request = c_SHOW_CMD;
         command_line.jobid = -1;
+        break;
+      case 'M':
+        command_line.request = c_LIST;
+        command_line.list_format = DEFAULT;
         break;
       default:
         fprintf(stderr, "Option %c missing argument.\n", optopt);
@@ -574,8 +589,8 @@ static void print_help(const char *cmd) {
       "  --get_logdir                    get the path containing log files.\n");
   printf(
       "  --set_logdir [path]             set the path containing log files.\n");
-  printf("  --plain                         list jobs in plain tab-separated "
-         "texts.\n");
+  printf(
+      "  --serialize [format]  || -M [format]   serialize the job list to the specified format. Choices: {default, json, tab}.\n");
   printf("  --daemon                        Run the server as daemon by Root "
          "only.\n");
   printf("  --pause [jobid]                 hold on a task.\n");
@@ -667,6 +682,7 @@ static void get_terminal_width() {
   term_width = ws.ws_col;
 }
 
+// TODO add the benchmark for the performance.
 int main(int argc, char **argv) {
   int errorlevel = 0;
   jobsort_flag = 0;

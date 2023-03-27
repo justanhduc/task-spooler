@@ -365,7 +365,7 @@ struct Job* read_DB(int jobid, const char* table) {
 
     // 从查询结果中读取数据
     sqlite3_stmt *stmt;
-    int size, rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
         fprintf(stderr,"[read_DB1] SQL error: %s\n", sqlite3_errmsg(db));
         return NULL; // 返回-1表示查询失败
@@ -394,13 +394,21 @@ struct Job* read_DB(int jobid, const char* table) {
 
         // job->depend_on_size = sqlite3_column_bytes(stmt, 9);
         // job->notify_errorlevel_to_size = sqlite3_column_bytes(stmt, 11);
-        strcpy(sql, (const char*) sqlite3_column_text(stmt, 8));
-        job->depend_on = chars_to_ints(&size, sql, ",");        
-        job->depend_on_size = size;
-        strcpy(sql, (const char*) sqlite3_column_text(stmt, 8));
-        job->notify_errorlevel_to = chars_to_ints(&size, sql, ",");
-        job->notify_errorlevel_to_size = size;
-        
+        job->depend_on_size = sqlite3_column_int(stmt, 9);
+        if (job->depend_on_size == 0) {
+            job->depend_on = NULL;
+        } else {
+            strcpy(sql, (const char*) sqlite3_column_text(stmt, 8));
+            job->depend_on = chars_to_ints(&job->depend_on_size, sql, ",");        
+        }
+
+        job->notify_errorlevel_to_size = sqlite3_column_int(stmt, 11);
+        if (job->notify_errorlevel_to_size == 0) {
+            job->notify_errorlevel_to = NULL;
+        } else {
+            strcpy(sql, (const char*) sqlite3_column_text(stmt, 10));
+            job->notify_errorlevel_to = chars_to_ints(&job->notify_errorlevel_to_size, sql, ",");        
+        }
         
         job->dependency_errorlevel = sqlite3_column_int(stmt, 12);
         

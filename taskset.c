@@ -80,7 +80,7 @@ int set_task_cores(struct Job* p, const char* extra) {
     char* cmd = (char*) malloc(sizeof(char) * size);
     sprintf(cmd, "taskset -cp %s ", core_str);
     if (extra == NULL) {
-        printf("[CMD] %s %d\n", cmd, p->pid);
+        ; // printf("[CMD] %s %d\n", cmd, p->pid);
     } else {       
         printf("[CMD] %s %d; %s %d\n", cmd, p->pid, extra, p->pid);
     }
