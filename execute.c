@@ -71,7 +71,7 @@ static void run_relink(int pid, struct Result *result) {
   signals_child_pid = pid;
   unblock_sigint_and_install_handler();
   // printf("runjob_ok %s\n", ofname);
-  c_send_runjob_ok(ofname, -1);
+  c_send_runjob_ok(ofname, pid);
 
   wait_for_pid(pid);
 

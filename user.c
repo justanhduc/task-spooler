@@ -109,9 +109,9 @@ void check_running_task(int pid) {
   char* f = (char*) malloc(namesize);
   strncpy(f, filename, namesize);
   if (strlen(f) == 0) {
-    error("PID: %d is dead", pid);
+    error("Client: PID[%d] is dead", pid);
   } else {
-    printf("tast stdout > %s\n", filename);
+    printf("Client: PID[%d] => %s\n", pid, filename);
   }
   struct stat t_stat;
   snprintf(filename, 256, "/proc/%d/stat", pid);

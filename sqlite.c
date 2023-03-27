@@ -65,7 +65,7 @@ static int get_order_id(int jobid) {
 }
 
 void close_sqlite() {
-    free(jobDB_Jobs);
+    // free(jobDB_Jobs);
     sqlite3_close(db);
 }
 

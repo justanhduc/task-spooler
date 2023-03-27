@@ -57,10 +57,10 @@ for l in lines[:]:
 
 for i in tasks[:]:
     if i[0] == "..":
-        CMD = '{} --pid {} -N {} "{}"'.format(ts_CMD, *i[1:])
+        CMD = '{} --relink {} -N {} "{}"'.format(ts_CMD, *i[1:])
         # CMD = 'ts --pid {} -N {} --stime {:} "{}"'.format(*i[1:])
     else:
-        CMD = '{} -L {} --pid {} -N {} "{}"'.format(ts_CMD, *i)
+        CMD = '{} -L {} --relink {} -N {} "{}"'.format(ts_CMD, *i)
         # CMD = 'ts -L {} --pid {} -N {} --stime {:} "{}"'.format(*i)
     print(CMD)
     os.system(CMD)

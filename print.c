@@ -50,6 +50,7 @@ int fd_nprintf(int fd, int maxsize, const char *fmt, ...) {
 char *ints_to_chars(int n, int *array, const char *delim) {
     int size = n * 12 + n * strlen(delim) + 1;
     char *tmp = (char*) malloc(size * sizeof(char));
+    tmp[0] = '\0';
     int j = 0;
     for (int i = 0; i < n; i++) {
         j += sprintf(tmp + j, "%d", array[i]);
@@ -70,6 +71,7 @@ int* chars_to_ints(int *size, char* str, const char* delim) {
     }
     count++;
     int *result = malloc(count * sizeof(int));
+    result[0] = '\0';
     char *token = strtok(str, delim);
     int index = 0;
     while (token != NULL) {
@@ -78,4 +80,18 @@ int* chars_to_ints(int *size, char* str, const char* delim) {
     }
     *size = count;
     return result;
+}
+
+char* insert_chars(int pos, const char* input, const char* c) {
+    int len = strlen(input) + strlen(c) + 1; 
+    char *str = (char *)calloc(len,  sizeof(char)); //用malloc函数分配内存
+    if (str == NULL) //判断是否分配成功
+    {
+      error("Memory allocation failed.\n");
+      return NULL;
+    }
+    strncpy(str, input, pos); //将s数组的前t个字符复制到str中
+    strcat(str, c); //将数字字符串连接到str后面
+    strcat(str, input + pos); //将s剩余的字符串连接到str后面
+    return str;
 }

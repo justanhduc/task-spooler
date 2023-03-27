@@ -153,8 +153,16 @@ extern int term_width;
 
 struct Msg;
 
-enum Jobstate { QUEUED, RUNNING, FINISHED, SKIPPED, 
-  HOLDING_CLIENT, RELINK, WAIT};
+enum Jobstate { 
+  QUEUED, 
+  RUNNING, 
+  FINISHED, 
+  SKIPPED, 
+  HOLDING_CLIENT, 
+  RELINK, 
+  WAIT,
+  DELINK,
+  };
 
 struct Msg {
   enum MsgTypes type;
@@ -333,7 +341,7 @@ void s_list_all(int s, enum ListFormat listFormat);
 
 void s_list_plain(int s);
 
-int s_newjob(int s, struct Msg *m, int ts_UID, int socket);
+int s_newjob(int s, struct Msg *m, int ts_UID);
 
 void s_delete_job(int jobid);
 
@@ -504,6 +512,7 @@ int pinfo_size(const struct Procinfo *p);
 void pinfo_set_enqueue_time(struct Procinfo *p);
 
 void pinfo_set_start_time(struct Procinfo *p);
+void pinfo_set_start_time_check(struct Procinfo *info);
 
 void pinfo_set_end_time(struct Procinfo *p);
 
@@ -559,10 +568,10 @@ void s_pause_job(int s, int jobid, int uid);
 void s_rerun_job(int s, int jobid, int uid);
 void s_lock_server(int s, int uid);
 void s_unlock_server(int s, int uid);
-int s_check_locker(int s, int uid);
+int s_check_locker(int uid);
 void s_set_jobids(int i);
 void s_sort_jobs();
-int s_check_relink(int s, struct Msg *m, int ts_UID);
+int s_check_relink(int s, int pid, int ts_UID);
 void s_read_sqlite();
 int s_check_running_pid(int pid);
 struct Job *findjob(int jobid);
@@ -590,12 +599,13 @@ void movetop_DB(int jobid);
 void swap_DB(int, int);
 void set_jobids_DB(int value);
 int get_jobids_DB();
-int jobDB_num, jobDB_wait_num;
-struct Job** jobDB_Jobs;
+// int jobDB_num, jobDB_wait_num;
+// struct Job** jobDB_Jobs;
 
 /* print.c */
 char* ints_to_chars(int n, int *array, const char *delim);
 int*  chars_to_ints(int *size, char* str, const char* delim);
+char* insert_chars(int pos, const char* input, const char* c);
 
 /* taskset.c */
 void init_taskset();

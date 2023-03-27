@@ -170,6 +170,7 @@ static int get_max_descriptors() {
   return max;
 }
 
+/*
 static void check_jobDB() {
   struct Job* p;
   for (int i = 0; i < jobDB_num; i++) {
@@ -195,7 +196,7 @@ static void check_jobDB() {
     }
   }
 }
-
+*/
 
 /*
 int s_add_connection(int jobid, int socket, int hasjob, int ts_UID) {
@@ -261,8 +262,8 @@ void server_main(int notify_fd, char *_path) {
     user_jobs[i] = 0;
     user_queue[i] = 0;
   }
-  jobDB_num = jobDB_wait_num = 0;
-  jobDB_Jobs = NULL;
+  // jobDB_num = jobDB_wait_num = 0;
+  // jobDB_Jobs = NULL;
   init_taskset();
   set_server_logfile();
   // int jobid = read_first_jobid_from_logfile(logfile_path);
@@ -371,9 +372,7 @@ static void server_loop(int ls) {
         */
       }
     /* This will return firstjob->jobid or -1 */
-    if (jobDB_num > 0) {
-      check_jobDB();
-    }
+
     newjob = next_run_job();
     
     if (newjob != -1) {
@@ -552,9 +551,9 @@ static enum Break client_read(int index) {
   case NEWJOB:
     if (m.u.newjob.taskpid != 0) {
       // check if taskpid isnot in queue and from a valid user.
-      ts_UID = s_check_relink(s, &m, ts_UID);
+      ts_UID = s_check_relink(s, m.u.newjob.taskpid, ts_UID);
     } else {
-      if (s_check_locker(s, ts_UID) == 1) { break; }
+      if (s_check_locker(ts_UID) == 1) { break; }
     }
 
     if (ts_UID < 0 || ts_UID > USER_MAX) { 
@@ -564,9 +563,10 @@ static enum Break client_read(int index) {
       // close(s);
       break; 
     }
-    
-    client_cs[index].jobid = s_newjob(s, &m, ts_UID, s);
+
+    client_cs[index].jobid = s_newjob(s, &m, ts_UID);
     client_cs[index].hasjob = 1;
+
     if (client_cs[index].jobid == -1) {
       s_newjob_nok(index);
       client_cs[index].hasjob = 0;

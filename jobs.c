@@ -310,15 +310,15 @@ struct Job *findjob(int jobid) {
 }
 
 
-static int jobid_from_pid(int pid) {
-  // if (pid == 0) return 0;
+static struct Job* job_by_pid(int pid) {
+  if (pid == 0) return NULL;
   struct Job *p = &firstjob;
 
   while (p->next != NULL) {
     p = p->next;
-    if (p->pid == pid) return p->jobid;
+    if (p->pid == pid) return p;
   }
-  return -1;
+  return NULL;
 }
 
 // return 1 for running, other is dead
@@ -329,12 +329,12 @@ int s_check_running_pid(int pid) {
   return strlen(filename) != 0;
 }
 
-// if any error return 0;
-int s_check_relink(int s, struct Msg *m, int ts_UID) {
-  int pid = m->u.newjob.taskpid;
-  int jobid = jobid_from_pid(pid);
-  if (jobid != -1) {
-    sprintf(buff, "  Error: PID [%i] has already in job queue as Jobid: %i\n", pid, jobid);
+// if any error return non-0;
+int s_check_relink(int s, int pid, int ts_UID) {
+  struct Job* p = job_by_pid(pid);
+  if (p != NULL && (p->state != DELINK && p->state != WAIT)) {
+    sprintf(buff, "  Error: PID [%i] is already in job as Jobid: %i [%s]\n", 
+          pid, p->jobid, jstate2string(p->state));
     send_list_line(s, buff);
     return -1;
   }
@@ -351,9 +351,9 @@ int s_check_relink(int s, struct Msg *m, int ts_UID) {
 
   int job_tsUID = get_tsUID(t_stat.st_uid);
   if (ts_UID == 0) { 
-    return job_tsUID;
+    ;
   } else if (ts_UID == job_tsUID) {
-    return job_tsUID;
+    ;
   } else {
     sprintf(buff, "  Error: PID [%i] is owned by [%d] `%s` not the user [%d] `%s`\n",
     pid, user_UID[job_tsUID], user_name[job_tsUID],
@@ -361,6 +361,7 @@ int s_check_relink(int s, struct Msg *m, int ts_UID) {
     send_list_line(s, buff);
     return -1;
   }
+  return job_tsUID;
 }
 
 /*
@@ -590,6 +591,9 @@ const char *jstate2string(enum Jobstate s) {
   case WAIT:
     jobstate = "wait    ";
     break;
+  case DELINK:
+    jobstate = "delink  ";
+    break;
   }
   return jobstate;
 }
@@ -776,7 +780,7 @@ static struct Job *newjobptr() {
   while (p->next != 0)
     p = p->next;
 
-  p->next = (struct Job *)calloc(sizeof(*p), sizeof(char));
+  p->next = (struct Job *)calloc(sizeof(struct Job), sizeof(char));
   /*
   p->next->next = 0;
   p->next->output_filename = 0;
@@ -838,19 +842,26 @@ static int find_last_stored_jobid_finished() {
 }
 
 /* Returns job id or -1 on error */
-int s_newjob(int s, struct Msg *m, int ts_UID, int socket) {
+int s_newjob(int s, struct Msg *m, int ts_UID) {
   
   struct Job *p;
   int res;
-  int waitjob_flag = 0;
+  int waitjob_flag = 0; // 0 for newjob, 1 for WAIT and 2 for DELINK
   if (m->jobid != 0) {
     p = findjob(m->jobid);
-    if (p != NULL && p->state == WAIT) {
-      jobDB_wait_num--;
-      waitjob_flag = 1;
-      p->state = QUEUED;
-    } else {
-      return -1;
+    // if p == NULL => Manual Relink
+    if (p != NULL) {
+      // WAIT for restore queued tasks
+      if (p->state == DELINK) {
+        waitjob_flag = 2;
+        p->state = RELINK;
+      } else if (p->state == WAIT) {
+        // jobDB_wait_num--;
+        waitjob_flag = 1;
+        p->state = QUEUED;
+      } else {
+        return -1;
+      }
     }
   }
 
@@ -972,8 +983,10 @@ int s_newjob(int s, struct Msg *m, int ts_UID, int socket) {
   if (p->depend_on_size == 0)
     p->depend_on = 0;
 
-  pinfo_init(&p->info);
-  pinfo_set_enqueue_time(&p->info);
+  if (waitjob_flag != 2) {
+    pinfo_init(&p->info);
+    pinfo_set_enqueue_time(&p->info);
+  }
 
   /* load the command */
 
@@ -1035,23 +1048,26 @@ int s_newjob(int s, struct Msg *m, int ts_UID, int socket) {
     free(ptr);
   }
 
-  /* for relink running task */
-  if (m->u.newjob.taskpid != 0) {
-    p->pid = m->u.newjob.taskpid;
-    struct Procinfo* pinfo = &(p->info);
-    pinfo->start_time.tv_sec = 0;
-    int num_slots = p->num_slots, id = p->ts_UID;
-    busy_slots += num_slots;
-    user_busy[id] += num_slots;
-    user_jobs[id]++;
-    p->state = RELINK;
-    p->info.start_time.tv_sec = m->u.newjob.start_time;
-    p->info.start_time.tv_usec = 0;
+  if (waitjob_flag == 0) {
+    // real new job
+    if (m->u.newjob.taskpid == 0) {
+      insert_DB(p, "Jobs");
+    } else {
+    /* for manually relink running task */
+      p->pid = m->u.newjob.taskpid;
+      struct Procinfo* pinfo = &(p->info);
+      pinfo->start_time.tv_sec = 0;
+      int num_slots = p->num_slots, id = p->ts_UID;
+      busy_slots += num_slots;
+      user_busy[id] += num_slots;
+      user_jobs[id]++;
+      p->state = RELINK;
+      p->info.start_time.tv_sec = m->u.newjob.start_time;
+      p->info.start_time.tv_usec = 0;
+      insert_or_replace_DB(p, "Jobs");
+    }
+  } // waitjob_flag == 0
 
-  }
-  if(waitjob_flag == 0) { 
-    insert_DB(p, "Jobs");
-  }
   set_jobids_DB(jobids);
   return p->jobid;
 }
@@ -1355,14 +1371,16 @@ static int fork_cmd(int UID, const char* path, const char* cmd) {
 }
 
 static void s_add_job(struct Job* j, struct Job** p) {
-  if (j->state == RUNNING || j->state == HOLDING_CLIENT || j->state == RELINK) {
+  // if (j->state == RUNNING || j->state == HOLDING_CLIENT || j->state == RELINK) {
+  if (j->state == RUNNING) {
     if (j->pid > 0 && s_check_running_pid(j->pid) == 1) {
       printf("add job %d\n", j->jobid);
       
       int ts_UID = j->ts_UID;
       user_jobs[ts_UID]++;
 
-      if (j->state == RUNNING && check_ifsleep(j->pid) == 0) {
+      // if (j->state == RUNNING && check_ifsleep(j->pid) == 0) {
+      if (check_ifsleep(j->pid) == 0) {
         int slots = j->num_slots;
         user_busy[ts_UID] += slots;
         busy_slots += slots;
@@ -1370,40 +1388,43 @@ static void s_add_job(struct Job* j, struct Job** p) {
           set_task_cores(j, NULL);
         #endif
       }
+      j->state = DELINK;
 
-      jobDB_Jobs[jobDB_num] = j;
-      jobDB_num++;
+
+      // jobDB_Jobs[jobDB_num] = j;
+      // jobDB_num++;
       (*p)->next = j;
       (*p) = j;
 
+      char c[64];
+      sprintf(c, " --relink %d -J %d ", j->pid, j->jobid); 
+      char* str = insert_chars(j->command_strip, j->command, c);
+      printf("fork str = %s\n", str);
+      fork_cmd(user_UID[j->ts_UID], j->work_dir, str);
+      printf("end of fork\n");
+
       jobids = jobids > j->jobid ? jobids : j->jobid + 1;
       j = NULL;
+    } else {
+      delete_DB(j->jobid, "JObs");
     }
   } else if (j->state == QUEUED) {
     printf("add the queue job %d\n", j->jobid);
     j->state = WAIT;
-    jobDB_wait_num++;
+    // jobDB_wait_num++;
     (*p)->next = j;
     (*p) = j;
 
 
     
-    char c[32]; //创建一个存储数字的字符串
-    sprintf(c, "-J %d ", j->jobid); //将数字转换为字符串
-    int len = strlen(j->command) + strlen(c) + 1; //计算新字符串的长度
-    char *str = (char *)calloc(0, len * sizeof(char)); //用malloc函数分配内存
-    if (str == NULL) //判断是否分配成功
-    {
-      printf("Memory allocation failed.\n");
-      return;
-    }
-    strncpy(str, j->command, j->command_strip); //将s数组的前t个字符复制到str中
-    strcat(str, c); //将数字字符串连接到str后面
-    strcat(str, (j->command + j->command_strip)); //将s剩余的字符串连接到str后面
+    char c[32];
+    sprintf(c, " -J %d ", j->jobid); 
+    char* str = insert_chars(j->command_strip, j->command, c);
+    
     fork_cmd(user_UID[j->ts_UID], j->work_dir, str);
     jobids = jobids > j->jobid ? jobids : j->jobid + 1;
     j = NULL;
-
+    free(str);
     /*
     printf("add job %d; CMD = %s\n", j->jobid, j->command);
     jobDB_Jobs[jobDB_num] = j;
@@ -1423,7 +1444,7 @@ void s_read_sqlite() {
   p = &firstjob;
   num_jobs = read_jobid_DB(&(jobs_DB), "Jobs");
   // printf("read from jobs %d\n", num_jobs);
-  jobDB_Jobs = (struct Job**)malloc(sizeof(struct Job*) * num_jobs);
+  // jobDB_Jobs = (struct Job**)malloc(sizeof(struct Job*) * num_jobs);
   printf("Jobs:\n");
   for (int i = 0; i < num_jobs; i++) {
     job = read_DB(jobs_DB[i], "Jobs");
@@ -1477,6 +1498,7 @@ void s_clear_finished(int ts_UID) {
   other_user_job->next = NULL;
 }
 
+// run the jobs
 void s_process_runjob_ok(int jobid, char *oname, int pid) {
   struct Job *p;
   p = findjob(jobid);
@@ -1487,7 +1509,7 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
 
   p->pid = pid;
   p->output_filename = oname;
-  pinfo_set_start_time(&p->info);
+  pinfo_set_start_time_check(&p->info);
 
   insert_or_replace_DB(p, "Jobs");
   #ifdef TASKSET
@@ -1923,14 +1945,12 @@ static struct Job *get_job(int jobid) {
   return 0;
 }
 
-int s_check_locker(int s, int ts_UID) {
+int s_check_locker(int ts_UID) {
   int dt = time(NULL) - locker_time;
   int res;
-
   if (user_locker != 0 && dt > 30) {
     user_locker = -1;
   }
-
   if (user_locker == -1) {
     res = 0;
   } else {
@@ -1940,7 +1960,6 @@ int s_check_locker(int s, int ts_UID) {
       res = 1;
     }
   }
-
   return res;
 }
 
