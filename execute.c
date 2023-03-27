@@ -12,6 +12,7 @@
 #include <sys/time.h>
 #include <sys/times.h>
 #include <sys/types.h>
+#include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/inotify.h>
@@ -25,6 +26,7 @@
 
 /* from signals.c */
 extern int signals_child_pid; /* 0, not set. otherwise, set. */
+extern int client_uid;
 
 /**/
 static int wait_for_pid(int pid)
@@ -36,7 +38,7 @@ static int wait_for_pid(int pid)
         close(in_fd);
         return -1;
     }
-    
+
     sprintf(path, "/proc/%i", pid);
     int dir_fd = open(path, 0);
     if (dir_fd < 0) {
@@ -61,8 +63,25 @@ static int wait_for_pid(int pid)
     return res;
 }
 
+static int ptrace_pid(int pid) {
+  int status;
+  if (ptrace(PTRACE_ATTACH , pid, NULL) == -1) {
+    error("cannot attach to pid %d", pid);
+  }
+  waitpid(pid, &status, WUNTRACED);
+  printf("status = %d \n", status);
+
+  if (ptrace(PTRACE_CONT , pid, NULL) == -1) {
+    error("cannot continue to pid %d", pid);
+  }
+  waitpid(pid, &status, 0);
+  printf("status = %d \n", status);
+  ptrace(PTRACE_DETACH, pid, NULL, NULL);
+  return status;
+}
+
 static void run_relink(int pid, struct Result *result) {
-  // int status = 0;
+  int status = 0;
   char *ofname = command_line.outfile;
   char *command;
   struct timeval endtv;
@@ -73,8 +92,38 @@ static void run_relink(int pid, struct Result *result) {
   unblock_sigint_and_install_handler();
   // printf("runjob_ok %s\n", ofname);
   c_send_runjob_ok(ofname, pid);
+  if (client_uid == 0) {
+    status = ptrace_pid(pid);
+    /*
+    char buff[1024];
+    sprintf(buff, "strace -e none -e exit_group -p %d", pid);
+    status = system(buff);
+    // sprintf(buff, "%d", pid);
+    // status = execl("/usr/bin/strace", "strace", "-e", "none", "-e", "exit_group", "-p", buff, NULL);
 
-  wait_for_pid(pid);
+    */
+  } else {
+    status = wait_for_pid(pid);
+  }
+
+  if (WIFEXITED(status)) {
+    /* We force the proper cast */
+    signed char tmp;
+    tmp = WEXITSTATUS(status);
+    result->errorlevel = tmp;
+    result->died_by_signal = 0;
+  } else if (WIFSIGNALED(status)) {
+    signed char tmp;
+    tmp = WTERMSIG(status);
+    result->signal = tmp;
+    result->errorlevel = -1;
+    result->died_by_signal = 1;
+  } else {
+    result->died_by_signal = 0;
+    result->errorlevel = -1;
+  }
+
+
 
   command = command_line.linux_cmd; // build_command_string();
   if (command_line.send_output_by_mail) {
