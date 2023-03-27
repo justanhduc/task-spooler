@@ -1,0 +1,14 @@
+[Unit]
+Description=task-spooler
+After=syslog.target
+
+[Service]
+ExecStart=/usr/local/sbin/task-spooler --daemon
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target
+
+# install 
+# 01 sudo systemctl enable /home/user/task-spooler.service
+# 02 sudo systemctl start task-spooler.service
