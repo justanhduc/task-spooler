@@ -42,7 +42,7 @@ enum { MAXCONN = 1000 };
 enum Break { BREAK, NOBREAK, CLOSE };
 
 char *logdir;
-
+extern int busy_slots;
 /* Prototypes */
 static void server_loop(int ls);
 
@@ -379,6 +379,7 @@ static void server_loop(int ls) {
       int conn, awaken_job;
       conn = get_conn_of_jobid(newjob);
       /* This next marks the firstjob state to RUNNING */
+
       s_mark_job_running(newjob);
       s_runjob(newjob, conn);
 

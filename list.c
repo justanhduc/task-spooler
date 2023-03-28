@@ -18,8 +18,9 @@
 extern int busy_slots;
 extern int max_slots;
 extern int core_usage;
-/* return 0 for run and 1 for running and -1 for error */
-int check_ifsleep(int pid) {
+
+/* return 0 for running and 1 for sleep and -1 for error */
+int is_sleep(int pid) {
   char filename[256];
   char name[256];
   char status = '\0';
@@ -128,7 +129,7 @@ static char *print_noresult(const struct Job *p) {
     if (p->pid == 0) {
       jobstate = "N/A";
     } else {
-      if (check_ifsleep(p->pid) == 1) {
+      if (is_sleep(p->pid) == 1) {
         jobstate = "pause";
       }
     }

@@ -65,7 +65,7 @@ void unlock_core_by_job(struct Job* p) {
 }
 
 int set_task_cores(struct Job* p, const char* extra) {
-    if (p == NULL || p->pid <= 0 || p->state != RUNNING) return -1;
+    if (p == NULL || p->pid <= 0) return -1;
 #ifdef TASKSET
     int N = p->num_slots;
 

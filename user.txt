@@ -1,6 +1,6 @@
 # 1231 # comments
 TS_SLOTS = 4 # environment variable
-# TS_FIRST_JOBID = 2000 # environment variable
+TS_FIRST_JOBID = 2000 # environment variable
 # uid     name    slots
 1000      Kylin   10
 3021     test1    10

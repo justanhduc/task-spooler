@@ -162,6 +162,7 @@ enum Jobstate {
   RELINK, 
   WAIT,
   DELINK,
+  LOCKED,
   };
 
 struct Msg {
@@ -545,14 +546,14 @@ int read_first_jobid_from_logfile(const char *path);
 void kill_pid(int ppid, const char *signal, const char* extra);
 // char* linux_cmd(char* CMD, char* out, int out_size);
 char **split_str(const char *str, int *size);
-void check_running_task(int pid);
+void check_relink(int pid);
 char *charArray_string(int num, char** array);
 
 /* locker */
 int user_locker;
 time_t locker_time;
 int jobsort_flag;
-int check_ifsleep(int pid);
+int is_sleep(int pid);
 // int check_running_dead(int jobid);
 
 /* jobs.c */
@@ -599,6 +600,7 @@ void movetop_DB(int jobid);
 void swap_DB(int, int);
 void set_jobids_DB(int value);
 int get_jobids_DB();
+void set_state_DB(int jobid, int state);
 // int jobDB_num, jobDB_wait_num;
 // struct Job** jobDB_Jobs;
 

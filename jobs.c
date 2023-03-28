@@ -83,29 +83,23 @@ static void free_cores(struct Job* p) {
 #endif
 }
 
-static void allocate_cores(struct Job* p) {
+static void allocate_cores_ex(struct Job* p, const char* extra) {
   if (p == NULL) return;
   int ts_UID = p->ts_UID;
   user_busy[ts_UID] += p->num_slots;
   busy_slots += p->num_slots;
-  // user_queue[ts_UID]++;
   user_jobs[ts_UID]++;
-#ifdef TASKSET
-  set_task_cores(p, NULL);
-#endif
+  if (p -> state == RUNNING) {
+    #ifdef TASKSET
+      set_task_cores(p, extra);
+    #else
+      kill_pid(pid, extra, NULL);
+    #endif
+  }
 }
 
-static void allocate_cores_and_cont(struct Job* p) {
-  if (p == NULL) return;
-  int ts_UID = p->ts_UID;
-  user_busy[ts_UID] += p->num_slots;
-  busy_slots += p->num_slots;
-  // user_queue[ts_UID]++;
-  user_jobs[ts_UID]++;
-#ifdef TASKSET
-  set_task_cores(p, "kill -s CONT");
-#endif
-}
+static void allocate_cores(struct Job* p) { allocate_cores_ex(p, NULL); }
+
 
 /* Serialize a job and add it to the JSON array. Returns 1 for success, 0 for failure. */
 static int add_job_to_json_array(struct Job *p, cJSON *jobs) {
@@ -371,7 +365,7 @@ int check_running_dead(int jobid) {
   struct Job* p = findjob(jobid);
   if (p->pid != 0 && p->state == RUNNING) {
     // a task is allocated by a pid and is running
-    return check_ifsleep(p->pid) == -1;
+    return is_sleep(p->pid) == -1;
   }
   return 0;
 }
@@ -502,7 +496,7 @@ void s_get_label(int s, int jobid) {
   }
 
   if (p == 0) {
-    snprintf(buff, 255, "Job %i not finished or not running.\n", jobid);
+    snprintf(buff, 255, "[get_label0] Job %i not finished or not running.\n", jobid);
     send_list_line(s, buff);
     return;
   }
@@ -542,7 +536,7 @@ void s_send_cmd(int s, int jobid) {
   }
 
   if (p == 0) {
-    snprintf(buff, 255, "Job %i not finished or not running.\n", jobid);
+    snprintf(buff, 255, "[get_label1] Job %i not finished or not running.\n", jobid);
     send_list_line(s, buff);
     return;
   }
@@ -557,6 +551,7 @@ void s_mark_job_running(int jobid) {
   p = findjob(jobid);
   if (!p)
     error("Cannot mark the jobid %i RUNNING.", jobid);
+  allocate_cores(p);
   p->state = RUNNING;
 }
 
@@ -595,6 +590,9 @@ const char *jstate2string(enum Jobstate s) {
     break;
   case DELINK:
     jobstate = "delink  ";
+    break;
+  case LOCKED:
+    jobstate = "locked  ";
     break;
   }
   return jobstate;
@@ -846,28 +844,29 @@ static int find_last_stored_jobid_finished() {
 /* Returns job id or -1 on error */
 int s_newjob(int s, struct Msg *m, int ts_UID) {
   
-  struct Job *p;
+  struct Job *p = NULL;
   int res;
-  int waitjob_flag = 0; // 0 for newjob, 1 for WAIT and 2 for DELINK
+  // int waitjob_flag = 0; // 0 for newjob, 1 for WAIT and 2 for DELINK
   if (m->jobid != 0) {
     p = findjob(m->jobid);
     // if p == NULL => Manual Relink
     if (p != NULL) {
       // WAIT for restore queued tasks
       if (p->state == DELINK) {
-        waitjob_flag = 2;
-        p->state = RELINK;
+        ; // waitjob_flag = 2;
       } else if (p->state == WAIT) {
         // jobDB_wait_num--;
-        waitjob_flag = 1;
-        p->state = QUEUED;
+        ; // waitjob_flag = 1;
+      } else if (p->state == LOCKED) {
+        // jobDB_wait_num--;
+        ; // waitjob_flag = 1;
       } else {
         return -1;
       }
     }
   }
 
-  if (waitjob_flag == 0) {
+  if (p == NULL) {
     p = newjobptr();
     if (m->jobid != 0) {
       p->jobid = m->jobid;
@@ -879,11 +878,14 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
       p->state = QUEUED;
     } else
       p->state = HOLDING_CLIENT;
+    
+    // manually relink
+    if (m->u.newjob.taskpid != 0) {
+      p->state = RELINK;
+    }
   }
   // save the ts_UID and record the number of waiting jobs
   p->ts_UID = ts_UID; // get_tsUID(m->uid);
-  user_queue[p->ts_UID]++;
-
   p->num_slots = m->u.newjob.num_slots;
   p->store_output = m->u.newjob.store_output;
   p->should_keep_finished = m->u.newjob.should_keep_finished;
@@ -985,7 +987,7 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
   if (p->depend_on_size == 0)
     p->depend_on = 0;
 
-  if (waitjob_flag != 2) {
+  if (p->state != DELINK && p->state != WAIT && p->state != LOCKED) {
     pinfo_init(&p->info);
     pinfo_set_enqueue_time(&p->info);
   }
@@ -1000,12 +1002,8 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
   if (res == -1)
     error("wrong bytes received");
 
-  if (1) { // waitjob_flag == 0
-    p->command = buff;
-    p->command_strip = m->u.newjob.command_size_strip;
-  } else {
-    free(buff);
-  }
+  p->command = buff;
+  p->command_strip = m->u.newjob.command_size_strip;
   
   /* load the work dir */
   p->work_dir = 0;
@@ -1050,26 +1048,27 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
     free(ptr);
   }
 
-  if (waitjob_flag == 0) {
-    // real new job
-    if (m->u.newjob.taskpid == 0) {
-      insert_DB(p, "Jobs");
-    } else {
+  if (p->state == DELINK) {
+    p->state = RELINK;
+  // manually insert
+  } else if (p->state == WAIT) {
+    p->state = QUEUED;
+    user_queue[p->ts_UID]++;
+  } else if (p->state == RELINK) {
     /* for manually relink running task */
-      p->pid = m->u.newjob.taskpid;
-      struct Procinfo* pinfo = &(p->info);
-      pinfo->start_time.tv_sec = 0;
-      int num_slots = p->num_slots, id = p->ts_UID;
-      busy_slots += num_slots;
-      user_busy[id] += num_slots;
-      user_jobs[id]++;
-      p->state = RELINK;
-      p->info.start_time.tv_sec = m->u.newjob.start_time;
-      p->info.start_time.tv_usec = 0;
-      insert_or_replace_DB(p, "Jobs");
-    }
-  } // waitjob_flag == 0
-
+    p->info.start_time.tv_sec = m->u.newjob.start_time;
+    p->info.start_time.tv_usec = 0;
+    insert_or_replace_DB(p, "Jobs");
+  } else if (p->state == QUEUED) {
+    insert_DB(p, "Jobs");
+    user_queue[p->ts_UID]++;
+  } else if (p->state == LOCKED) {
+    ;
+  } else {
+    insert_DB(p, "Jobs");
+    user_queue[p->ts_UID]++;
+  }
+  
   set_jobids_DB(jobids);
   return p->jobid;
 }
@@ -1106,6 +1105,12 @@ void s_delete_job(int jobid) {
 }
 
 /* -1 if no one should be run. */
+/* 
+    next_run_job()
+    in `server.c`
+    s_mark_job_running(newjob);
+    s_runjob(newjob, conn);
+*/
 int next_run_job() {
   struct Job *p;
 
@@ -1159,11 +1164,7 @@ int next_run_job() {
 
         int num_slots = p->num_slots, id = p->ts_UID;
         if (id == uid && free_slots >= num_slots &&
-            user_max_slots[id] - user_busy[id] >= num_slots) {
-          busy_slots += num_slots;
-          user_busy[id] += num_slots;
-
-          user_jobs[id]++;
+          user_max_slots[id] - user_busy[id] >= num_slots) {
           user_queue[id]--;
           return p->jobid;
         }
@@ -1210,8 +1211,9 @@ static void new_finished_job(struct Job *j) {
   p->next = j;
   p->next->next = 0;
 
-  delete_DB(j->jobid, "Jobs");
   insert_DB(j, "Finished");
+  delete_DB(j->jobid, "Jobs");
+
   #ifdef TASKSET
     unlock_core_by_job(j);
   #endif
@@ -1264,9 +1266,7 @@ void job_finished(const struct Result *result, int jobid) {
    * we call this to clean up the jobs list in case of the client closing the
    * connection. */
   if (p->state == RUNNING) {
-    busy_slots = busy_slots - p->num_slots;
-    user_busy[p->ts_UID] -= p->num_slots;
-    user_jobs[p->ts_UID]--;
+    free_cores(p);
   }
 
   /* Mark state */
@@ -1354,19 +1354,20 @@ static void s_add_job(struct Job* j, struct Job** p) {
   if (j->state == RUNNING) {
     if (j->pid > 0 && s_check_running_pid(j->pid) == 1) {
       printf("add job %d\n", j->jobid);
-      
+
+      /*
       int ts_UID = j->ts_UID;
       user_jobs[ts_UID]++;
 
-      // if (j->state == RUNNING && check_ifsleep(j->pid) == 0) {
-      if (check_ifsleep(j->pid) == 0) {
+      // if (j->state == RUNNING && is_sleep(j->pid) == 0) {
+      if (is_sleep(j->pid) == 0) {
         int slots = j->num_slots;
         user_busy[ts_UID] += slots;
         busy_slots += slots;
-
       }
-      j->state = DELINK;
+      */
 
+      j->state = DELINK;
 
       // jobDB_Jobs[jobDB_num] = j;
       // jobDB_num++;
@@ -1383,11 +1384,14 @@ static void s_add_job(struct Job* j, struct Job** p) {
       jobids = jobids > j->jobid ? jobids : j->jobid + 1;
       j = NULL;
     } else {
-      delete_DB(j->jobid, "JObs");
+      delete_DB(j->jobid, "Jobs");
     }
-  } else if (j->state == QUEUED) {
+  } else if (j->state == QUEUED || j->state == LOCKED) {
     printf("add the queue job %d\n", j->jobid);
-    j->state = WAIT;
+    if (j->state == QUEUED) {
+      j->state = WAIT;
+    }
+    
     // jobDB_wait_num++;
     (*p)->next = j;
     (*p) = j;
@@ -1489,12 +1493,11 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
     p->output_filename = oname;
   }
   pinfo_set_start_time_check(&p->info);
-
-  insert_or_replace_DB(p, "Jobs");
-  #ifdef TASKSET
+  if (pid >0 && is_sleep(pid) == 0) {
+    write_logfile(p);
     set_task_cores(p, NULL);
-  #endif
-  write_logfile(p);
+  }
+  insert_or_replace_DB(p, "Jobs");
 }
 
 void s_send_runjob(int s, int jobid) {
@@ -1555,7 +1558,7 @@ void s_job_info(int s, int jobid) {
   }
 
   if (p == 0) {
-    snprintf(buff, 255, "Job %i not finished or not running.\n", jobid);
+    snprintf(buff, 255, "[s_send_runjob] Job %i not finished or not running.\n", jobid);
     send_list_line(s, buff);
     return;
   }
@@ -1638,8 +1641,8 @@ void s_cont_user(int s, int ts_UID) {
     if (p->ts_UID == ts_UID && p->state == RUNNING) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
-        if (check_ifsleep(p->pid) == 1) {
-          allocate_cores_and_cont(p);
+        if (is_sleep(p->pid) == 1) {
+          allocate_cores_ex(p, "kill -s CONT");
         }
         // kill_pid(p->pid, "kill -s CONT");
       }
@@ -1664,10 +1667,10 @@ void s_stop_user(int s, int ts_UID) {
     if (p->ts_UID == ts_UID && p->state == RUNNING) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
-        if (check_ifsleep(p->pid) == 0) {
+        if (is_sleep(p->pid) == 0) {
           free_cores(p);
+          kill_pid(p->pid, "kill -s STOP", NULL);
         }
-        kill_pid(p->pid, "kill -s STOP", NULL);
       } else {
         char *label = "(...)";
         if (p->label != NULL)
@@ -1717,7 +1720,7 @@ void s_send_output(int s, int jobid) {
     if (jobid == -1)
       snprintf(buff, 255, "The last job has not finished or is not running.\n");
     else
-      snprintf(buff, 255, "Job %i not finished or not running.\n", jobid);
+      snprintf(buff, 255, "[s_send_output] Job %i not finished or not running.\n", jobid);
     send_list_line(s, buff);
     return;
   }
@@ -1993,6 +1996,23 @@ void s_unlock_server(int s, int ts_UID) {
   send_list_line(s, buff);
 }
 
+static void s_lock_queue(struct Job* p)   { 
+  if (p->state == QUEUED) {
+    user_queue[p->ts_UID]--;
+    p->state = LOCKED;
+    set_state_DB(p->jobid, LOCKED);
+  }
+}
+
+static void s_unlock_queue(struct Job* p) { 
+  if (p->state == LOCKED) {
+    user_queue[p->ts_UID]++;
+    p->state = QUEUED;
+    set_state_DB(p->jobid, QUEUED);
+  }
+}
+
+
 void s_pause_job(int s, int jobid, int ts_UID) {
   struct Job *p;
   p = findjob(jobid);
@@ -2002,7 +2022,27 @@ void s_pause_job(int s, int jobid, int ts_UID) {
     return;
   }
 
-  if (check_ifsleep(p->pid) == 1) {
+  if (p->state == QUEUED) {
+    if (p->ts_UID == ts_UID || ts_UID == 0) {
+      snprintf(buff, 255, "The queued job [%d] is hold on.\n", jobid);
+      s_lock_queue(p);
+      send_list_line(s, buff);
+      // set_state_DB(jobid, p->state);
+      return;
+    } else {
+      snprintf(buff, 255, "Cannot hold on the queued job [%d].\n", jobid);
+      send_list_line(s, buff);
+      return;
+    }
+  }
+
+  if (p->state == LOCKED) {
+    snprintf(buff, 255, "The queued job [%d] is already in locked.\n", jobid);
+    send_list_line(s, buff);
+    return;
+  }
+
+  if (is_sleep(p->pid) == 1) {
     snprintf(buff, 255, "job [%d] is aleady in PAUSE.\n", jobid);
     send_list_line(s, buff);
     return;
@@ -2010,6 +2050,7 @@ void s_pause_job(int s, int jobid, int ts_UID) {
   int job_tsUID = p->ts_UID;
   if (p->pid != 0 && (job_tsUID = ts_UID || ts_UID == 0)) {
     free_cores(p);
+    kill_pid(p->pid, "kill -s STOP", NULL);
     snprintf(buff, 255, "To pause job [%d] successfully!\n", jobid);
   } else {
     snprintf(buff, 255, "Error: cannot pause job [%d]\n", jobid);
@@ -2027,7 +2068,27 @@ void s_rerun_job(int s, int jobid, int ts_UID) {
     return;
   }
   
-  if (check_ifsleep(p->pid) == 0) {
+if (p->state == LOCKED) {
+    if (p->ts_UID == ts_UID || ts_UID == 0) {
+      snprintf(buff, 255, "The locked job [%d] is in queue.\n", jobid);
+      s_unlock_queue(p);
+      // set_state_DB(jobid, p->state);
+      send_list_line(s, buff);
+      return;
+    } else {
+      snprintf(buff, 255, "Cannot unlock the locked job [%d].\n", jobid);
+      send_list_line(s, buff);
+      return;
+    }
+  }
+
+  if (p->state == QUEUED) {
+    snprintf(buff, 255, "The job [%d] is already in queue.\n", jobid);
+    send_list_line(s, buff);
+    return;
+  }
+
+  if (is_sleep(p->pid) == 0) {
     snprintf(buff, 255, "job [%d] is aleady in RUNNING.\n", jobid);
     send_list_line(s, buff);
     return;
@@ -2037,7 +2098,7 @@ void s_rerun_job(int s, int jobid, int ts_UID) {
   if (p->pid != 0 && (job_tsUID = ts_UID || ts_UID == 0)) {
     int num_slots = p->num_slots;
     if (user_busy[ts_UID] + num_slots < user_max_slots[ts_UID] && busy_slots + num_slots <= max_slots) {
-      allocate_cores(p);
+      allocate_cores_ex(p, "kill -s CONT");
       snprintf(buff, 255, "To rerun job [%d] successfully!\n", jobid);
     } else {
       snprintf(buff, 255, "Error: not enough slots [%d]\n", jobid);
@@ -2045,6 +2106,7 @@ void s_rerun_job(int s, int jobid, int ts_UID) {
   } else {
     snprintf(buff, 255, "Error: cannot rerun job [%d]\n", jobid);
   }
+  // kill_pid(p->pid, "kill -s CONT", NULL);
   send_list_line(s, buff);
 }
 /* Don't complain, if the socket doesn't exist */

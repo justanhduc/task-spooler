@@ -40,7 +40,7 @@ $(TARGET): $(OBJECTS)
 main.o: main.c main.h
 ifeq ($(GIT_REPO), true)
 	GIT_VERSION=$$(echo $$(git describe --dirty --always --tags) | tr - +); \
-	$(CC) $(CFLAGS) $(CPPFLAGS) -DTS_VERSION=$${GIT_VERSION} -c $< -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 endif
 user.o: user.c
 server_start.o: server_start.c main.h

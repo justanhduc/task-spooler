@@ -101,7 +101,7 @@ const char *set_server_logfile() {
   return logfile_path;
 }
 
-void check_running_task(int pid) {
+void check_relink(int pid) {
   char path[256], buff[256] = "";
   snprintf(path, 255, "/proc/%d/fd/1", command_line.taskpid);
   int len = readlink(path, buff, sizeof(buff));
@@ -267,12 +267,12 @@ void s_user_status_all(int s) {
   char buffer[256];
   char *extra;
   send_list_line(s, "-- Users ----------- \n");
-  for (size_t i = 0; i < user_number; i++) {
+  for (int i = 0; i < user_number; i++) {
     extra = user_locked[i] != 0 ? "Locked" : "";
     if (user_max_slots[i] == 0 && user_busy[i] == 0) continue;
-    snprintf(buffer, 256, "[%04d] %3d/%-4d %20s Run. %2d %s\n", user_UID[i],
-             user_busy[i], abs(user_max_slots[i]), user_name[i], user_jobs[i],
-             extra);
+    snprintf(buffer, 256, "[%04d] %3d/%-4d Q:%-3d %16s Run. %2d %s\n", user_UID[i],
+            user_busy[i], abs(user_max_slots[i]), user_queue[i], user_name[i], user_jobs[i],
+            extra);
     send_list_line(s, buffer);
   }
   snprintf(buffer, 256, "Service at UID:%d\n", server_uid);
@@ -283,10 +283,10 @@ void s_user_status_all(int s) {
 void s_user_status(int s, int i) {
   char buffer[256];
   char *extra = "";
-  if (user_locked[i] != 0)
+  if (user_locked[i] != 0)  
     extra = "Locked";
-  snprintf(buffer, 256, "[%04d] %3d/%-4d %20s Run. %2d %s\n", user_UID[i],
-           user_busy[i], abs(user_max_slots[i]), user_name[i], user_jobs[i],
+  snprintf(buffer, 256, "[%04d] %3d/%-4d Q:%-3d %16s Run. %2d %s\n", user_UID[i],
+           user_busy[i], abs(user_max_slots[i]), user_queue[i], user_name[i], user_jobs[i],
            extra);
   send_list_line(s, buffer);
 }
@@ -302,6 +302,7 @@ int get_tsUID(int uid) {
 
 
 void kill_pid(int pid, const char *signal, const char* extra) {
+  if (signal == NULL && extra == NULL) return;
   char command[1024];
   const char *path = get_kill_sh_path();
   if (extra == NULL) {

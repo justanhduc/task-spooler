@@ -486,15 +486,16 @@ static char *get_output_file(int *pid) {
 }
 
 void c_pause_job(int jobid) {
-  int pid = 0;
   /* This will exit if there is any error */
+  /*
+  int pid = 0;
   get_output_file(&pid);
 
   if (pid == -1 || pid == 0) {
-    fprintf(stderr, "Error: strange PID received: %i\n", pid);
+    fprintf(stderr, "Error: PID received: %i\n", pid);
     exit(-1);
   }
-
+*/
   // printf("kill the pid: %d\n", pid);
   /* Send SIGTERM to the process group, as pid is for process group */
   // kill(-pid, SIGSTOP);
@@ -504,19 +505,18 @@ void c_pause_job(int jobid) {
   m.jobid = jobid;
   send_msg(server_socket, &m);
   c_wait_server_lines();
-  kill_pid(pid, "kill -s STOP", NULL);
 }
 
 void c_rerun_job(int jobid) {
+  /*
   int pid = 0;
-  /* This will exit if there is any error */
   get_output_file(&pid);
 
   if (pid == -1 || pid == 0) {
     fprintf(stderr, "Error: strange PID received: %i\n", pid);
     exit(-1);
   }
-
+  */
   // printf("kill the pid: %d\n", pid);
   /* Send SIGTERM to the process group, as pid is for process group */
   // kill(-pid, SIGCONT);
@@ -528,7 +528,6 @@ void c_rerun_job(int jobid) {
   // not error, restart job
   if (wait_server_lines_and_check("Error") == 0) {
     c_wait_server_lines();
-    kill_pid(pid, "kill -s CONT", NULL);
   }
 
 }

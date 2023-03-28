@@ -4,13 +4,6 @@
 
     Please find the license in the provided COPYING file.
 */
-#define TS_VERSION_FALLBACK "1.3.1"
-
-/* from https://github.com/LLNL/lbann/issues/117
- * and https://gcc.gnu.org/onlinedocs/cpp/Stringizing.html#Stringizing */
-#define TS_MAKE_STR(x) _TS_MAKE_STR(x)
-#define _TS_MAKE_STR(x) #x
-
 #include <getopt.h>
 #include <pwd.h>
 #include <signal.h>
@@ -22,6 +15,8 @@
 #include <unistd.h>
 
 #include "main.h"
+#include "version.h"
+
 int client_uid;
 extern char *optarg;
 extern int optind, opterr, optopt;
@@ -37,18 +32,9 @@ static char *old_getopt_env;
 static char version[1024];
 
 static void init_version() {
-#ifdef TS_VERSION
-  char *ts_version = TS_MAKE_STR(TS_VERSION);
-  snprintf(version, 1024,
-           "Task Spooler %s - a task queue system for the unix user.\n"
-           "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell",
-           ts_version);
-#else
-  snprintf(version, 1024,
-           "Task Spooler %s - a task queue system for the unix user.\n"
-           "Copyright (C) 2007-2020  Duc Nguyen - Lluis Batlle i Rossell",
-           TS_VERSION_FALLBACK);
-#endif
+    char *ts_version = TS_MAKE_STR(TS_VERSION);
+    sprintf(version, "Task Spooler %s - a task queue system for the unix user.\n"
+                     "Copyright (C) 2007-%d  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell", ts_version, 2023);
 }
 
 static void default_command_line() {
@@ -218,7 +204,7 @@ void parse_opts(int argc, char **argv) {
         if (command_line.taskpid <= 0)
           command_line.taskpid = 0;
         else {
-          check_running_task(command_line.taskpid);
+          check_relink(command_line.taskpid);
         }
       } else if (strcmp(longOptions[optionIdx].name, "stime") == 0) {
         command_line.start_time = str2int(optarg);
@@ -563,6 +549,8 @@ static void print_help(const char *cmd) {
          "starts.\n");
   printf("  TS_LOGFILE_PATH  path to the job log file, read on server "
          "starts\n");
+  printf("  TS_SQLITE_PATH  path to the job log file, read on server "
+         "starts\n");
   printf("  TS_FIRST_JOBID  The first job ID (default: 1000), read on server "
          "starts.\n");
   printf(
@@ -598,7 +586,7 @@ static void print_help(const char *cmd) {
   printf("  --rerun [jobid]                 rerun a paused task.\n");
   printf("  --lock                          Locker the server (Timeout: 30 "
          "sec.)"
-         "For Root, timeout is infinity.\n");
+         " For Root, timeout is infinity.\n");
   printf("  --unlock                        Unlocker the server.\n");
   printf("  --stop [user]                   For normal user, pause all "
          "tasks and lock the account. \n                                "
@@ -608,7 +596,7 @@ static void print_help(const char *cmd) {
          "         For root, to unlock all users or single [user].\n");
   printf("  --relink [PID]                  Relink the running tasks by its [PID] from an expected failure.\n");
   printf(
-      "  --job [joibid] || -J [joibid]   set the new or relink job ID by jobid\n");
+      "  --job [joibid] || -J [joibid]   set the jobid of the new or relink job\n");
   // printf("  --stime [start_time]            Set the relinked task by starting time (Unix epoch).\n");
   printf("Actions:\n");
   printf("  -A           Show all users information\n");

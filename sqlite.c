@@ -276,6 +276,17 @@ static void set_order_id_DB(int jobid, int order_id) {
     }
 }
 
+void set_state_DB(int jobid, int state) {
+    char *err_msg = 0;
+    char sql[1024];
+    sprintf(sql, "UPDATE Jobs SET state=%d WHERE jobid=%d", state, jobid);
+    int rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
+    if (rc != SQLITE_OK ) {
+        fprintf(stderr, "[movetop_DB] SQL error: %s\n", err_msg);
+        sqlite3_free(err_msg);
+    }
+}
+
 void swap_DB(int jobid0, int jobid1) {
     int id0 = get_order_id(jobid0);
     int id1 = get_order_id(jobid1);

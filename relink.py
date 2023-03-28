@@ -25,8 +25,9 @@ def parse(s):
     procs = int(s[p2+2:p3].strip())
     user = s[p1+1:p2].strip()
     tag  = s[p3+1:p4]
+    jobid = s[1:p1]
     t_time = datetime.datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
-    return user, procs, pid, tag, CMD, t_time
+    return user, procs, pid, tag, CMD, t_time, jobid;
 
 
 print("read from", logfile)
@@ -40,7 +41,7 @@ t_line = t_now - datetime.timedelta(days = days_num)
 print("  only restore tasks with {} days, start by".format(days_num), t_line)
 tasks = []
 for l in lines[:]:
-    user, procs, pid, tag, CMD, t_time = parse(l)
+    user, procs, pid, tag, CMD, t_time, jobid = parse(l)
     if (psutil.pid_exists(pid)):
         if (t_time > t_line):
             
@@ -48,19 +49,21 @@ for l in lines[:]:
             cmd = " ".join(p.cmdline()).replace("/bin/sh /opt/intel/oneapi/mpi/2021.3.0/bin/mpirun", "mpirun")
             if (cmd == CMD):
                 print("add:", l)
-                tasks.append([tag, pid, procs, CMD])
+                tasks.append([tag, pid, jobid, procs, CMD])
                 # tasks.append([tag, pid, procs, int(t_time.timestamp()), CMD])
             else:
-                print("  N/A:", l) # "#", cmd, p.name(), p.cmdline())
+                print("add:", l)
+                tasks.append([tag, pid, jobid, procs, CMD])
+                # print("  N/A:", l) # "#", cmd, p.name(), p.cmdline())
         else:
             print("  UNK:", l)
 
 for i in tasks[:]:
     if i[0] == "..":
-        CMD = '{} --relink {} -N {} "{}"'.format(ts_CMD, *i[1:])
+        CMD = '{} --relink {} -J {} -N {} "{}"'.format(ts_CMD, *i[1:])
         # CMD = 'ts --pid {} -N {} --stime {:} "{}"'.format(*i[1:])
     else:
-        CMD = '{} -L {} --relink {} -N {} "{}"'.format(ts_CMD, *i)
+        CMD = '{} -L {} --relink {} -J {} -N {} "{}"'.format(ts_CMD, *i)
         # CMD = 'ts -L {} --pid {} -N {} --stime {:} "{}"'.format(*i)
     print(CMD)
     os.system(CMD)
