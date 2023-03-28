@@ -102,28 +102,18 @@ const char *set_server_logfile() {
 }
 
 void check_relink(int pid) {
-  char path[256], buff[256] = "";
-  snprintf(path, 255, "/proc/%d/fd/1", command_line.taskpid);
-  int len = readlink(path, buff, sizeof(buff));
-
-  // printf("path = %s, buff = %s\n", path, buff); 
-  if (strlen(buff) == 0 || len == -1) {
-    error("Client: PID[%d] is dead\n", pid);
-  } else {
-    printf("Client: PID[%d] => %s\n", pid, buff);
-  }
-  int namesize = strnlen(buff, 255)+1;
-  char* f = (char*) malloc(namesize);
-  strncpy(f, buff, namesize);
-
+  char buff[256];
   struct stat t_stat;
   snprintf(buff, 255, "/proc/%d/stat", pid);
   if (stat(buff, &t_stat) != -1) {
     command_line.start_time = t_stat.st_ctime;
+  } else {
+    if (kill(pid, 0) != 0) {
+      error("Client: PID[%d] is dead\n", pid);
+    }
   }
-  command_line.outfile = f;
+  command_line.outfile = NULL;
 }
-
 
 /*
   ts_UID from user_number is 1-indexing

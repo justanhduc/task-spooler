@@ -245,6 +245,7 @@ struct Job {
   char *label;
   struct Procinfo info;
   int num_slots;
+  int num_allocated;
 #ifdef TASKSET
   char* cores;
 #endif

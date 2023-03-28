@@ -149,10 +149,10 @@ void error(const char *str, ...) {
 
     real_errno = errno;
 
-    if (process_type == CLIENT) {
-        vfprintf(stderr, str, ap);
-        fputc('\n', stderr);
-    }
+    // if (process_type == CLIENT) {
+    vfprintf(stderr, str, ap);
+    fputc('\n', stderr);
+    // }
 
     problem(ERROR, str, ap);
     close_sqlite();
@@ -167,11 +167,11 @@ void debug(const char *str, ...)
 
     real_errno = errno;
 
-    if (process_type == CLIENT)
-    {
-        vfprintf(stderr, str, ap);
-        fputc('\n', stderr);
-    }
+    //if (process_type == CLIENT)
+    // {
+    vfprintf(stderr, str, ap);
+    fputc('\n', stderr);
+    //}
 
     problem(DEBUG, str, ap);
 }

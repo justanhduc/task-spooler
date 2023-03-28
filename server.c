@@ -360,6 +360,7 @@ static void server_loop(int ls) {
           warning("Closing");
           /* On unknown message, we close the client,
              or it may hang waiting for an answer */
+          // printf("close to jobid %d nconnections = %d/%d\n", client_cs[i].jobid, i, nconnections);
           clean_after_client_disappeared(client_cs[i].socket, i);
         } else if (b == BREAK) {
           keep_loop = 0;
@@ -372,14 +373,13 @@ static void server_loop(int ls) {
         */
       }
     /* This will return firstjob->jobid or -1 */
-
     newjob = next_run_job();
-    
+    // printf("end of next_run, newjob = %d\n", newjob);
+
     if (newjob != -1) {
       int conn, awaken_job;
       conn = get_conn_of_jobid(newjob);
       /* This next marks the firstjob state to RUNNING */
-
       s_mark_job_running(newjob);
       s_runjob(newjob, conn);
 
@@ -389,7 +389,8 @@ static void server_loop(int ls) {
           error("The job awaken does not have a connection open");
         s_newjob_ok(wake_conn);
       }
-    }
+      // printf("end of next_run_job for jobid[%d]\n", newjob);
+    } // job != -1
   } // end of while (keep_loop)
 
   end_server(ls);
@@ -465,12 +466,13 @@ static void s_remove_all_queues(int ts_UID) {
 }
 
 static enum Break client_read(int index) {
+  // printf("client_read(%d)\n", index);
+
   struct Msg m = default_msg();
   int s;
   int res;
 
   s = client_cs[index].socket;
-
   /* Read the message */
   res = recv_msg(s, &m);
   if (res == -1) {
@@ -481,6 +483,7 @@ static enum Break client_read(int index) {
     clean_after_client_disappeared(s, index);
     return NOBREAK;
   }
+  // printf("client_read(%d), m.type = %d\n", index, m.type);
   int ts_UID = client_cs[index].ts_UID;
 
   /* Process message */
@@ -633,9 +636,14 @@ static enum Break client_read(int index) {
     s_send_cmd(s, m.jobid);
     break;
   case ENDJOB:
+    // printf("job_finished = %x, jobid = %d\n", &m.u.result, client_cs[index].jobid);
     job_finished(&m.u.result, client_cs[index].jobid);
+
     /* For the dependencies */
+    // printf("check_notify_list\n");
+
     check_notify_list(client_cs[index].jobid);
+    // printf("check_notify_list0\n");
     /* We don't want this connection to do anything
      * more related to the jobid, secially on remove_connection
      * when we receive the EOC. */

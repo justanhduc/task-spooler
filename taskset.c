@@ -28,7 +28,7 @@ void init_taskset() {
 }
 
 int allocate_cores(int N) {
-    if (N > MAX_CORE_NUM - core_usage) return 0;
+    if (N + core_usage > MAX_CORE_NUM) return 0;
     task_core_num = 0;
     int i = 0;
     while(task_core_num < N && i < MAX_CORE_NUM) {
@@ -44,6 +44,7 @@ int allocate_cores(int N) {
 }
 
 void lock_core_by_job(struct Job* p) {
+    if (p == NULL) return;
     for (int i = 0; i < task_core_num; i++) {
         int iA = task_array_id[i];
         core_jobs[iA] = p;

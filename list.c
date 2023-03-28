@@ -21,6 +21,7 @@ extern int core_usage;
 
 /* return 0 for running and 1 for sleep and -1 for error */
 int is_sleep(int pid) {
+  // if (pid == 0) return -1;
   char filename[256];
   char name[256];
   char status = '\0';
@@ -29,12 +30,12 @@ int is_sleep(int pid) {
 
   fp = fopen(filename, "r");
   if (fp == NULL) {
-    fprintf(stderr, "Error: Couldn't open [%s]\n", filename);
+    fprintf(stderr, "[is_sleep] Error: Couldn't open [%s]\n", filename);
     return -1;
   }
   int token = fscanf(fp, "%d %s %c", &pid, name, &status);
   if (token < 3) {
-    fprintf(stderr, "Error: not enough (3) tokens\n");
+    fprintf(stderr, "[is_sleep] Error: not enough (3) tokens\n");
     return -1;
   }
   fclose(fp);
