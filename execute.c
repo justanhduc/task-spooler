@@ -28,7 +28,7 @@
 extern int signals_child_pid; /* 0, not set. otherwise, set. */
 extern int client_uid;
 
-/**/
+/*
 static int wait_for_pid(int pid)
 {
     char path[32];
@@ -61,6 +61,13 @@ static int wait_for_pid(int pid)
     close(dir_fd);
     close(in_fd);
     return res;
+}
+*/
+static int wait_for_pid(int pid) {
+  while(kill(pid, 0) == 0) {
+    sleep(1);
+  }
+  return -1;
 }
 
 static int ptrace_pid(int pid) {
