@@ -280,10 +280,10 @@ void server_main(int notify_fd, char *_path) {
     notify_parent(notify_fd);
 
   if (open_sqlite() != 0) {
-    debug_write("Cannot open sqlite database");
+    // debug_write("Cannot open sqlite database");
     error("Cannot open sqlite database");
   }
-
+  init_pause();
   // printf("jobids = %d\n", get_jobids_DB());
   jobsort_flag = get_env("TS_SORTJOBS", 0);
   s_set_jobids(get_env("TS_FIRST_JOBID", get_jobids_DB()));
@@ -351,7 +351,7 @@ static void server_loop(int ls) {
       }
     }
 
-    for (i = 0; i < nconnections; ++i)
+    for (i = 0; i < nconnections; ++i) {
       if (FD_ISSET(client_cs[i].socket, &readset)) {
         enum Break b;
         b = client_read(i);
@@ -372,11 +372,14 @@ static void server_loop(int ls) {
         }
         */
       }
+    } // nconnections
+
     /* This will return firstjob->jobid or -1 */
     newjob = next_run_job();
     // printf("end of next_run, newjob = %d\n", newjob);
 
     if (newjob != -1) {
+      check_pause();
       int conn, awaken_job;
       conn = get_conn_of_jobid(newjob);
       /* This next marks the firstjob state to RUNNING */
@@ -399,6 +402,8 @@ static void server_loop(int ls) {
 static void end_server(int ls) {
   close(ls);
   unlink(path);
+  close_sqlite();
+  free_pause_array();
   /* This comes from the parent, in the fork after server_main.
    * This is the last use of path in this process.*/
   free(path);

@@ -102,6 +102,52 @@ static void allocate_cores_ex(struct Job* p, const char* extra) {
 
 static void allocate_cores(struct Job* p) { allocate_cores_ex(p, NULL); }
 
+int num_pause;
+int* paused_pids = NULL;
+
+void init_pause() {
+  num_pause = 0;
+  paused_pids = (int*) malloc(sizeof(int) * max_jobs);
+}
+
+static int set_pause(int pid) {
+  paused_pids[num_pause] = pid;
+  return num_pause++;
+}
+
+static int free_pause(int pid) {
+  for (int i = 0; i < num_pause; i++)
+  {
+    if (paused_pids[i] == pid) {
+      num_pause--;
+      paused_pids[i] = paused_pids[num_pause];
+      return 1;
+    }
+  }
+  return 0;
+}
+
+void check_pause() {
+  int i = 0;
+  while (i < num_pause) {
+    int pid = paused_pids[i];
+    int res = is_sleep(pid);
+    if (res == 0) {
+      kill_pid(pid, "kill -s STOP", NULL);
+    } else if(res == -1) {
+      num_pause--;
+      paused_pids[i] = paused_pids[num_pause];
+      continue;
+    }
+    i++;
+  }
+  // printf("num_pause = %d\n", num_pause);
+}
+
+void free_pause_array() {
+  free(paused_pids);
+  paused_pids = NULL;
+}
 
 /* Serialize a job and add it to the JSON array. Returns 1 for success, 0 for failure. */
 static int add_job_to_json_array(struct Job *p, cJSON *jobs) {
@@ -561,6 +607,7 @@ void s_mark_job_running(int jobid) {
       p->output_filename = get_ofile_from_FD(p->pid);
     }
     if (is_sleep(p->pid) == 1) {
+      set_pause(p->pid);
       p->state = RUNNING;
       return;
     }
@@ -1659,6 +1706,7 @@ void s_cont_user(int s, int ts_UID) {
       if (p->pid != 0) {
         if (is_sleep(p->pid) == 1) {
           p->state = RUNNING;
+          free_pause(p->pid);
           allocate_cores_ex(p, "kill -s CONT");
         }
         // kill_pid(p->pid, "kill -s CONT");
@@ -1687,6 +1735,7 @@ void s_stop_user(int s, int ts_UID) {
         if (is_sleep(p->pid) == 0) {
           p->state = LOCKED;
           free_cores(p);
+          set_pause(p->pid);
           kill_pid(p->pid, "kill -s STOP", NULL);
         }
       } else {
@@ -2072,6 +2121,7 @@ void s_pause_job(int s, int jobid, int ts_UID) {
   
   int job_tsUID = p->ts_UID;
   if (p->pid != 0 && (job_tsUID = ts_UID || ts_UID == 0)) {
+    set_pause(p->pid);
     free_cores(p);
     kill_pid(p->pid, "kill -s STOP", NULL);
     snprintf(buff, 255, "To pause job [%d] successfully!\n", jobid);
@@ -2126,6 +2176,7 @@ if (p->state == LOCKED) {
   if (p->pid != 0 && (job_tsUID = ts_UID || ts_UID == 0)) {
     int num_slots = p->num_slots;
     if (user_busy[ts_UID] + num_slots <= user_max_slots[ts_UID] && busy_slots + num_slots <= max_slots) {
+      free_pause(p->pid);
       allocate_cores_ex(p, "kill -s CONT");
       snprintf(buff, 255, "To rerun job [%d] successfully!\n", jobid);
     } else {

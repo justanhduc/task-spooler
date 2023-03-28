@@ -576,6 +576,9 @@ void s_sort_jobs();
 int s_check_relink(int s, int pid, int ts_UID);
 void s_read_sqlite();
 int s_check_running_pid(int pid);
+void init_pause();
+void check_pause();
+void free_pause_array();
 struct Job *findjob(int jobid);
 
 /* client.c */
