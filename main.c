@@ -112,22 +112,23 @@ int strtok_int(char* str, char* delim, int* ids) {
 }
 
 static struct option longOptions[] = {
-        {"get_label",         required_argument, NULL, 'a'},
-        {"count_running",     no_argument,       NULL, 'R'},
-        {"last_queue_id",     no_argument,       NULL, 'q'},
-        {"full_cmd",          required_argument, NULL, 'F'},
-        {"serialize",         required_argument, NULL, 'M'},
-        {"getenv",            required_argument, NULL, 0},
-        {"setenv",            required_argument, NULL, 0},
-        {"unsetenv",          required_argument, NULL, 0},
-        {"get_logdir",        no_argument,       NULL, 0},
-        {"set_logdir",        required_argument, NULL, 0},
+        {"get_label",          required_argument, NULL, 'a'},
+        {"count_running",      no_argument,       NULL, 'R'},
+        {"last_queue_id",      no_argument,       NULL, 'q'},
+        {"full_cmd",           required_argument, NULL, 'F'},
+        {"serialize",          required_argument, NULL, 'M'},
+        {"getenv",             required_argument, NULL, 0},
+        {"setenv",             required_argument, NULL, 0},
+        {"unsetenv",           required_argument, NULL, 0},
+        {"get_logdir",         no_argument,       NULL, 0},
+        {"set_logdir",         required_argument, NULL, 0},
 #ifndef CPU
         {"gpus",              required_argument, NULL, 'G'},
         {"gpu_indices",       required_argument, NULL, 'g'},
         {"set_gpu_free_perc", required_argument, NULL, 0},
         {"get_gpu_free_perc", no_argument,       NULL, 0},
 #endif
+        {"version",           no_argument, NULL, 'V'},
         {NULL, 0,                            NULL, 0}
 };
 
