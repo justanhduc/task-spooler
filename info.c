@@ -40,7 +40,7 @@ void pinfo_addinfo(struct Procinfo *p, int maxsize, const char *line, ...)
     va_list ap;
 
     int newchars = p->nchars + maxsize;
-    void *newptr = 0;
+    void *newptr;
     int res;
 
     va_start(ap, line);
@@ -66,7 +66,6 @@ void pinfo_addinfo(struct Procinfo *p, int maxsize, const char *line, ...)
 
     res = vsnprintf(p->ptr + p->nchars, (p->allocchars - p->nchars), line, ap);
     p->nchars += res; /* We don't store the final 0 */
-    free(newptr);
     va_end(ap);
 }
 
