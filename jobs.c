@@ -19,6 +19,7 @@
 #include "main.h"
 #include "user.h"
 #include "cjson/cJSON.h"
+#include "default.inc"
 
 /* The list will access them */
 int busy_slots = 0;
@@ -47,12 +48,34 @@ static char buff[256];
 int max_jobs;
 
 static struct Job *get_job(int jobid);
+static int fork_cmd(int UID, const char* path, const char* cmd);
 
 void notify_errorlevel(struct Job *p);
 
 void s_set_jobids(int i) { 
   jobids = i; 
   set_jobids_DB(i);
+}
+
+static void sound_notify(struct Job* p) {
+  #ifdef SOUND
+  float real_ms = p->result.real_ms;
+  if (real_ms == 0.0) {
+    real_ms = p->info.end_time.tv_sec - p->info.start_time.tv_sec;
+    real_ms += 1e-6 * (p->info.end_time.tv_usec - p->info.start_time.tv_usec);
+  }
+  // skip the short task
+  printf("real_ms = %g\n", real_ms);
+  if (real_ms < 5) return;
+  char cmd[256];
+  if (p->result.errorlevel == 0) {
+    snprintf(cmd, 255, "paplay -p \"%s\" -s %s", DEFAULT_NOTIFICATION_SOUND, DEFAULT_PULSE_SERVER);
+  } else {
+    snprintf(cmd, 255, "paplay -p \"%s\" -s %s", DEFAULT_ERROR_SOUND, DEFAULT_PULSE_SERVER);
+  }
+  printf("%s\n", cmd);
+  fork_cmd(user_UID[p->ts_UID], NULL, cmd);
+  #endif
 }
 
 static void destroy_job(struct Job *p) {
@@ -1288,6 +1311,7 @@ static void new_finished_job(struct Job *j) {
   #ifdef TASKSET
     unlock_core_by_job(j);
   #endif
+  sound_notify(j);
 }
 
 static int job_is_in_state(int jobid, enum Jobstate state) {

@@ -680,7 +680,6 @@ int main(int argc, char **argv) {
   user_locker = -1;
   client_uid = getuid();
   // printf("client_uid = %u\n", client_uid);
-
   init_version();
   get_terminal_width();
   process_type = CLIENT;

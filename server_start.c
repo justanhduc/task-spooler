@@ -48,69 +48,61 @@ static void setup_kill_sh() {
     printf("Cannot create `kill_ppide.sh` file at %s\n", path);
     exit(0);
   }
-  fprintf(f, R"(#!/bin/bash
+  const char* script = "#!/bin/bash\n\n"
+    "# getting children generally resolves nicely at some point\n"
+    "get_child() {\n"
+    "    echo $(pgrep -laP $1 | awk '{print $1}')\n"
+    "}\n\n"
+    "get_children() {\n"
+    "    __RET=$(get_child $1)\n"
+    "    __CHILDREN=\n"
+    "    while [ -n \"$__RET\" ]; do\n"
+    "        __CHILDREN+=\"$__RET \"\n"
+    "        __RET=$(get_child $__RET)\n"
+    "    done\n\n"
+    "    __CHILDREN=$(echo \"${__CHILDREN}\" | xargs | sort)\n\n"
+    "    echo \"${__CHILDREN} $1\"\n"
+    "}\n\n"
+    "if [ 1 -gt $# ]; \n"
+    "then\n"
+    "    echo \"not input PID\"\n"
+    "    exit 1\n"
+    "fi\n\n"
+    "owner=`ps -o user= -p $1`\n"
+    "if [ -z \"$owner\" ]; \n"
+    "then\n"
+    "    // echo \"not a valid PID\"\n"
+    "    exit 1\n"
+    "fi\n"
+    "pids=`get_children $1`\n\n"
+    "user=`whoami`\n\n"
+    "extra=\"\"\n"
+    "if [[ \"$owner\" != \"$user\" ]]; then\n"
+    "    extra=\"sudo\"\n"
+    "fi\n\n"
+    "if [ -z \"$3\" ]\n"
+    "then\n"
+    "    if [ -z \"$2\" ]\n"
+    "    then\n"
+    "        for pid in ${pids};\n"
+    "        do\n"
+    "            ${extra} echo ${pid}\n"
+    "        done\n"
+    "    else\n"
+    "        for pid in ${pids};\n"
+    "        do\n"
+    "            ${extra} $2 ${pid}\n"
+    "        done\n"
+    "    fi\n"
+    "else\n"
+    "    for pid in ${pids};\n"
+    "    do\n"
+    "        ${extra} $2 ${pid}\n"
+    "        ${extra} $3 ${pid}\n"
+    "    done\n"
+    "fi;\n";
 
-# getting children generally resolves nicely at some point
-get_child() {
-    echo $(pgrep -laP $1 | awk '{print $1}')
-}
-
-get_children() {
-    __RET=$(get_child $1)
-    __CHILDREN=
-    while [ -n "$__RET" ]; do
-        __CHILDREN+="$__RET "
-        __RET=$(get_child $__RET)
-    done
-
-    __CHILDREN=$(echo "${__CHILDREN}" | xargs | sort)
-
-    echo "${__CHILDREN} $1"
-}
-
-if [ 1 -gt $# ]; 
-then
-    echo "not input PID"
-    exit 1
-fi
-
-owner=`ps -o user= -p $1`
-if [ -z "$owner" ]; 
-then
-    # echo "not a valid PID"
-    exit 1
-fi
-pids=`get_children $1`
-
-user=`whoami`
-
-extra=""
-if [[ "$owner" != "$user" ]]; then
-    extra="sudo"
-fi
-
-if [ -z "$3" ]
-then
-    if [ -z "$2" ]
-    then
-        for pid in ${pids};
-        do
-            ${extra} echo ${pid}
-        done
-    else
-        for pid in ${pids};
-        do
-            ${extra} $2 ${pid}
-        done
-    fi
-else
-    for pid in ${pids};
-    do
-        ${extra} $2 ${pid}
-        ${extra} $3 ${pid}
-    done
-fi
-)");
+  fprintf(f, "%s", script);
   fclose(f);
 
   printf("  Kill_PPID.sh at `%s`\n\n", path);
