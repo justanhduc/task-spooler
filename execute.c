@@ -280,9 +280,13 @@ static void run_child(int fd_send_filename, const char *tmpdir, int jobid) {
 
   // int len_outfname = 1 + strlen(label) + strlen(".XXXXXX") + 1;
   int len_outfname = 3 + strlen(label) + strlen(jobid_str);
-  outfname = malloc(len_outfname);
-
-  snprintf(outfname, len_outfname, "/%s.%d", label, jobid);
+  if (command_line.outfile == NULL) {
+    outfname = malloc(len_outfname);
+    snprintf(outfname, len_outfname, "/%s.%d", label, jobid);
+  } else {
+    outfname = command_line.outfile;
+    tmpdir = "";
+  }
 
   if (command_line.store_output) {
     /* Prepare path */
@@ -291,7 +295,7 @@ static void run_child(int fd_send_filename, const char *tmpdir, int jobid) {
 
     // if (tmpdir == NULL)
     //  tmpdir = "/tmp";
-    lname = strlen(outfname) + strlen(tmpdir) + 1 /* \0 */;
+    lname = strlen(outfname) + strlen(tmpdir) + 5 /* \0 */;
 
     outfname_full = (char *)malloc(lname);
     strcpy(outfname_full, tmpdir);

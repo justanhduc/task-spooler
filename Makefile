@@ -1,8 +1,9 @@
+
 PREFIX?=/usr/local
 PREFIX_LOCAL=~
 GLIBCFLAGS=#-D_XOPEN_SOURCE=500 -D__STRICT_ANSI__
 CPPFLAGS+=$(GLIBCFLAGS)
-CFLAGS?=-pedantic -ansi -Wall -g -std=gnu11 -DTASKSET -DSOUND
+CFLAGS?=-pedantic -ansi -Wall -g -std=gnu11 -DTASKSET -DSOUND -fcommon 
 OBJECTS=main.o \
 	server.o \
 	server_start.o \

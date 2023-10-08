@@ -56,7 +56,7 @@ char *charArray_string(int num, char** array) {
 }
 
 void c_new_job() {
-
+  // printf("new _job \n");
   struct Msg m = default_msg();
   char *new_command, path[1024];
   char *myenv;
@@ -78,10 +78,18 @@ void c_new_job() {
     m.u.newjob.env_size = strlen(myenv) + 1; /* add null */
   else
     m.u.newjob.env_size = 0;
+  
   if (command_line.label)
     m.u.newjob.label_size = strlen(command_line.label) + 1; /* add null */
   else
     m.u.newjob.label_size = 0;
+
+  if (command_line.email) {
+    // printf("send email to %s\n", command_line.email);
+    m.u.newjob.email_size = strlen(command_line.email) + 1; /* add null */
+  } else
+    m.u.newjob.email_size = 0;
+
   m.u.newjob.store_output = command_line.store_output;
   m.u.newjob.depend_on_size = command_line.depend_on_size;
   m.u.newjob.should_keep_finished = command_line.should_keep_finished;
@@ -110,6 +118,9 @@ void c_new_job() {
 
   /* Send the label */
   send_bytes(server_socket, command_line.label, m.u.newjob.label_size);
+
+  /* Send the label */
+  send_bytes(server_socket, command_line.email, m.u.newjob.email_size);
 
   /* Send the environment */
   send_bytes(server_socket, myenv, m.u.newjob.env_size);

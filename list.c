@@ -93,6 +93,14 @@ char *joblist_headers() {
 
 static int max(int a, int b) { return a > b ? a : b; }
 
+static const char* jstate2string_result(const struct Job* p) {
+  if (p->result.errorlevel != 0 || p->result.signal != 0 || p->result.died_by_signal != 0) {
+    return "failed";
+  } else {
+    return jstate2string(p->state);
+  }
+}
+
 static const char *ofilename_shown(const struct Job *p) {
   const char *output_filename;
 
@@ -216,7 +224,7 @@ static char *print_result(const struct Job *p) {
   const char *unit = time_rep(&real_ms);
   int cmd_len;
 
-  jobstate = jstate2string(p->state);
+  jobstate = jstate2string_result(p);
   output_filename = ofilename_shown(p);
 
   char *uname = user_name[p->ts_UID];
@@ -331,6 +339,7 @@ static char *plainprint_noresult(const struct Job *p) {
   return line;
 }
 
+
 static char *plainprint_result(const struct Job *p) {
   const char *jobstate;
   int maxlen;
@@ -346,7 +355,7 @@ static char *plainprint_result(const struct Job *p) {
 
   const char *unit = time_rep(&real_ms);
 
-  jobstate = jstate2string(p->state);
+  jobstate = jstate2string_result(p);
   output_filename = ofilename_shown(p);
 
   maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1 + 25 + 1 + strlen(p->command) +

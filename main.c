@@ -13,6 +13,7 @@
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <time.h>    // time()
 
 #include "main.h"
 #include "version.h"
@@ -47,6 +48,7 @@ static void default_command_line() {
   command_line.send_output_by_mail = 0;
   command_line.linux_cmd = NULL;
   command_line.label = NULL;
+  command_line.email = NULL;
   command_line.depend_on_size = 0;
   command_line.depend_on = NULL; /* -1 means depend on previous */
   command_line.max_slots = 1;
@@ -76,6 +78,40 @@ struct Result default_result() {
 void get_command(int index, int argc, char **argv) {
   command_line.command.array = &(argv[index]);
   command_line.command.num = argc - index;
+}
+
+char* get_tmp() {
+    const char* tmpFolder = getenv("TMPDIR");
+    if (tmpFolder == NULL) {
+      tmpFolder = "/tmp/";
+    }
+    const char* fileNameFormat = "ts_out.%06d";
+    const int folderLength = strlen(tmpFolder);
+    const int maxFileNameLength = folderLength + strlen(fileNameFormat) + 10;
+
+    char* fileName = (char*)malloc(maxFileNameLength * sizeof(char));
+    char* fileName2 = (char*)malloc(maxFileNameLength * sizeof(char));
+
+    if (fileName == NULL || fileName2 == NULL) {
+        fprintf(stderr, "Memory allocation failed.\n");
+        return NULL;
+    }
+
+    srand(time(NULL));
+    uint randomNumber1 = rand() % 10000;
+    uint randomNumber2 = rand() % 10000;
+    uint randomNumber3 = rand() % 10000;
+
+    const int randomRange = 100000;
+    uint randomOffset = randomNumber1 * randomRange * randomRange + randomNumber2 * randomRange + randomNumber3;
+
+    int finalRandomNumber = randomOffset % randomRange;
+
+    snprintf(fileName, maxFileNameLength, "%s/%s", tmpFolder, fileNameFormat);
+    snprintf(fileName2, maxFileNameLength, fileName, finalRandomNumber);
+    printf("save to %s\n", fileName2);
+    free(fileName);
+    return fileName2;
 }
 
 static int get_two_jobs(const char *str, int *j1, int *j2) {
@@ -130,6 +166,7 @@ static struct option longOptions[] = {
     {"lock-ts", no_argument, NULL, 0},
     {"unlock-ts", no_argument, NULL, 0},
     {"daemon", no_argument, NULL, 0},
+    {"tmp", no_argument, NULL, 0},
     {"relink", required_argument, NULL, 0},
     {"jobid", required_argument, NULL, 'J'},
     {"stime", required_argument, NULL, 0},
@@ -144,7 +181,7 @@ void parse_opts(int argc, char **argv) {
   /* Parse options */
   while (1) {
     c = getopt_long(argc, argv,
-                    ":AXRTVhKzClnfmBE:a:F:t:c:o:p:w:k:r:u:s:U:qi:N:J:L:dS:D:W:O:M:",
+                    ":AXRTVhKzClnfBE:a:F:t:c:o:p:w:k:r:u:s:U:qi:N:J:m:L:dS:D:W:O:M:",
                     longOptions, &optionIdx);
 
     if (c == -1)
@@ -156,6 +193,8 @@ void parse_opts(int argc, char **argv) {
         command_line.request = c_GET_LOGDIR;
       } else if (strcmp(longOptions[optionIdx].name, "daemon") == 0) {
         command_line.request = c_DAEMON;
+      } else if (strcmp(longOptions[optionIdx].name, "tmp") == 0) {
+        command_line.outfile = get_tmp();
       } else if (strcmp(longOptions[optionIdx].name, "check_daemon") == 0) {
         command_line.request = c_CHECK_DAEMON;
         command_line.need_server = 0;
@@ -274,7 +313,7 @@ void parse_opts(int argc, char **argv) {
       command_line.should_go_background = 0;
       break;
     case 'm':
-      command_line.send_output_by_mail = 1;
+      command_line.email = optarg;
       break;
     case 't':
       command_line.request = c_TAIL;
@@ -485,12 +524,14 @@ void parse_opts(int argc, char **argv) {
   if (!command_line.store_output && !command_line.should_go_background)
     command_line.should_keep_finished = 0;
 
+  /*
   if (command_line.send_output_by_mail &&
       ((!command_line.store_output) || command_line.gzip)) {
     fprintf(stderr,
             "For e-mail, you should store the output (not through gzip)\n");
     exit(-1);
   }
+  */
 }
 
 static void fill_first_3_handles() {
@@ -533,8 +574,8 @@ static void print_help(const char *cmd) {
   printf("usage: %s [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]\n", cmd);
   printf("Env vars:\n");
   printf("  TS_SOCKET  the path to the unix socket used by the ts command.\n");
-  printf("  TS_MAILTO  where to mail the result (on -m). Local user by "
-         "default.\n");
+  // printf("  TS_MAILTO  where to mail the result (or set by -m). Local user by "
+  //       "default.\n");
   printf("  TS_MAXFINISHED  maximum finished jobs in the queue.\n");
   printf("  TS_MAXCONN  maximum number of ts connections at once.\n");
   printf("  TS_ONFINISH  binary called on job end (passes jobid, error, "
@@ -582,6 +623,7 @@ static void print_help(const char *cmd) {
       "  --serialize   ||  -M [format]   serialize the job list to the specified format. Choices: {default, json, tab}.\n");
   printf("  --daemon                        Run the server as daemon by Root "
          "only.\n");
+  printf("  --tmp                           save the logfile to tmp folder\n");
   printf("  --pause [jobid]                 hold on a task.\n");
   printf("  --rerun [jobid]                 rerun a paused task.\n");
   printf("  --lock                          Locker the server (Timeout: 30 "
@@ -641,7 +683,7 @@ static void print_help(const char *cmd) {
   printf("  -O           Set name of the log file (without any path).\n");
   printf("  -z           gzip the stored output (if not -n).\n");
   printf("  -f           don't fork into background.\n");
-  printf("  -m           send the output by e-mail (uses sendmail).\n");
+  printf("  -m <email>   send the output by e-mail (uses ssmtp).\n");
   printf("  -d           the job will be run after the last job ends.\n");
   printf(
       "  -D <id,...>  the job will be run after the job of given IDs ends.\n");

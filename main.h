@@ -134,6 +134,7 @@ struct CommandLine {
   } command;
   char *linux_cmd;
   char *label;
+  char *email;
   char *logfile;
   char *outfile;
   int num_slots;      /* Slots for the job to use. Default 1 */
@@ -176,6 +177,7 @@ struct Msg {
       int store_output;
       int should_keep_finished;
       int label_size;
+      int email_size;
       int env_size;
       int depend_on_size;
       int wait_enqueuing;
@@ -243,6 +245,7 @@ struct Job {
   int notify_errorlevel_to_size;
   int dependency_errorlevel;
   char *label;
+  char *email;
   struct Procinfo info;
   int num_slots;
   int num_allocated;
@@ -618,3 +621,5 @@ void init_taskset();
 int set_task_cores(struct Job* p, const char* extra);
 void unlock_core_by_job(struct Job* p);
 
+/* sstmp.c */
+void send_mail_via_sstmp(struct Job* p);

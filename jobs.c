@@ -24,6 +24,8 @@
 /* The list will access them */
 int busy_slots = 0;
 int max_slots = 1;
+float sstmp_skip_ms = 1; // 200000; // skip task smaller than 200 s
+const char email_sender[] = "kylincaster@foxmail.com";
 
 struct Notify {
   int socket;
@@ -57,6 +59,24 @@ void s_set_jobids(int i) {
   set_jobids_DB(i);
 }
 
+
+
+static void send_mail_via_ssmtp(struct Job* p) {
+  float real_ms = p->result.real_ms;
+  if (real_ms == 0.0) {
+    real_ms = p->info.end_time.tv_sec - p->info.start_time.tv_sec;
+    real_ms += 1e-6 * (p->info.end_time.tv_usec - p->info.start_time.tv_usec);
+  }
+  // skip the short task
+  if (real_ms < sstmp_skip_ms || p->email == NULL) return;
+
+  const char* unit = time_rep(&real_ms);
+  char cmd[1024];
+  snprintf(cmd, 1023, "echo \"Subject: %s[%d] n_core: %d, Elsp %.3f %s from MSI\nFrom: TS<%s>\nTo: %s\n\n\n Cmd: %s exit-code:%d\n Output: %s\" | ssmtp %s",
+    p->label, p->jobid, p->num_slots, real_ms, unit, p->email, email_sender, p->command + p->command_strip, p->result.signal, p->output_filename, p->email);
+  fork_cmd(root_UID, NULL, cmd);
+}
+
 static void sound_notify(struct Job* p) {
   #ifdef SOUND
   float real_ms = p->result.real_ms;
@@ -65,7 +85,6 @@ static void sound_notify(struct Job* p) {
     real_ms += 1e-6 * (p->info.end_time.tv_usec - p->info.start_time.tv_usec);
   }
   // skip the short task
-  printf("real_ms = %g\n", real_ms);
   if (real_ms < 5) return;
   char cmd[256];
   if (p->result.errorlevel == 0) {
@@ -873,6 +892,7 @@ static struct Job *newjobptr() {
     p = p->next;
 
   p->next = (struct Job *)calloc(sizeof(struct Job), sizeof(char));
+  
   /*
   p->next->next = 0;
   p->next->output_filename = 0;
@@ -1113,7 +1133,7 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
   }
 
   /* load the label */
-  p->label = 0;
+  p->label = NULL;
   if (m->u.newjob.label_size > 0) {
     char *ptr;
     ptr = (char *)malloc(m->u.newjob.label_size);
@@ -1124,6 +1144,19 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
     if (res == -1)
       error("wrong bytes received");
     p->label = ptr;
+  }
+
+  p->email = NULL;
+  if (m->u.newjob.email_size > 0) {
+    char *ptr;
+    ptr = (char *)malloc(m->u.newjob.email_size);
+    if (ptr == 0)
+      error("Cannot allocate memory in s_newjob email_size(%i)",
+            m->u.newjob.email_size);
+    res = recv_bytes(s, ptr, m->u.newjob.email_size);
+    if (res == -1)
+      error("wrong bytes received");
+    p->email = ptr;
   }
 
   /* load the info */
@@ -1312,6 +1345,7 @@ static void new_finished_job(struct Job *j) {
     unlock_core_by_job(j);
   #endif
   sound_notify(j);
+  send_mail_via_ssmtp(j);
 }
 
 static int job_is_in_state(int jobid, enum Jobstate state) {
