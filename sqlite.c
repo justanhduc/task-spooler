@@ -97,6 +97,7 @@ int open_sqlite() {
                "notify_errorlevel_to_size INT NOT NULL," \
                "dependency_errorlevel INT NOT NULL," \
                "label TEXT NOT NULL," \
+               "email TEXT NOT NULL," \
                "num_slots INT NOT NULL, " \
                "errorlevel INT NOT NULL, died_by_signal INT NOT NULL, signal INT NOT NULL, "\
                "user_ms FLOAT NOT NULL, system_ms FLOAT NOT NULL, real_ms FLOAT NOT NULL, skipped INT NOT NULL, " \
@@ -129,6 +130,7 @@ int open_sqlite() {
                "notify_errorlevel_to_size INT NOT NULL," \
                "dependency_errorlevel INT NOT NULL," \
                "label TEXT NOT NULL," \
+               "email TEXT NOT NULL," \
                "num_slots INT NOT NULL, " \
                "errorlevel INT NOT NULL, died_by_signal INT NOT NULL, signal INT NOT NULL, "\
                "user_ms FLOAT NOT NULL, system_ms FLOAT NOT NULL, real_ms FLOAT NOT NULL, skipped INT NOT NULL, " \
@@ -200,6 +202,8 @@ static int edit_DB(struct Job* job, const char* table, const char* action) {
     struct Result* result = &(job->result);
     struct Procinfo* info= &(job->info);
     const char* label = job->label == NULL ? "(..)" : job->label;
+    const char* email = job->email == NULL ? "(..)" : job->email;
+
     char sql[1024];
     
     int order_id = get_order_id(job->jobid);
@@ -210,13 +214,13 @@ static int edit_DB(struct Job* job, const char* table, const char* action) {
     char* notify_errorlevel_to = ints_to_chars(job->notify_errorlevel_to_size, job->notify_errorlevel_to, ",");
 
     sprintf(sql, "%s INTO %s (jobid, command, state, output_filename, store_output, pid, ts_UID, should_keep_finished, depend_on, depend_on_size," \
-                "notify_errorlevel_to, notify_errorlevel_to_size, dependency_errorlevel,label,num_slots,errorlevel,died_by_signal," \
+                "notify_errorlevel_to, notify_errorlevel_to_size, dependency_errorlevel,label,email,num_slots,errorlevel,died_by_signal," \
                 "signal,user_ms,system_ms,real_ms,skipped," \
                 "ptr,nchars,allocchars," \
                 "enqueue_time,start_time,end_time," \
                 "enqueue_time_ms,start_time_ms,end_time_ms, " \
                 "order_id, command_strip, work_dir)" \
-    "VALUES (%d,'%s',%d,'%s',%d,%d,%d,%d,'%s',%d,'%s',%d,%d,'%s',%d," \
+    "VALUES (%d,'%s',%d,'%s',%d,%d,%d,%d,'%s',%d,'%s',%d,%d,'%s','%s',%d," \
     "%d,%d,%d,%f,%f,%f,%d,"\
     "'%s',%d,%d,'%ld','%ld','%ld','%ld','%ld','%ld', " \
     "%d, %d,'%s');",
@@ -236,6 +240,7 @@ static int edit_DB(struct Job* job, const char* table, const char* action) {
             job->notify_errorlevel_to_size,
             job->dependency_errorlevel,
             label,
+            email,
             job->num_slots,
             result->errorlevel, result->died_by_signal, result->signal, 
             result->user_ms, result->system_ms, result->real_ms, result->skipped,
@@ -426,34 +431,42 @@ struct Job* read_DB(int jobid, const char* table) {
         strcpy(sql, (const char*) sqlite3_column_text(stmt, 13));
         job->label = (char*) malloc(sizeof(char) * (strlen(sql)+1));
         strcpy(job->label, sql);
-        
-        job->num_slots = sqlite3_column_int(stmt, 14);
 
-        result->errorlevel = sqlite3_column_int(stmt, 15);
-        result->died_by_signal = sqlite3_column_int(stmt, 16);
-        result->signal = sqlite3_column_int(stmt, 17);
-        result->user_ms = (float)sqlite3_column_double(stmt, 18);
-        result->system_ms = (float)sqlite3_column_double(stmt, 19);
-        result->real_ms = (float)sqlite3_column_double(stmt, 20);
-        result->skipped = sqlite3_column_int(stmt, 21);
+        strcpy(sql, (const char*) sqlite3_column_text(stmt, 14));
+        job->email = (char*) malloc(sizeof(char) * (strlen(sql)+1));
+        if (strcmp(sql, "(..)") != 0) {
+            strcpy(job->email, sql);
+        } else {
+            job->email = NULL;
+        }
 
-        strcpy(sql, (const char*) sqlite3_column_text(stmt, 22));
+        job->num_slots = sqlite3_column_int(stmt, 15);
+
+        result->errorlevel = sqlite3_column_int(stmt, 16);
+        result->died_by_signal = sqlite3_column_int(stmt, 17);
+        result->signal = sqlite3_column_int(stmt, 18);
+        result->user_ms = (float)sqlite3_column_double(stmt, 19);
+        result->system_ms = (float)sqlite3_column_double(stmt, 20);
+        result->real_ms = (float)sqlite3_column_double(stmt, 21);
+        result->skipped = sqlite3_column_int(stmt, 22);
+
+        strcpy(sql, (const char*) sqlite3_column_text(stmt, 23));
         info->ptr = (char*) malloc(sizeof(char) * (strlen(sql)+1));
         strcpy(info->ptr, sql);
 
-        info->nchars=sqlite3_column_bytes(stmt,23)/sizeof(char); 
-        info->allocchars=sqlite3_column_bytes(stmt,24)/sizeof(char); 
+        info->nchars=sqlite3_column_bytes(stmt,24)/sizeof(char); 
+        info->allocchars=sqlite3_column_bytes(stmt,25)/sizeof(char); 
 
-        info->enqueue_time.tv_sec=sqlite3_column_int64(stmt,25); 
-        info->start_time.tv_sec=sqlite3_column_int64(stmt,26); 
-        info->end_time.tv_sec=sqlite3_column_int64(stmt,27); 
+        info->enqueue_time.tv_sec=sqlite3_column_int64(stmt,26); 
+        info->start_time.tv_sec=sqlite3_column_int64(stmt,27); 
+        info->end_time.tv_sec=sqlite3_column_int64(stmt,28); 
 
-        info->enqueue_time.tv_usec=sqlite3_column_int64(stmt,28); 
-        info->start_time.tv_usec=sqlite3_column_int64(stmt,29); 
-        info->end_time.tv_usec=sqlite3_column_int64(stmt,30); 
-        job->command_strip=sqlite3_column_int(stmt, 32);
+        info->enqueue_time.tv_usec=sqlite3_column_int64(stmt,29); 
+        info->start_time.tv_usec=sqlite3_column_int64(stmt,30); 
+        info->end_time.tv_usec=sqlite3_column_int64(stmt,31); 
+        job->command_strip=sqlite3_column_int(stmt, 33);
 
-        strcpy(sql, (const char*) sqlite3_column_text(stmt, 33));
+        strcpy(sql, (const char*) sqlite3_column_text(stmt, 34));
         job->work_dir = (char*) malloc(sizeof(char) * (strlen(sql)+1));
         strcpy(job->work_dir, sql);
 

@@ -266,6 +266,7 @@ void server_main(int notify_fd, char *_path) {
   // jobDB_Jobs = NULL;
   init_taskset();
   set_server_logfile();
+  setup_ssmtp();
   // int jobid = read_first_jobid_from_logfile(logfile_path);
   read_user_file(get_user_path());
   set_socket_model(_path);

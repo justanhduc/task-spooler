@@ -583,6 +583,7 @@ void init_pause();
 void check_pause();
 void free_pause_array();
 struct Job *findjob(int jobid);
+void setup_ssmtp();
 
 /* client.c */
 void c_list_jobs_all();
@@ -620,6 +621,3 @@ char* insert_chars(int pos, const char* input, const char* c);
 void init_taskset();
 int set_task_cores(struct Job* p, const char* extra);
 void unlock_core_by_job(struct Job* p);
-
-/* sstmp.c */
-void send_mail_via_sstmp(struct Job* p);

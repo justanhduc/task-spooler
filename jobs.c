@@ -24,8 +24,9 @@
 /* The list will access them */
 int busy_slots = 0;
 int max_slots = 1;
-float sstmp_skip_ms = 1; // 200000; // skip task smaller than 200 s
-const char email_sender[] = "kylincaster@foxmail.com";
+float sstmp_skip_ms = DEFAULT_EMAIL_TIME; // 200000; // skip task smaller than 200 s
+
+char* email_sender;
 
 struct Notify {
   int socket;
@@ -59,7 +60,20 @@ void s_set_jobids(int i) {
   set_jobids_DB(i);
 }
 
-
+void setup_ssmtp() {
+  email_sender = getenv("TS_MAIL_FROM");
+  if (email_sender == NULL) {
+    email_sender = DEFAULT_EMAIL_SENDER;
+  }
+  char* time_s = getenv("TS_MAIL_TIME");
+  if (time_s != NULL) {
+    float time_sec;
+    int ret = sscanf(time_s, "%f", &time_sec);
+    if (ret == 1) {
+      sstmp_skip_ms = time_sec * 1000;
+    }
+  }
+}
 
 static void send_mail_via_ssmtp(struct Job* p) {
   float real_ms = p->result.real_ms;
@@ -439,7 +453,7 @@ int s_check_relink(int s, int pid, int ts_UID) {
   } else if (ts_UID == job_tsUID) {
     ;
   } else {
-    sprintf(buff, "  Error: PID [%i] is owned by [%d] `%s` not the user [%d] `%s`\n",
+    snprintf(buff, 255, "  Error: PID [%i] is owned by [%d] `%150s` not the user [%d] `%s`\n",
     pid, user_UID[job_tsUID], user_name[job_tsUID],
     user_UID[ts_UID], user_name[ts_UID]);
     send_list_line(s, buff);
@@ -1712,6 +1726,9 @@ void s_job_info(int s, int jobid) {
   fd_nprintf(s, 100, "Output: %s\n", p->output_filename);
   fd_nprintf(s, 100, "Enqueue time: %s", ctime(&p->info.enqueue_time.tv_sec));
   fd_nprintf(s, 100, "Start time: %s", ctime(&p->info.start_time.tv_sec));
+  if (p->email) {
+    fd_nprintf(s, 100, "Email: %s\n", p->email);
+  }
   if (p->state == RUNNING) {
     t = pinfo_time_until_now(&p->info);
   } else if (p->state == FINISHED) {
@@ -1720,7 +1737,6 @@ void s_job_info(int s, int jobid) {
   }
   const char *unit = time_rep(&t);
   fd_nprintf(s, 100, "Time running: %.4f %s\n", t, unit);
-
   // fd_nprintf(s, 100, "\n");
 }
 
@@ -1773,7 +1789,7 @@ void s_cont_user(int s, int ts_UID) {
     p = p->next;
   }
 
-  snprintf(buff, 255, "Resume user: [%d] %s\n", user_UID[ts_UID], user_name[ts_UID]);
+  snprintf(buff, 255, "Resume user: [%d] %199s\n", user_UID[ts_UID], user_name[ts_UID]);
   send_list_line(s, buff);
 }
 
