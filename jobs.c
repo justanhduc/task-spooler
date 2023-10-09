@@ -70,13 +70,13 @@ void setup_ssmtp() {
     float time_sec;
     int ret = sscanf(time_s, "%f", &time_sec);
     if (ret == 1) {
-      sstmp_skip_ms = time_sec * 1000;
+      sstmp_skip_ms = time_sec;
     }
   }
 }
 
 static void send_mail_via_ssmtp(struct Job* p) {
-  float real_ms = p->result.real_ms;
+  float real_ms = p->result.real_ms; // units in second
   if (real_ms == 0.0) {
     real_ms = p->info.end_time.tv_sec - p->info.start_time.tv_sec;
     real_ms += 1e-6 * (p->info.end_time.tv_usec - p->info.start_time.tv_usec);

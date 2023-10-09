@@ -5,4 +5,4 @@
 #define DEFAULT_ERROR_SOUND "/home/kylin/task-spooler/error.wav"
 #define DEFAULT_PULSE_SERVER "unix:/mnt/wslg/PulseServer"
 #define DEFAULT_EMAIL_SENDER "kylincaster@foxmail.com"
-#define DEFAULT_EMAIL_TIME 200000
+#define DEFAULT_EMAIL_TIME 30
