@@ -17,6 +17,7 @@
 
 #include "main.h"
 #include "version.h"
+#include "default.inc"
 
 int client_uid;
 extern char *optarg;
@@ -574,8 +575,8 @@ static void print_help(const char *cmd) {
   printf("usage: %s [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]\n", cmd);
   printf("Env vars:\n");
   printf("  TS_SOCKET  the path to the unix socket used by the ts command.\n");
-  // printf("  TS_MAILTO  where to mail the result (or set by -m). Local user by "
-  //       "default.\n");
+  printf("  TS_MAIL_FROM who send the result mail, default (%s)\n", DEFAULT_EMAIL_SENDER);
+  printf("  TS_MAIL_TIME the duration criterion to send a email, default (%.3d sec)\n", DEFAULT_EMAIL_TIME / 1000);
   printf("  TS_MAXFINISHED  maximum finished jobs in the queue.\n");
   printf("  TS_MAXCONN  maximum number of ts connections at once.\n");
   printf("  TS_ONFINISH  binary called on job end (passes jobid, error, "
