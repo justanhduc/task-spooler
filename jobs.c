@@ -83,11 +83,11 @@ static void send_mail_via_ssmtp(struct Job* p) {
   }
   // skip the short task
   if (real_ms < sstmp_skip_ms || p->email == NULL) return;
-
+  const char* state = (p->result.errorlevel || p->result.signal || p->result.died_by_signal) ? "failed" : "finished";
   const char* unit = time_rep(&real_ms);
   char cmd[1024];
-  snprintf(cmd, 1023, "echo \"Subject: %s[%d] n_core: %d, Elsp %.3f %s from MSI\nFrom: TS<%s>\nTo: %s\n\n\n Cmd: %s exit-code:%d\n Output: %s\" | ssmtp %s",
-    p->label, p->jobid, p->num_slots, real_ms, unit, p->email, email_sender, p->command + p->command_strip, p->result.signal, p->output_filename, p->email);
+  snprintf(cmd, 1023, "echo \"Subject: %s[%d] n_core: %d, Elsp %.3f %s from MSI\nFrom: TS<%s>\nTo: %s\n\n\n Cmd: %s [%s] Output: %s\" | ssmtp %s",
+    p->label, p->jobid, p->num_slots, real_ms, unit, p->email, email_sender, p->command + p->command_strip, state, p->output_filename, p->email);
   fork_cmd(root_UID, NULL, cmd);
 }
 
@@ -151,7 +151,7 @@ static void allocate_cores_ex(struct Job* p, const char* extra) {
     #ifdef TASKSET
       set_task_cores(p, extra);
     #else
-      kill_pid(pid, extra, NULL);
+      kill_pid(p->pid, extra, NULL);
     #endif
   }
 }
@@ -1720,7 +1720,7 @@ void s_job_info(int s, int jobid) {
   if (p->cores != NULL) {
     fd_nprintf(s, 100, "Slots: %-3d \tTaskset: %s\n", p->num_slots, p->cores);
   }
-  #elif
+  #else
     fd_nprintf(s, 100, "Slots: %-3d\n", p->num_slots);
   #endif
   fd_nprintf(s, 100, "Output: %s\n", p->output_filename);
@@ -1737,6 +1737,10 @@ void s_job_info(int s, int jobid) {
   }
   const char *unit = time_rep(&t);
   fd_nprintf(s, 100, "Time running: %.4f %s\n", t, unit);
+  if (p->state == FINISHED) {
+    struct Result *res = &(p->result);
+    fd_nprintf(s, 100, "Error: %d Signal: %d Die: %d\n", res->errorlevel, res->signal, res->died_by_signal);
+  }
   // fd_nprintf(s, 100, "\n");
 }
 

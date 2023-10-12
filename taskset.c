@@ -54,6 +54,7 @@ void lock_core_by_job(struct Job* p) {
 }
 
 void unlock_core_by_job(struct Job* p) {
+    #ifdef TASKSET
     if (p == NULL) return;
     for (int i = 0; i < MAX_CORE_NUM; i++) {
         if (core_jobs[i] == p) {
@@ -63,6 +64,7 @@ void unlock_core_by_job(struct Job* p) {
     }
     free(p->cores);
     p->cores = NULL;
+    #endif
 }
 
 int set_task_cores(struct Job* p, const char* extra) {
