@@ -23,12 +23,12 @@ enum MsgTypes {
   LIST_ALL,
   LIST_LINE,
   REFRESH_USERS,
-  PAUSE_JOB,
-  RERUN_JOB,
+  HOLD_JOB,
+  CONT_JOB,
   LOCK_SERVER,
   UNLOCK_SERVER,
-  STOP_USER,
-  CONT_USER,
+  SUSPEND_USER,
+  RESUME_USER,
   CLEAR_FINISHED,
   ASK_OUTPUT,
   ANSWER_OUTPUT,
@@ -79,12 +79,12 @@ enum Request {
   c_DAEMON,
   c_CHECK_DAEMON,
   c_REFRESH_USER,
-  c_STOP_USER,
-  c_CONT_USER,
+  c_SUSPEND_USER,
+  c_RESUME_USER,
   c_LOCK_SERVER,
   c_UNLOCK_SERVER,
-  c_PAUSE_JOB,
-  c_RERUN_JOB,
+  c_HOLD_JOB,
+  c_CONT_JOB,
   c_CLEAR_FINISHED,
   c_SHOW_HELP,
   c_SHOW_VERSION,
@@ -565,12 +565,12 @@ void s_user_status_all(int s);
 void s_user_status(int s, int i);
 void s_refresh_users(int s);
 int s_get_job_tsUID(int jobid);
-void s_stop_all_users(int s);
-void s_stop_user(int s, int uid);
-void s_cont_user(int s, int uid);
-void s_cont_all_users(int s);
-void s_pause_job(int s, int jobid, int uid);
-void s_rerun_job(int s, int jobid, int uid);
+void s_suspend_user_all(int s);
+void s_suspend_user(int s, int uid);
+void s_resume_user(int s, int uid);
+void s_resume_user_all(int s);
+void s_hold_job(int s, int jobid, int uid);
+void s_cont_job(int s, int jobid, int uid);
 void s_lock_server(int s, int uid);
 void s_unlock_server(int s, int uid);
 int s_check_locker(int uid);
@@ -587,10 +587,10 @@ void setup_ssmtp();
 
 /* client.c */
 void c_list_jobs_all();
-void c_stop_user(int uid);
-void c_cont_user(int uid);
-void c_pause_job(int jobid);
-void c_rerun_job(int jobid);
+void c_suspend_user(int uid);
+void c_resume_user(int uid);
+void c_hold_job(int jobid);
+void c_cont_job(int jobid);
 int c_lock_server();
 int c_unlock_server();
 void c_check_daemon();

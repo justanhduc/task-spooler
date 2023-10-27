@@ -346,18 +346,18 @@ int c_unlock_server() {
   return error_sig;
 }
 
-void c_stop_user(int uid) {
+void c_suspend_user(int uid) {
   struct Msg m = default_msg();
   // int res;
-  m.type = STOP_USER;
+  m.type = SUSPEND_USER;
   m.jobid = uid;
   send_msg(server_socket, &m);
 }
 
-void c_cont_user(int uid) {
+void c_resume_user(int uid) {
   struct Msg m = default_msg();
   // int res;
-  m.type = CONT_USER;
+  m.type = RESUME_USER;
   m.jobid = uid;
   send_msg(server_socket, &m);
 }
@@ -496,7 +496,7 @@ static char *get_output_file(int *pid) {
   return 0;
 }
 
-void c_pause_job(int jobid) {
+void c_hold_job(int jobid) {
   /* This will exit if there is any error */
   /*
   int pid = 0;
@@ -512,13 +512,13 @@ void c_pause_job(int jobid) {
   // kill(-pid, SIGSTOP);
 
   struct Msg m = default_msg();
-  m.type = PAUSE_JOB;
+  m.type = HOLD_JOB;
   m.jobid = jobid;
   send_msg(server_socket, &m);
   c_wait_server_lines();
 }
 
-void c_rerun_job(int jobid) {
+void c_cont_job(int jobid) {
   /*
   int pid = 0;
   get_output_file(&pid);
@@ -533,7 +533,7 @@ void c_rerun_job(int jobid) {
   // kill(-pid, SIGCONT);
 
   struct Msg m = default_msg();
-  m.type = RERUN_JOB;
+  m.type = CONT_JOB;
   m.jobid = jobid;
   send_msg(server_socket, &m);
   // not error, restart job

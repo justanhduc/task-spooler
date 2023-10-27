@@ -40,6 +40,11 @@ if you don't need the processors binding feature, try to remove `-DTASKSET` opti
 #define DEFAULT_USER_PATH "/home/kylin/task-spooler/user.txt"
 #define DEFAULT_LOG_PATH "/home/kylin/task-spooler/log.txt"
 #define DEFAULT_SQLITE_PATH "/home/kylin/task-spooler/task-spooler.db"
+#define DEFAULT_NOTIFICATION_SOUND "/home/kylin/task-spooler/notifications-sound.wav"
+#define DEFAULT_ERROR_SOUND "/home/kylin/task-spooler/error.wav"
+#define DEFAULT_PULSE_SERVER "unix:/mnt/wslg/PulseServer"
+#define DEFAULT_EMAIL_SENDER "kylincaster@foxmail.com"
+#define DEFAULT_EMAIL_TIME 45.0%
 ```
 
 You can specific the positions by the environment variables `TS_USER_PATH`, `TS_LOGFILE_PATH`, and `TS_SQLITE_PATH`, respectively on the invoking of daemon server. Otherwise, you could specify the positions in the `user config` file.
@@ -144,12 +149,13 @@ Kylin wrote the multiple user support, fatal crush recovery through Sqlite3 data
 See below or `man ts` for more details.
 
 ```
-Task Spooler 2.0.0 - a task queue system for the unix user.
+.1.0 - a task queue system for the unix user.
 Copyright (C) 2007-2023  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell
 usage: ts [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]
 Env vars:
   TS_SOCKET  the path to the unix socket used by the ts command.
-  TS_MAILTO  where to mail the result (on -m). Local user by default.
+  TS_MAIL_FROM who send the result mail, default (kylincaster@foxmail.com)
+  TS_MAIL_TIME the duration criterion to send a email, default (45.000 sec)
   TS_MAXFINISHED  maximum finished jobs in the queue.
   TS_MAXCONN  maximum number of ts connections at once.
   TS_ONFINISH  binary called on job end (passes jobid, error, outfile, command).
@@ -170,28 +176,28 @@ Long option actions:
   --full_cmd       || -F [id]     show full command. Of the last added, if not specified.
   --check_daemon                  Check the daemon is running or not.  --count_running  || -R          return the number of running jobs
   --last_queue_id  || -q          show the job ID of the last added.
-  --get_logdir                    get the path containing log files.
-  --set_logdir [path]             set the path containing log files.
-  --serialize   ||  -M [format]   serialize the job list to the specified format. 
-  								  Choices: {default, json, tab}.
-  --daemon                        Run the server as daemon by Root only.
-  --pause [jobid]                 hold on a task.
-  --rerun [jobid]                 rerun a paused task.
-  --lock                          Locker the server (Timeout: 30 sec.) For Root, timeout is infinity.
-  --unlock                        Unlocker the server.
-  --stop [user]                   For normal user, pause all tasks and lock the account.
-                                  For root, to lock all users or single [user].
-  --cont [user]                   For normal user, continue all paused tasks and lock the account.
-                                  For root, to unlock all users or single [user].
-  --relink [PID]                  Relink the running tasks by its [PID] from an expected failure.
+  --get_logdir                    Retrieve the path where log files are stored.
+  --set_logdir [path]             Set the path for storing log files.
+  --serialize   ||  -M [format]   Serialize the job list to the specified format. Options: {default, json, tab}.
+  --daemon                        Run the server as a daemon (Root access only).
+  --tmp                           save the logfile to tmp folder
+  --hold [jobid]                  Pause a specific task by its job ID.
+  --cont [jobid]                  Resume a paused task by its job ID.
+  --suspend [user]                For regular users, pause all tasks and lock the user account.
+                                For root user, lock all user accounts or a specific user's account.
+  --resume [user]                 For regular users, resume all paused tasks and unlock the user account.
+                                For root user, unlock all user accounts or a specific user's account.
+  --lock                          Lock the server (Timeout: 30 seconds). For root user, there is no timeout.
+  --unlock                        Unlock the server.
+  --relink [PID]                  Relink running tasks using their [PID] in case of an unexpected failure.
   --job [joibid] || -J [joibid]   set the jobid of the new or relink job
 Actions:
-  -A           Show all users information
-  -X           Refresh the user config by UID (Max. 100 users and only available for root)
-  -K           kill the task spooler server (only available for root)
-  -C           clear the list of finished jobs for current user
-  -l           show the job list (default action)
-  -S [num]     get/set the number of max simultaneous jobs of the server.  (only available for root)
+  -A           Display information for all users.
+  -X           Update user configuration by UID (Max. 100 users, root access only)
+  -K           Terminate the task spooler server (root access only)
+  -C           Clear the list of finished jobs for the current user.
+  -l           Show the job list (default action).
+  -S [num]     Get/Set the maximum number of simultaneous server jobs (root access only).
   -t [id]      "tail -n 10 -f" the output of the job. Last run if not specified.
   -c [id]      like -t, but shows all the lines. Last run if not specified.
   -p [id]      show the PID of the job. Last run if not specified.
@@ -213,7 +219,7 @@ Options adding jobs:
   -O           Set name of the log file (without any path).
   -z           gzip the stored output (if not -n).
   -f           don't fork into background.
-  -m           send the output by e-mail (uses sendmail).
+  -m <email>   send the output by e-mail (uses ssmtp).
   -d           the job will be run after the last job ends.
   -D <id,...>  the job will be run after the job of given IDs ends.
   -W <id,...>  the job will be run after the job of given IDs ends well (exit code 0).

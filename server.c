@@ -511,44 +511,44 @@ static enum Break client_read(int index) {
     close(s);
     remove_connection(index);
     break;
-  case PAUSE_JOB:
-    s_pause_job(s, m.jobid, ts_UID);
+  case HOLD_JOB:
+    s_hold_job(s, m.jobid, ts_UID);
     close(s);
     remove_connection(index);
     break;
-  case RERUN_JOB:
-    s_rerun_job(s, m.jobid, ts_UID);
+  case CONT_JOB:
+    s_cont_job(s, m.jobid, ts_UID);
     close(s);
     remove_connection(index);
     break;
-  case STOP_USER:
+  case SUSPEND_USER:
     // Root, uid in m.jobid
     if (ts_UID == 0) {
       if (m.jobid != 0) {
-        s_stop_user(s, get_tsUID(m.jobid));
+        s_suspend_user(s, get_tsUID(m.jobid));
         s_user_status(s, get_tsUID(m.jobid));
       } else {
-        s_stop_all_users(s);
+        s_suspend_user_all(s);
         s_user_status_all(s);
       }
     } else {
-      s_stop_user(s, ts_UID);
+      s_suspend_user(s, ts_UID);
       s_user_status(s, ts_UID);
     }
     close(s);
     remove_connection(index);
     break;
-  case CONT_USER:
+  case RESUME_USER:
     if (ts_UID == 0) {
       if (m.jobid != 0) {
-        s_cont_user(s, get_tsUID(m.jobid));
+        s_resume_user(s, get_tsUID(m.jobid));
         s_user_status(s, get_tsUID(m.jobid));
       } else {
-        s_cont_all_users(s);
+        s_resume_user_all(s);
         s_user_status_all(s);
       }
     } else {
-      s_cont_user(s, ts_UID);
+      s_resume_user(s, ts_UID);
       s_user_status(s, ts_UID);
     }
     close(s);

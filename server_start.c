@@ -235,6 +235,7 @@ static int fork_server() {
     close(1);
     close(2);
     setsid();
+    server_info();
     server_main(p[1], socket_path);
     exit(0);
     break;

@@ -11,22 +11,23 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 
-#include "main.h"
-#include "user.h"
 #include "cjson/cJSON.h"
 #include "default.inc"
+#include "main.h"
+#include "user.h"
 
 /* The list will access them */
 int busy_slots = 0;
 int max_slots = 1;
-float sstmp_skip_ms = DEFAULT_EMAIL_TIME; // 200000; // skip task smaller than 200 s
+float sstmp_skip_ms =
+    DEFAULT_EMAIL_TIME; // 200000; // skip task smaller than 200 s
 
-char* email_sender;
+char *email_sender;
 
 struct Notify {
   int socket;
@@ -51,12 +52,12 @@ static char buff[256];
 int max_jobs;
 
 static struct Job *get_job(int jobid);
-static int fork_cmd(int UID, const char* path, const char* cmd);
+static int fork_cmd(int UID, const char *path, const char *cmd);
 
 void notify_errorlevel(struct Job *p);
 
-void s_set_jobids(int i) { 
-  jobids = i; 
+void s_set_jobids(int i) {
+  jobids = i;
   set_jobids_DB(i);
 }
 
@@ -65,7 +66,7 @@ void setup_ssmtp() {
   if (email_sender == NULL) {
     email_sender = DEFAULT_EMAIL_SENDER;
   }
-  char* time_s = getenv("TS_MAIL_TIME");
+  char *time_s = getenv("TS_MAIL_TIME");
   if (time_s != NULL) {
     float time_sec;
     int ret = sscanf(time_s, "%f", &time_sec);
@@ -75,40 +76,51 @@ void setup_ssmtp() {
   }
 }
 
-static void send_mail_via_ssmtp(struct Job* p) {
+static void send_mail_via_ssmtp(struct Job *p) {
   float real_ms = p->result.real_ms; // units in second
   if (real_ms == 0.0) {
     real_ms = p->info.end_time.tv_sec - p->info.start_time.tv_sec;
     real_ms += 1e-6 * (p->info.end_time.tv_usec - p->info.start_time.tv_usec);
   }
   // skip the short task
-  if (real_ms < sstmp_skip_ms || p->email == NULL) return;
-  const char* state = (p->result.errorlevel || p->result.signal || p->result.died_by_signal) ? "failed" : "finished";
-  const char* unit = time_rep(&real_ms);
+  if (real_ms < sstmp_skip_ms || p->email == NULL)
+    return;
+  const char *state =
+      (p->result.errorlevel || p->result.signal || p->result.died_by_signal)
+          ? "failed"
+          : "finished";
+  const char *unit = time_rep(&real_ms);
   char cmd[1024];
-  snprintf(cmd, 1023, "echo \"Subject: %s[%d] n_core: %d, Elsp %.3f %s from MSI\nFrom: TS<%s>\nTo: %s\n\n\n Cmd: %s [%s] Output: %s\" | ssmtp %s",
-    p->label, p->jobid, p->num_slots, real_ms, unit, p->email, email_sender, p->command + p->command_strip, state, p->output_filename, p->email);
+  snprintf(cmd, 1023,
+           "echo \"Subject: %s[%d] n_core: %d, Elsp %.3f %s from MSI\nFrom: "
+           "TS<%s>\nTo: %s\n\n\n Cmd: %s [%s] Output: %s\" | ssmtp %s",
+           p->label, p->jobid, p->num_slots, real_ms, unit, p->email,
+           email_sender, p->command + p->command_strip, state,
+           p->output_filename, p->email);
   fork_cmd(root_UID, NULL, cmd);
 }
 
-static void sound_notify(struct Job* p) {
-  #ifdef SOUND
+static void sound_notify(struct Job *p) {
+#ifdef SOUND
   float real_ms = p->result.real_ms;
   if (real_ms == 0.0) {
     real_ms = p->info.end_time.tv_sec - p->info.start_time.tv_sec;
     real_ms += 1e-6 * (p->info.end_time.tv_usec - p->info.start_time.tv_usec);
   }
   // skip the short task
-  if (real_ms < 5) return;
+  if (real_ms < 5)
+    return;
   char cmd[256];
   if (p->result.errorlevel == 0) {
-    snprintf(cmd, 255, "paplay -p \"%s\" -s %s", DEFAULT_NOTIFICATION_SOUND, DEFAULT_PULSE_SERVER);
+    snprintf(cmd, 255, "paplay -p \"%s\" -s %s", DEFAULT_NOTIFICATION_SOUND,
+             DEFAULT_PULSE_SERVER);
   } else {
-    snprintf(cmd, 255, "paplay -p \"%s\" -s %s", DEFAULT_ERROR_SOUND, DEFAULT_PULSE_SERVER);
+    snprintf(cmd, 255, "paplay -p \"%s\" -s %s", DEFAULT_ERROR_SOUND,
+             DEFAULT_PULSE_SERVER);
   }
   printf("%s\n", cmd);
   fork_cmd(user_UID[p->ts_UID], NULL, cmd);
-  #endif
+#endif
 }
 
 static void destroy_job(struct Job *p) {
@@ -120,15 +132,16 @@ static void destroy_job(struct Job *p) {
     pinfo_free(&p->info);
     free(p->depend_on);
     free(p->label);
-    #ifdef TASKSET
+#ifdef TASKSET
     free(p->cores);
-    #endif
+#endif
     free(p);
   }
 }
 
-static void free_cores(struct Job* p) {
-  if (p == NULL && p->num_allocated == 0) return;
+static void free_cores(struct Job *p) {
+  if (p == NULL && p->num_allocated == 0)
+    return;
   int ts_UID = p->ts_UID;
   user_busy[ts_UID] -= p->num_slots;
   busy_slots -= p->num_slots;
@@ -140,30 +153,37 @@ static void free_cores(struct Job* p) {
 #endif
 }
 
-static void allocate_cores_ex(struct Job* p, const char* extra) {
-  if (p == NULL) return;
-  int ts_UID = p->ts_UID;
-  user_busy[ts_UID] += p->num_slots;
-  busy_slots += p->num_slots;
-  p->num_allocated = p->num_slots;
-  user_jobs[ts_UID]++;
-  if (p -> state == RUNNING) {
-    #ifdef TASKSET
-      set_task_cores(p, extra);
-    #else
-      kill_pid(p->pid, extra, NULL);
-    #endif
+static int allocate_cores_ex(struct Job *p, const char *extra) {
+  if (p == NULL)
+    return 0;
+
+  if (p->state == RUNNING || p->state == LOCKED) {
+#ifdef TASKSET
+    set_task_cores(p, extra);
+#else
+    kill_pid(p->pid, extra, NULL);
+#endif
   }
+  
+  if (extra == 0 || is_sleep(p->pid) == 0) {
+    int ts_UID = p->ts_UID;
+    user_busy[ts_UID] += p->num_slots;
+    busy_slots += p->num_slots;
+    p->num_allocated = p->num_slots;
+    user_jobs[ts_UID]++;
+    return 1;
+  }
+  return 0;
 }
 
-static void allocate_cores(struct Job* p) { allocate_cores_ex(p, NULL); }
+static void allocate_cores(struct Job *p) { allocate_cores_ex(p, NULL); }
 
 int num_pause;
-int* paused_pids = NULL;
+int *paused_pids = NULL;
 
 void init_pause() {
   num_pause = 0;
-  paused_pids = (int*) malloc(sizeof(int) * max_jobs);
+  paused_pids = (int *)malloc(sizeof(int) * max_jobs);
 }
 
 static int set_pause(int pid) {
@@ -172,8 +192,7 @@ static int set_pause(int pid) {
 }
 
 static int free_pause(int pid) {
-  for (int i = 0; i < num_pause; i++)
-  {
+  for (int i = 0; i < num_pause; i++) {
     if (paused_pids[i] == pid) {
       num_pause--;
       paused_pids[i] = paused_pids[num_pause];
@@ -190,7 +209,7 @@ void check_pause() {
     int res = is_sleep(pid);
     if (res == 0) {
       kill_pid(pid, "kill -s STOP", NULL);
-    } else if(res == -1) {
+    } else if (res == -1) {
       num_pause--;
       paused_pids[i] = paused_pids[num_pause];
       continue;
@@ -205,125 +224,122 @@ void free_pause_array() {
   paused_pids = NULL;
 }
 
-/* Serialize a job and add it to the JSON array. Returns 1 for success, 0 for failure. */
+/* Serialize a job and add it to the JSON array. Returns 1 for success, 0 for
+ * failure. */
 static int add_job_to_json_array(struct Job *p, cJSON *jobs) {
-    cJSON *job = cJSON_CreateObject();
-    if (job == NULL)
-    {
-        error("Error initializing JSON object for job %i.", p->jobid);
-        return 0;
-    }
-    cJSON_AddItemToArray(jobs, job);
+  cJSON *job = cJSON_CreateObject();
+  if (job == NULL) {
+    error("Error initializing JSON object for job %i.", p->jobid);
+    return 0;
+  }
+  cJSON_AddItemToArray(jobs, job);
 
-    /* Add fields */
-    cJSON *field;
+  /* Add fields */
+  cJSON *field;
 
-    /* ID */
-    field = cJSON_CreateNumber(p->jobid);
-    if (field == NULL)
-    {
-        error("Error initializing JSON object for job %i field ID.", p->jobid);
-        return 0;
-    }
-    cJSON_AddItemToObject(job, "ID", field);
+  /* ID */
+  field = cJSON_CreateNumber(p->jobid);
+  if (field == NULL) {
+    error("Error initializing JSON object for job %i field ID.", p->jobid);
+    return 0;
+  }
+  cJSON_AddItemToObject(job, "ID", field);
 
-    /* State */
-    const char *state_string = jstate2string(p->state);
-    field = cJSON_CreateStringReference(state_string);
-    if (field == NULL)
-    {
-        error("Error initializing JSON object for job %i field State (value %d/%s).", p->jobid, p->state, state_string);
-        return 0;
-    }
-    cJSON_AddItemToObject(job, "State", field);
+  /* State */
+  const char *state_string = jstate2string(p->state);
+  field = cJSON_CreateStringReference(state_string);
+  if (field == NULL) {
+    error(
+        "Error initializing JSON object for job %i field State (value %d/%s).",
+        p->jobid, p->state, state_string);
+    return 0;
+  }
+  cJSON_AddItemToObject(job, "State", field);
 
-    /* num_slots */
-    field = cJSON_CreateNumber(p->num_slots);
-    if (field == NULL)
-    {
-        error("Error initializing JSON object for job %i field ID.", p->jobid);
-        return 0;
-    }
-    cJSON_AddItemToObject(job, "Proc.", field);
+  /* num_slots */
+  field = cJSON_CreateNumber(p->num_slots);
+  if (field == NULL) {
+    error("Error initializing JSON object for job %i field ID.", p->jobid);
+    return 0;
+  }
+  cJSON_AddItemToObject(job, "Proc.", field);
 
-    /* user */
-    field = cJSON_CreateStringReference(user_name[p->ts_UID]);
-    if (field == NULL)
-    {
-        error("Error initializing JSON object for job %i field State (value %d/%s).", p->jobid, p->state, state_string);
-        return 0;
-    }
-    cJSON_AddItemToObject(job, "User", field);
+  /* user */
+  field = cJSON_CreateStringReference(user_name[p->ts_UID]);
+  if (field == NULL) {
+    error(
+        "Error initializing JSON object for job %i field State (value %d/%s).",
+        p->jobid, p->state, state_string);
+    return 0;
+  }
+  cJSON_AddItemToObject(job, "User", field);
 
-    /* label */
+  /* label */
 
-    if (p->label != NULL) {
-        field = cJSON_CreateStringReference(p->label);
-    }
-    else {
-        field = cJSON_CreateNull();
-    }
-    if (field == NULL)
-    {
-        error("Error initializing JSON object for job %i field State (value %d/%s).", p->jobid, p->state, state_string);
-        return 0;
-    }
-    cJSON_AddItemToObject(job, "Label", field);
+  if (p->label != NULL) {
+    field = cJSON_CreateStringReference(p->label);
+  } else {
+    field = cJSON_CreateNull();
+  }
+  if (field == NULL) {
+    error(
+        "Error initializing JSON object for job %i field State (value %d/%s).",
+        p->jobid, p->state, state_string);
+    return 0;
+  }
+  cJSON_AddItemToObject(job, "Label", field);
 
-    /* Output */
-    field = cJSON_CreateStringReference(p->output_filename);
-    if (field == NULL)
-    {
-        error("Error initializing JSON object for job %i field Output (value %s).", p->jobid, p->output_filename);
-        return 0;
-    }
-    cJSON_AddItemToObject(job, "Output", field);
+  /* Output */
+  field = cJSON_CreateStringReference(p->output_filename);
+  if (field == NULL) {
+    error("Error initializing JSON object for job %i field Output (value %s).",
+          p->jobid, p->output_filename);
+    return 0;
+  }
+  cJSON_AddItemToObject(job, "Output", field);
 
-    /* E-Level */
-    if (p->state == FINISHED) {
-        field = cJSON_CreateNumber(p->result.errorlevel);
-    }
-    else {
-        field = cJSON_CreateNull();
-    }
-    if (field == NULL)
-    {
-        error("Error initializing JSON object for job %i field E-Level.", p->jobid);
-        return 0;
-    }
-    cJSON_AddItemToObject(job, "E-Level", field);
+  /* E-Level */
+  if (p->state == FINISHED) {
+    field = cJSON_CreateNumber(p->result.errorlevel);
+  } else {
+    field = cJSON_CreateNull();
+  }
+  if (field == NULL) {
+    error("Error initializing JSON object for job %i field E-Level.", p->jobid);
+    return 0;
+  }
+  cJSON_AddItemToObject(job, "E-Level", field);
 
-    /* Time */
-    if (p->state == FINISHED) {
-        field = cJSON_CreateNumber(p->result.real_ms);
-        if (field == NULL)
-        {
-            error("Error initializing JSON object for job %i field Time_ms (value %d).", p->result.real_ms);
-            return 0;
-        }
+  /* Time */
+  if (p->state == FINISHED) {
+    field = cJSON_CreateNumber(p->result.real_ms);
+    if (field == NULL) {
+      error(
+          "Error initializing JSON object for job %i field Time_ms (value %d).",
+          p->result.real_ms);
+      return 0;
     }
-    else {
-        field = cJSON_CreateNull();
-        if (field == NULL)
-        {
-            error("Error initializing JSON object for job %i field Time_ms (no result).");
-            return 0;
-        }
+  } else {
+    field = cJSON_CreateNull();
+    if (field == NULL) {
+      error("Error initializing JSON object for job %i field Time_ms (no "
+            "result).");
+      return 0;
     }
-    cJSON_AddItemToObject(job, "Time_ms", field);
+  }
+  cJSON_AddItemToObject(job, "Time_ms", field);
 
-    /* Command */
-    field = cJSON_CreateStringReference(p->command + p->command_strip);
-    if (field == NULL)
-    {
-        error("Error initializing JSON object for job %i field Command (value %s).", p->jobid, p->command);
-        return 0;
-    }
-    cJSON_AddItemToObject(job, "Command", field);
+  /* Command */
+  field = cJSON_CreateStringReference(p->command + p->command_strip);
+  if (field == NULL) {
+    error("Error initializing JSON object for job %i field Command (value %s).",
+          p->jobid, p->command);
+    return 0;
+  }
+  cJSON_AddItemToObject(job, "Command", field);
 
-    return 1;
+  return 1;
 }
-
 
 void send_list_line(int s, const char *str) {
   struct Msg m = default_msg();
@@ -392,7 +408,6 @@ static struct Job *find_previous_job(const struct Job *final) {
   return NULL;
 }
 
-
 struct Job *findjob(int jobid) {
   struct Job *p;
   /* Show Queued or Running jobs */
@@ -405,14 +420,15 @@ struct Job *findjob(int jobid) {
   return NULL;
 }
 
-
-static struct Job* job_by_pid(int pid) {
-  if (pid == 0) return NULL;
+static struct Job *job_by_pid(int pid) {
+  if (pid == 0)
+    return NULL;
   struct Job *p = &firstjob;
 
   while (p->next != NULL) {
     p = p->next;
-    if (p->pid == pid) return p;
+    if (p->pid == pid)
+      return p;
   }
   return NULL;
 }
@@ -429,10 +445,10 @@ int s_check_running_pid(int pid) {
 
 // if any error return non-0;
 int s_check_relink(int s, int pid, int ts_UID) {
-  struct Job* p = job_by_pid(pid);
+  struct Job *p = job_by_pid(pid);
   if (p != NULL && (p->state != DELINK && p->state != WAIT)) {
-    sprintf(buff, "  Error: PID [%i] is already in job as Jobid: %i [%s]\n", 
-          pid, p->jobid, jstate2string(p->state));
+    sprintf(buff, "  Error: PID [%i] is already in job as Jobid: %i [%s]\n",
+            pid, p->jobid, jstate2string(p->state));
     send_list_line(s, buff);
     return -1;
   }
@@ -448,20 +464,21 @@ int s_check_relink(int s, int pid, int ts_UID) {
   }
 
   int job_tsUID = get_tsUID(t_stat.st_uid);
-  if (ts_UID == 0) { 
+  if (ts_UID == 0) {
     ;
   } else if (ts_UID == job_tsUID) {
     ;
   } else {
-    snprintf(buff, 255, "  Error: PID [%i] is owned by [%d] `%150s` not the user [%d] `%s`\n",
-    pid, user_UID[job_tsUID], user_name[job_tsUID],
-    user_UID[ts_UID], user_name[ts_UID]);
+    snprintf(
+        buff, 255,
+        "  Error: PID [%i] is owned by [%d] `%150s` not the user [%d] `%s`\n",
+        pid, user_UID[job_tsUID], user_name[job_tsUID], user_UID[ts_UID],
+        user_name[ts_UID]);
     send_list_line(s, buff);
     return -1;
   }
   return job_tsUID;
 }
-
 
 static struct Job *findjob_holding_client() {
   struct Job *p;
@@ -529,7 +546,7 @@ void s_kill_all_jobs(int s, int ts_UID) {
   while (p != 0) {
     if (p->state == RUNNING && (ts_UID == 0 || p->ts_UID == ts_UID))
       send(s, &p->pid, sizeof(int), 0);
-    
+
     p = p->next;
   }
 }
@@ -588,7 +605,8 @@ void s_get_label(int s, int jobid) {
   }
 
   if (p == 0) {
-    snprintf(buff, 255, "[get_label0] Job %i not finished or not running.\n", jobid);
+    snprintf(buff, 255, "[get_label0] Job %i not finished or not running.\n",
+             jobid);
     send_list_line(s, buff);
     return;
   }
@@ -628,7 +646,8 @@ void s_send_cmd(int s, int jobid) {
   }
 
   if (p == 0) {
-    snprintf(buff, 255, "[get_label1] Job %i not finished or not running.\n", jobid);
+    snprintf(buff, 255, "[get_label1] Job %i not finished or not running.\n",
+             jobid);
     send_list_line(s, buff);
     return;
   }
@@ -638,17 +657,17 @@ void s_send_cmd(int s, int jobid) {
   free(cmd);
 }
 
-static char* get_ofile_from_FD(int pid) {
+static char *get_ofile_from_FD(int pid) {
   char path[256], buff[256] = "";
   snprintf(path, 255, "/proc/%d/fd/1", command_line.taskpid);
   int len = readlink(path, buff, sizeof(buff));
 
-  // printf("path = %s, buff = %s\n", path, buff); 
+  // printf("path = %s, buff = %s\n", path, buff);
   if (strlen(buff) == 0 || len == -1) {
     return NULL;
   }
-  int namesize = strnlen(buff, 255)+1;
-  char* f = (char*) malloc(namesize);
+  int namesize = strnlen(buff, 255) + 1;
+  char *f = (char *)malloc(namesize);
   strncpy(f, buff, namesize);
   return f;
 }
@@ -767,8 +786,7 @@ void s_list(int s, int ts_UID, enum ListFormat listFormat) {
     }
   } else if (listFormat == JSON) {
     cJSON *jobs = cJSON_CreateArray();
-    if (jobs == NULL)
-    {
+    if (jobs == NULL) {
       error("Error initializing JSON array.");
       goto end;
     }
@@ -795,46 +813,45 @@ void s_list(int s, int ts_UID, enum ListFormat listFormat) {
     }
 
     buffer = cJSON_PrintUnformatted(jobs);
-    if (buffer == NULL)
-    {
+    if (buffer == NULL) {
       error("Error converting jobs to JSON.");
       goto end;
     }
-        
+
     // append newline
     size_t buffer_strlen = strlen(buffer);
-    buffer = realloc(buffer, buffer_strlen+1+1);
+    buffer = realloc(buffer, buffer_strlen + 1 + 1);
     strcat(buffer, "\n");
 
     send_list_line(s, buffer);
     goto end;
 
-    end:
-        cJSON_Delete(jobs);
-        free(buffer);
+  end:
+    cJSON_Delete(jobs);
+    free(buffer);
     // end of Json
-    } else if (listFormat == TAB) {
-        /* Show Queued or Running jobs */
-        p = firstjob.next;
-        while (p != 0) {
-            if (p->state != HOLDING_CLIENT) {
-                buffer = joblist_line_plain(p);
-                send_list_line(s, buffer);
-                free(buffer);
-            }
-            p = p->next;
-        }
+  } else if (listFormat == TAB) {
+    /* Show Queued or Running jobs */
+    p = firstjob.next;
+    while (p != 0) {
+      if (p->state != HOLDING_CLIENT) {
+        buffer = joblist_line_plain(p);
+        send_list_line(s, buffer);
+        free(buffer);
+      }
+      p = p->next;
+    }
 
-        p = first_finished_job.next;
+    p = first_finished_job.next;
 
-        /* Show Finished jobs */
-        while (p != 0) {
-            buffer = joblist_line_plain(p);
-            send_list_line(s, buffer);
-            free(buffer);
-            p = p->next;
-        }
-    } // end of TAB
+    /* Show Finished jobs */
+    while (p != 0) {
+      buffer = joblist_line_plain(p);
+      send_list_line(s, buffer);
+      free(buffer);
+      p = p->next;
+    }
+  } // end of TAB
 }
 
 void s_list_all(int s, enum ListFormat listFormat) {
@@ -906,7 +923,7 @@ static struct Job *newjobptr() {
     p = p->next;
 
   p->next = (struct Job *)calloc(sizeof(struct Job), sizeof(char));
-  
+
   /*
   p->next->next = 0;
   p->next->output_filename = 0;
@@ -969,7 +986,7 @@ static int find_last_stored_jobid_finished() {
 
 /* Returns job id or -1 on error */
 int s_newjob(int s, struct Msg *m, int ts_UID) {
-  
+
   struct Job *p = NULL;
   int res;
   // int waitjob_flag = 0; // 0 for newjob, 1 for WAIT and 2 for DELINK
@@ -1004,7 +1021,7 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
       p->state = QUEUED;
     } else
       p->state = HOLDING_CLIENT;
-    
+
     // manually relink
     if (m->u.newjob.taskpid != 0) {
       p->state = RELINK;
@@ -1121,7 +1138,7 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
 
   /* load the command */
 
-  char* buff = malloc(m->u.newjob.command_size);
+  char *buff = malloc(m->u.newjob.command_size);
   if (buff == 0)
     error("Cannot allocate memory in s_newjob command_size (%i)",
           m->u.newjob.command_size);
@@ -1131,7 +1148,7 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
 
   p->command = buff;
   p->command_strip = m->u.newjob.command_size_strip;
-  
+
   /* load the work dir */
   p->work_dir = 0;
   if (m->u.newjob.path_size > 0) {
@@ -1190,7 +1207,7 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
 
   if (p->state == DELINK) {
     p->state = RELINK;
-  // manually insert
+    // manually insert
   } else if (p->state == WAIT) {
     p->state = QUEUED;
     user_queue[p->ts_UID]++;
@@ -1209,7 +1226,7 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
     insert_DB(p, "Jobs");
     user_queue[p->ts_UID]++;
   }
-  
+
   set_jobids_DB(jobids);
   return p->jobid;
 }
@@ -1246,7 +1263,7 @@ void s_delete_job(int jobid) {
 }
 
 /* -1 if no one should be run. */
-/* 
+/*
     next_run_job()
     in `server.c`
     s_mark_job_running(newjob);
@@ -1305,7 +1322,7 @@ int next_run_job() {
 
         int num_slots = p->num_slots, id = p->ts_UID;
         if (id == uid && free_slots >= num_slots &&
-          user_max_slots[id] - user_busy[id] >= num_slots) {
+            user_max_slots[id] - user_busy[id] >= num_slots) {
           user_queue[id]--;
           return p->jobid;
         }
@@ -1355,9 +1372,9 @@ static void new_finished_job(struct Job *j) {
   insert_DB(j, "Finished");
   delete_DB(j->jobid, "Jobs");
 
-  #ifdef TASKSET
-    unlock_core_by_job(j);
-  #endif
+#ifdef TASKSET
+  unlock_core_by_job(j);
+#endif
   sound_notify(j);
   send_mail_via_ssmtp(j);
 }
@@ -1395,12 +1412,12 @@ static int in_notify_list(int jobid) {
 /* job_finished from running to jobid */
 void job_finished(const struct Result *result, int jobid) {
   // printf("job_finished %d\n", jobid);
-  
+
   if (busy_slots < 0)
     error(
         "Wrong state in the server. busy_slots = %i instead of greater than 0",
         busy_slots);
-  
+
   struct Job *p = findjob(jobid);
 
   if (p == NULL)
@@ -1457,46 +1474,45 @@ void job_finished(const struct Result *result, int jobid) {
 
     jpointer->next = newfirst;
   }
-  
 }
-static int fork_cmd(int UID, const char* path, const char* cmd) {
-    int pid = -1; //定义一个进程ID变量
+static int fork_cmd(int UID, const char *path, const char *cmd) {
+  int pid = -1; //定义一个进程ID变量
 
-    pid = fork(); //调用fork()函数创建子进程
-    if (pid < 0) //如果返回值小于0，表示fork失败
-    {
-        perror("fork error"); //打印错误信息
-        return -1;
+  pid = fork(); //调用fork()函数创建子进程
+  if (pid < 0)  //如果返回值小于0，表示fork失败
+  {
+    perror("fork error"); //打印错误信息
+    return -1;
+  } else if (pid == 0) //如果返回值等于0，表示子进程正在运行
+  {
+    setuid(UID);
+    if (path != NULL)
+      chdir(path);
+    system(cmd);
+    exit(0);
+    /*
+    int cmd_array_size;
+    printf("cmd = %s\n", cmd);
+    char** cmd_arry = split_str(cmd, &cmd_array_size);
+    if (cmd_array_size > 0) {
+      printf("run cmd %s\n", cmd_arry[0]);
+      system(cmd);
+      exit(0);
+      // execvp(cmd_arry[0], cmd_arry);
     }
-    else if (pid == 0) //如果返回值等于0，表示子进程正在运行
-    {
-        setuid(UID);
-        if (path != NULL) chdir(path);
-        system(cmd);
-        exit(0);
-        /*
-        int cmd_array_size;
-        printf("cmd = %s\n", cmd);
-        char** cmd_arry = split_str(cmd, &cmd_array_size);
-        if (cmd_array_size > 0) {
-          printf("run cmd %s\n", cmd_arry[0]);
-          system(cmd);
-          exit(0);
-          // execvp(cmd_arry[0], cmd_arry);
-        }
-        // execlp("ls", "-l", NULL); //执行ls -l命令，替换当前进程
-        */
-        return -1;
-    }
-    else //如果返回值大于0，表示父进程正在运行
-    {
-        printf("[Child PID:%d] Add queued job: %s\n", pid, cmd); //打印子进程的ID
-    }
-    return pid;
+    // execlp("ls", "-l", NULL); //执行ls -l命令，替换当前进程
+    */
+    return -1;
+  } else //如果返回值大于0，表示父进程正在运行
+  {
+    printf("[Child PID:%d] Add queued job: %s\n", pid, cmd); //打印子进程的ID
+  }
+  return pid;
 }
 
-static void s_add_job(struct Job* j, struct Job** p) {
-  // if (j->state == RUNNING || j->state == HOLDING_CLIENT || j->state == RELINK) {
+static void s_add_job(struct Job *j, struct Job **p) {
+  // if (j->state == RUNNING || j->state == HOLDING_CLIENT || j->state ==
+  // RELINK) {
   if (j->state == RUNNING) {
     if (j->pid > 0 && s_check_running_pid(j->pid) == 1) {
       printf("add job %d\n", j->jobid);
@@ -1509,8 +1525,8 @@ static void s_add_job(struct Job* j, struct Job** p) {
       (*p) = j;
 
       char c[64];
-      sprintf(c, " --relink %d -J %d ", j->pid, j->jobid); 
-      char* str = insert_chars(j->command_strip, j->command, c);
+      sprintf(c, " --relink %d -J %d ", j->pid, j->jobid);
+      char *str = insert_chars(j->command_strip, j->command, c);
 
       fork_cmd(user_UID[j->ts_UID], j->work_dir, str);
       // fork_cmd(0, j->work_dir, str);
@@ -1525,17 +1541,15 @@ static void s_add_job(struct Job* j, struct Job** p) {
     if (j->state == QUEUED) {
       j->state = WAIT;
     }
-    
+
     // jobDB_wait_num++;
     (*p)->next = j;
     (*p) = j;
 
-
-    
     char c[32];
-    sprintf(c, " -J %d ", j->jobid); 
-    char* str = insert_chars(j->command_strip, j->command, c);
-    
+    sprintf(c, " -J %d ", j->jobid);
+    char *str = insert_chars(j->command_strip, j->command, c);
+
     fork_cmd(user_UID[j->ts_UID], j->work_dir, str);
     jobids = jobids > j->jobid ? jobids : j->jobid + 1;
     j = NULL;
@@ -1549,7 +1563,7 @@ static void s_add_job(struct Job* j, struct Job** p) {
     (*p) = j;
     */
   }
-  
+
   destroy_job(j);
 }
 
@@ -1628,7 +1642,7 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
     p->output_filename = oname;
   }
   pinfo_set_start_time_check(&p->info);
-  if (pid >0 && is_sleep(pid) == 0) {
+  if (pid > 0 && is_sleep(pid) == 0) {
     write_logfile(p);
     set_task_cores(p, NULL);
   }
@@ -1693,7 +1707,8 @@ void s_job_info(int s, int jobid) {
   }
 
   if (p == 0) {
-    snprintf(buff, 255, "[s_send_runjob] Job %i not finished or not running.\n", jobid);
+    snprintf(buff, 255, "[s_send_runjob] Job %i not finished or not running.\n",
+             jobid);
     send_list_line(s, buff);
     return;
   }
@@ -1710,19 +1725,23 @@ void s_job_info(int s, int jobid) {
       fd_nprintf(s, 100, ",%i", p->depend_on[i]);
     fd_nprintf(s, 100, "]&& ");
   }
-  write(s, p->command + p->command_strip, strlen(p->command + p->command_strip));
+  write(s, p->command + p->command_strip,
+        strlen(p->command + p->command_strip));
   fd_nprintf(s, 100, "\n");
-  fd_nprintf(s, 100, "User: %s [%d]\n", user_name[p->ts_UID], user_UID[p->ts_UID]);
-  fd_nprintf(s, 100, "State: %-7s  PID: %-6d\n", 
-      jstate2string(p->state), p->pid);
+  fd_nprintf(s, 100, "User: %s [%d]\n", user_name[p->ts_UID],
+             user_UID[p->ts_UID]);
+  fd_nprintf(s, 100, "State: %-7s  PID: %-6d\n", jstate2string(p->state),
+             p->pid);
 
-  #ifdef TASKSET
+#ifdef TASKSET
   if (p->cores != NULL) {
-    fd_nprintf(s, 100, "Slots: %-3d \tTaskset: %s\n", p->num_slots, p->cores);
+    int buffer_len = strlen(p->cores) + 100;
+    fd_nprintf(s, buffer_len, "Slots: %-3d \tTaskset: %s\n", p->num_slots,
+               p->cores);
   }
-  #else
-    fd_nprintf(s, 100, "Slots: %-3d\n", p->num_slots);
-  #endif
+#else
+  fd_nprintf(s, 100, "Slots: %-3d\n", p->num_slots);
+#endif
   fd_nprintf(s, 100, "Output: %s\n", p->output_filename);
   fd_nprintf(s, 100, "Enqueue time: %s", ctime(&p->info.enqueue_time.tv_sec));
   fd_nprintf(s, 100, "Start time: %s", ctime(&p->info.start_time.tv_sec));
@@ -1739,7 +1758,8 @@ void s_job_info(int s, int jobid) {
   fd_nprintf(s, 100, "Time running: %.4f %s\n", t, unit);
   if (p->state == FINISHED) {
     struct Result *res = &(p->result);
-    fd_nprintf(s, 100, "Error: %d Signal: %d Die: %d\n", res->errorlevel, res->signal, res->died_by_signal);
+    fd_nprintf(s, 100, "Error: %d Signal: %d Die: %d\n", res->errorlevel,
+               res->signal, res->died_by_signal);
   }
   // fd_nprintf(s, 100, "\n");
 }
@@ -1757,19 +1777,19 @@ void s_refresh_users(int s) {
   send_list_line(s, "refresh the list success!\n");
 }
 
-void s_stop_all_users(int s) {
+void s_suspend_user_all(int s) {
   for (int i = 1; i < user_number; i++) {
-    s_stop_user(s, i);
+    s_suspend_user(s, i);
   }
 }
 
-void s_cont_all_users(int s) {
+void s_resume_user_all(int s) {
   for (int i = 1; i < user_number; i++) {
-    s_cont_user(s, i);
+    s_resume_user(s, i);
   }
 }
 
-void s_cont_user(int s, int ts_UID) {
+void s_resume_user(int s, int ts_UID) {
   // get the sequence of ts_UID
   if (ts_UID < 0 || ts_UID > USER_MAX)
     return;
@@ -1782,10 +1802,14 @@ void s_cont_user(int s, int ts_UID) {
     if (p->ts_UID == ts_UID && p->state == LOCKED) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
+        printf("pid = %d\n", p->pid);
         if (is_sleep(p->pid) == 1) {
-          p->state = RUNNING;
-          free_pause(p->pid);
-          allocate_cores_ex(p, "kill -s CONT");
+          printf("allocate = %d\n", p->pid);
+          int status = allocate_cores_ex(p, "kill -s CONT");
+          if (status == 1) {
+            p->state = RUNNING;
+            free_pause(p->pid);
+          }
         }
         // kill_pid(p->pid, "kill -s CONT");
       }
@@ -1793,11 +1817,12 @@ void s_cont_user(int s, int ts_UID) {
     p = p->next;
   }
 
-  snprintf(buff, 255, "Resume user: [%d] %199s\n", user_UID[ts_UID], user_name[ts_UID]);
+  snprintf(buff, 255, "Resume user: [%d] %199s\n", user_UID[ts_UID],
+           user_name[ts_UID]);
   send_list_line(s, buff);
 }
 
-void s_stop_user(int s, int ts_UID) {
+void s_suspend_user(int s, int ts_UID) {
   // get the sequence of ts_UID
   if (ts_UID < 0 || ts_UID > USER_MAX)
     return;
@@ -1811,10 +1836,12 @@ void s_stop_user(int s, int ts_UID) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
         if (is_sleep(p->pid) == 0) {
-          p->state = LOCKED;
-          free_cores(p);
-          set_pause(p->pid);
           kill_pid(p->pid, "kill -s STOP", NULL);
+          if (is_sleep(p->pid) == 1) {
+            p->state = LOCKED;
+            free_cores(p);
+            set_pause(p->pid);
+          }
         }
       } else {
         char *label = "(...)";
@@ -1828,7 +1855,8 @@ void s_stop_user(int s, int ts_UID) {
     p = p->next;
   }
 
-  snprintf(buff, 255, "Lock user: [%d] %s\n", user_UID[ts_UID], user_name[ts_UID]);
+  snprintf(buff, 255, "Lock user: [%d] %s\n", user_UID[ts_UID],
+           user_name[ts_UID]);
   send_list_line(s, buff);
 }
 
@@ -1865,7 +1893,8 @@ void s_send_output(int s, int jobid) {
     if (jobid == -1)
       snprintf(buff, 255, "The last job has not finished or is not running.\n");
     else
-      snprintf(buff, 255, "[s_send_output] Job %i not finished or not running.\n", jobid);
+      snprintf(buff, 255,
+               "[s_send_output] Job %i not finished or not running.\n", jobid);
     send_list_line(s, buff);
     return;
   }
@@ -1913,7 +1942,7 @@ int s_remove_job(int s, int *jobid, int client_tsUID) {
   struct Msg m = default_msg();
   struct Job *before_p = &firstjob;
 
-  if (client_tsUID < 0 || client_tsUID > USER_MAX) { 
+  if (client_tsUID < 0 || client_tsUID > USER_MAX) {
     snprintf(buff, 255, "invalid ts_UID [%d] in job removal.\n", client_tsUID);
     send_list_line(s, buff);
     return 0;
@@ -1968,15 +1997,16 @@ int s_remove_job(int s, int *jobid, int client_tsUID) {
       if (p == NULL) {
         snprintf(buff, 255, "The job %i is not in queue.\n", *jobid);
       } else {
-        snprintf(buff, 255, "The job %i is owned by [%d] `%s` not the user [%d] `%s`.\n", 
-        *jobid, user_UID[p->ts_UID], user_name[p->ts_UID],
-        user_UID[client_tsUID], user_name[client_tsUID]);
+        snprintf(buff, 255,
+                 "The job %i is owned by [%d] `%s` not the user [%d] `%s`.\n",
+                 *jobid, user_UID[p->ts_UID], user_name[p->ts_UID],
+                 user_UID[client_tsUID], user_name[client_tsUID]);
       }
     }
     if (p != NULL) {
       if (p->ts_UID != client_tsUID) {
-        snprintf(buff, 255, "The job %i belongs to %s not %s.\n",
-                 *jobid, user_name[p->ts_UID], user_name[client_tsUID]);
+        snprintf(buff, 255, "The job %i belongs to %s not %s.\n", *jobid,
+                 user_name[p->ts_UID], user_name[client_tsUID]);
       }
     }
     send_list_line(s, buff);
@@ -1988,7 +2018,8 @@ int s_remove_job(int s, int *jobid, int client_tsUID) {
       if (*jobid == -1)
         snprintf(buff, 255, "Running job of last job is removed.\n");
       else
-        snprintf(buff, 255, "Running job [%i] PID: %d by `%s` is removed.\n", *jobid, p->pid, user_name[p->ts_UID]);
+        snprintf(buff, 255, "Running job [%i] PID: %d by `%s` is removed.\n",
+                 *jobid, p->pid, user_name[p->ts_UID]);
       send_list_line(s, buff);
       return 0;
     }
@@ -2099,15 +2130,17 @@ void s_lock_server(int s, int ts_UID) {
       user_locker = ts_UID;
       locker_time = time(NULL);
       snprintf(buff, 255, "lock the task-spooler server by [%d] `%s`\n",
-                user_UID[user_locker], user_name[ts_UID]);
+               user_UID[user_locker], user_name[ts_UID]);
     } else {
       if (user_locker == ts_UID) {
-        snprintf(buff, 255,
-                 "The task-spooler server has already been locked by [%d] `%s`\n",
-                 user_UID[user_locker], user_name[user_locker]);
+        snprintf(
+            buff, 255,
+            "The task-spooler server has already been locked by [%d] `%s`\n",
+            user_UID[user_locker], user_name[user_locker]);
       } else {
         snprintf(buff, 255,
-                 "Error: the task-spooler server has already been locked by other user [%d] `%s`\n",
+                 "Error: the task-spooler server has already been locked by "
+                 "other user [%d] `%s`\n",
                  user_UID[user_locker], user_name[user_locker]);
       }
     }
@@ -2117,12 +2150,11 @@ void s_lock_server(int s, int ts_UID) {
 
 void s_unlock_server(int s, int ts_UID) {
   if (user_locker == -1) {
-    snprintf(buff, 255,
-    "The task-spooler server has already been unlocked\n");
+    snprintf(buff, 255, "The task-spooler server has already been unlocked\n");
   } else {
     if (ts_UID == 0) {
-    user_locker = -1;
-    snprintf(buff, 255, "Unlock the task-spooler server by Root\n");
+      user_locker = -1;
+      snprintf(buff, 255, "Unlock the task-spooler server by Root\n");
     } else {
       if (user_locker == ts_UID) {
         user_locker = -1;
@@ -2130,17 +2162,16 @@ void s_unlock_server(int s, int ts_UID) {
                  user_UID[ts_UID], user_name[ts_UID]);
       } else {
         snprintf(buff, 255,
-                 "Error: the task-spooler server locked by other user cannot be unlocked by [%d] `%s`\n",
+                 "Error: the task-spooler server locked by other user cannot "
+                 "be unlocked by [%d] `%s`\n",
                  user_UID[ts_UID], user_name[ts_UID]);
-
       }
     }
-
   }
   send_list_line(s, buff);
 }
 
-static void s_lock_queue(struct Job* p)   { 
+static void s_lock_queue(struct Job *p) {
   if (p->state == QUEUED) {
     user_queue[p->ts_UID]--;
     p->state = LOCKED;
@@ -2148,7 +2179,7 @@ static void s_lock_queue(struct Job* p)   {
   }
 }
 
-static void s_unlock_queue(struct Job* p) { 
+static void s_unlock_queue(struct Job *p) {
   if (p->state == LOCKED) {
     user_queue[p->ts_UID]++;
     p->state = QUEUED;
@@ -2156,8 +2187,7 @@ static void s_unlock_queue(struct Job* p) {
   }
 }
 
-
-void s_pause_job(int s, int jobid, int ts_UID) {
+void s_hold_job(int s, int jobid, int ts_UID) {
   if (user_max_slots[ts_UID] < 0) {
     snprintf(buff, 255, "Error: The owner `%s` is locked\n", user_name[ts_UID]);
     send_list_line(s, buff);
@@ -2196,12 +2226,14 @@ void s_pause_job(int s, int jobid, int ts_UID) {
     send_list_line(s, buff);
     return;
   }
-  
+
   int job_tsUID = p->ts_UID;
   if (p->pid != 0 && (job_tsUID = ts_UID || ts_UID == 0)) {
-    set_pause(p->pid);
-    free_cores(p);
     kill_pid(p->pid, "kill -s STOP", NULL);
+    if (is_sleep(p->pid) == 1) {
+      set_pause(p->pid);
+      free_cores(p);
+    }
     snprintf(buff, 255, "To pause job [%d] successfully!\n", jobid);
   } else {
     snprintf(buff, 255, "Error: cannot pause job [%d]\n", jobid);
@@ -2209,8 +2241,8 @@ void s_pause_job(int s, int jobid, int ts_UID) {
   send_list_line(s, buff);
 }
 
-void s_rerun_job(int s, int jobid, int ts_UID) {
-    if (user_max_slots[ts_UID] < 0) {
+void s_cont_job(int s, int jobid, int ts_UID) {
+  if (user_max_slots[ts_UID] < 0) {
     snprintf(buff, 255, "Error: The owner `%s` is locked\n", user_name[ts_UID]);
     send_list_line(s, buff);
     return;
@@ -2223,8 +2255,8 @@ void s_rerun_job(int s, int jobid, int ts_UID) {
     send_list_line(s, buff);
     return;
   }
-  
-if (p->state == LOCKED) {
+
+  if (p->state == LOCKED) {
     if (p->ts_UID == ts_UID || ts_UID == 0) {
       snprintf(buff, 255, "The locked job [%d] is in queue.\n", jobid);
       s_unlock_queue(p);
@@ -2253,9 +2285,14 @@ if (p->state == LOCKED) {
   int job_tsUID = p->ts_UID;
   if (p->pid != 0 && (job_tsUID = ts_UID || ts_UID == 0)) {
     int num_slots = p->num_slots;
-    if (user_busy[ts_UID] + num_slots <= user_max_slots[ts_UID] && busy_slots + num_slots <= max_slots) {
-      free_pause(p->pid);
-      allocate_cores_ex(p, "kill -s CONT");
+    if (user_busy[ts_UID] + num_slots <= user_max_slots[ts_UID] &&
+        busy_slots + num_slots <= max_slots) {
+          
+      int status = allocate_cores_ex(p, "kill -s CONT");
+      if (status == 1) {
+        p->state = RUNNING;
+        free_pause(p->pid);
+      }
       snprintf(buff, 255, "To rerun job [%d] successfully!\n", jobid);
     } else {
       snprintf(buff, 255, "Error: not enough slots [%d]\n", jobid);

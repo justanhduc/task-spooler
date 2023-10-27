@@ -12,12 +12,14 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
+#include <time.h> // time()
 #include <unistd.h>
-#include <time.h>    // time()
 
+#include "default.inc"
 #include "main.h"
 #include "version.h"
-#include "default.inc"
+
+#include "user.h"
 
 int client_uid;
 extern char *optarg;
@@ -34,9 +36,12 @@ static char *old_getopt_env;
 static char version[1024];
 
 static void init_version() {
-    char *ts_version = TS_MAKE_STR(TS_VERSION);
-    sprintf(version, "Task Spooler %s - a task queue system for the unix user.\n"
-                     "Copyright (C) 2007-%d  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell", ts_version, 2023);
+  char *ts_version = TS_MAKE_STR(TS_VERSION);
+  sprintf(version,
+          "Task Spooler %s - a task queue system for the unix user.\n"
+          "Copyright (C) 2007-%d  Kylin JIANG - Duc Nguyen - Lluis Batlle i "
+          "Rossell",
+          ts_version, 2023);
 }
 
 static void default_command_line() {
@@ -81,38 +86,39 @@ void get_command(int index, int argc, char **argv) {
   command_line.command.num = argc - index;
 }
 
-char* get_tmp() {
-    const char* tmpFolder = getenv("TMPDIR");
-    if (tmpFolder == NULL) {
-      tmpFolder = "/tmp/";
-    }
-    const char* fileNameFormat = "ts_out.%06d";
-    const int folderLength = strlen(tmpFolder);
-    const int maxFileNameLength = folderLength + strlen(fileNameFormat) + 10;
+char *get_tmp() {
+  const char *tmpFolder = getenv("TMPDIR");
+  if (tmpFolder == NULL) {
+    tmpFolder = "/tmp/";
+  }
+  const char *fileNameFormat = "ts_out.%06d";
+  const int folderLength = strlen(tmpFolder);
+  const int maxFileNameLength = folderLength + strlen(fileNameFormat) + 10;
 
-    char* fileName = (char*)malloc(maxFileNameLength * sizeof(char));
-    char* fileName2 = (char*)malloc(maxFileNameLength * sizeof(char));
+  char *fileName = (char *)malloc(maxFileNameLength * sizeof(char));
+  char *fileName2 = (char *)malloc(maxFileNameLength * sizeof(char));
 
-    if (fileName == NULL || fileName2 == NULL) {
-        fprintf(stderr, "Memory allocation failed.\n");
-        return NULL;
-    }
+  if (fileName == NULL || fileName2 == NULL) {
+    fprintf(stderr, "Memory allocation failed.\n");
+    return NULL;
+  }
 
-    srand(time(NULL));
-    uint randomNumber1 = rand() % 10000;
-    uint randomNumber2 = rand() % 10000;
-    uint randomNumber3 = rand() % 10000;
+  srand(time(NULL));
+  uint randomNumber1 = rand() % 10000;
+  uint randomNumber2 = rand() % 10000;
+  uint randomNumber3 = rand() % 10000;
 
-    const int randomRange = 100000;
-    uint randomOffset = randomNumber1 * randomRange * randomRange + randomNumber2 * randomRange + randomNumber3;
+  const int randomRange = 100000;
+  uint randomOffset = randomNumber1 * randomRange * randomRange +
+                      randomNumber2 * randomRange + randomNumber3;
 
-    int finalRandomNumber = randomOffset % randomRange;
+  int finalRandomNumber = randomOffset % randomRange;
 
-    snprintf(fileName, maxFileNameLength, "%s/%s", tmpFolder, fileNameFormat);
-    snprintf(fileName2, maxFileNameLength, fileName, finalRandomNumber);
-    printf("save to %s\n", fileName2);
-    free(fileName);
-    return fileName2;
+  snprintf(fileName, maxFileNameLength, "%s/%s", tmpFolder, fileNameFormat);
+  snprintf(fileName2, maxFileNameLength, fileName, finalRandomNumber);
+  printf("save to %s\n", fileName2);
+  free(fileName);
+  return fileName2;
 }
 
 static int get_two_jobs(const char *str, int *j1, int *j2) {
@@ -149,21 +155,21 @@ int strtok_int(char *str, char *delim, int *ids) {
 }
 
 static struct option longOptions[] = {
-    {"get_label",       required_argument, NULL, 'a'},
-    {"count_running",   no_argument, NULL, 'R'},
-    {"help",            no_argument, NULL, 0},
-    {"serialize",       required_argument, NULL, 'M'},
-    {"last_queue_id",   no_argument, NULL, 'q'},
-    {"full_cmd",        required_argument, NULL, 'F'},
-    {"get_logdir",      no_argument, NULL, 0},
-    {"set_logdir",      required_argument, NULL, 0},
-    {"getenv",          required_argument, NULL, 0},
-    {"setenv",          required_argument, NULL, 0},
+    {"get_label", required_argument, NULL, 'a'},
+    {"count_running", no_argument, NULL, 'R'},
+    {"help", no_argument, NULL, 0},
+    {"serialize", required_argument, NULL, 'M'},
+    {"last_queue_id", no_argument, NULL, 'q'},
+    {"full_cmd", required_argument, NULL, 'F'},
+    {"get_logdir", no_argument, NULL, 0},
+    {"set_logdir", required_argument, NULL, 0},
+    {"getenv", required_argument, NULL, 0},
+    {"setenv", required_argument, NULL, 0},
     {"unsetenv", required_argument, NULL, 0},
-    {"stop", optional_argument, NULL, 0},
-    {"cont", optional_argument, NULL, 0},
-    {"pause", required_argument, NULL, 0},
-    {"rerun", required_argument, NULL, 0},
+    {"suspend", optional_argument, NULL, 0},
+    {"resume", optional_argument, NULL, 0},
+    {"hold", required_argument, NULL, 0},
+    {"cont", required_argument, NULL, 0},
     {"lock-ts", no_argument, NULL, 0},
     {"unlock-ts", no_argument, NULL, 0},
     {"daemon", no_argument, NULL, 0},
@@ -181,9 +187,10 @@ void parse_opts(int argc, char **argv) {
 
   /* Parse options */
   while (1) {
-    c = getopt_long(argc, argv,
-                    ":AXRTVhKzClnfBE:a:F:t:c:o:p:w:k:r:u:s:U:qi:N:J:m:L:dS:D:W:O:M:",
-                    longOptions, &optionIdx);
+    c = getopt_long(
+        argc, argv,
+        ":AXRTVhKzClnfBE:a:F:t:c:o:p:w:k:r:u:s:U:qi:N:J:m:L:dS:D:W:O:M:",
+        longOptions, &optionIdx);
 
     if (c == -1)
       break;
@@ -207,21 +214,21 @@ void parse_opts(int argc, char **argv) {
       } else if (strcmp(longOptions[optionIdx].name, "get_label") == 0) {
         command_line.request = c_GET_LABEL;
         command_line.jobid = str2int(optarg);
-      } else if (strcmp(longOptions[optionIdx].name, "pause") == 0) {
-        command_line.request = c_PAUSE_JOB;
+      } else if (strcmp(longOptions[optionIdx].name, "hold") == 0) {
+        command_line.request = c_HOLD_JOB;
         command_line.jobid = str2int(optarg);
-      } else if (strcmp(longOptions[optionIdx].name, "rerun") == 0) {
-        command_line.request = c_RERUN_JOB;
+      } else if (strcmp(longOptions[optionIdx].name, "cont") == 0) {
+        command_line.request = c_CONT_JOB;
         command_line.jobid = str2int(optarg);
       } else if (strcmp(longOptions[optionIdx].name, "lock-ts") == 0) {
         command_line.request = c_LOCK_SERVER;
       } else if (strcmp(longOptions[optionIdx].name, "unlock-ts") == 0) {
         command_line.request = c_UNLOCK_SERVER;
-      } else if (strcmp(longOptions[optionIdx].name, "stop") == 0) {
-        command_line.request = c_STOP_USER;
+      } else if (strcmp(longOptions[optionIdx].name, "suspend") == 0) {
+        command_line.request = c_SUSPEND_USER;
         command_line.label = optarg; /* reuse this var */
-      } else if (strcmp(longOptions[optionIdx].name, "cont") == 0) {
-        command_line.request = c_CONT_USER;
+      } else if (strcmp(longOptions[optionIdx].name, "resume") == 0) {
+        command_line.request = c_RESUME_USER;
         command_line.label = optarg; /* reuse this var */
       } else if (strcmp(longOptions[optionIdx].name, "getenv") == 0) {
         command_line.request = c_GET_ENV;
@@ -268,7 +275,7 @@ void parse_opts(int argc, char **argv) {
       break;
     case 'r':
       command_line.request = c_REMOVEJOB;
-      command_line.jobid = str2int(optarg);    
+      command_line.jobid = str2int(optarg);
       break;
     case 'l':
       command_line.request = c_LIST;
@@ -348,7 +355,7 @@ void parse_opts(int argc, char **argv) {
       command_line.jobid = str2int(optarg);
       if (command_line.jobid < 0)
         command_line.jobid = 0;
-      break;    
+      break;
     /*
     case 'Z':
       command_line.taskpid = str2int(optarg);
@@ -356,8 +363,8 @@ void parse_opts(int argc, char **argv) {
         command_line.taskpid = 0;
       else {
         char cmd[256], out[256] = "";
-        snprintf(cmd, sizeof(cmd), "readlink -f /proc/%d/fd/1", command_line.taskpid);
-        linux_cmd(cmd, out, sizeof(out));
+        snprintf(cmd, sizeof(cmd), "readlink -f /proc/%d/fd/1",
+    command_line.taskpid); linux_cmd(cmd, out, sizeof(out));
 
         printf("outfile: %s\n", out);
         if (strlen(out) == 0) {
@@ -575,8 +582,11 @@ static void print_help(const char *cmd) {
   printf("usage: %s [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]\n", cmd);
   printf("Env vars:\n");
   printf("  TS_SOCKET  the path to the unix socket used by the ts command.\n");
-  printf("  TS_MAIL_FROM who send the result mail, default (%s)\n", DEFAULT_EMAIL_SENDER);
-  printf("  TS_MAIL_TIME the duration criterion to send a email, default (%.3f sec)\n", DEFAULT_EMAIL_TIME);
+  printf("  TS_MAIL_FROM who send the result mail, default (%s)\n",
+         DEFAULT_EMAIL_SENDER);
+  printf("  TS_MAIL_TIME the duration criterion to send a email, default (%.3f "
+         "sec)\n",
+         DEFAULT_EMAIL_TIME);
   printf("  TS_MAXFINISHED  maximum finished jobs in the queue.\n");
   printf("  TS_MAXCONN  maximum number of ts connections at once.\n");
   printf("  TS_ONFINISH  binary called on job end (passes jobid, error, "
@@ -611,47 +621,54 @@ static void print_help(const char *cmd) {
          "added, if not specified.\n");
   printf("  --full_cmd       || -F [id]     show full command. Of the last "
          "added, if not specified.\n");
-  printf("  --check_daemon                  Check the daemon is running or not.");
+  printf(
+      "  --check_daemon                  Check the daemon is running or not.");
   printf(
       "  --count_running  || -R          return the number of running jobs\n");
   printf(
       "  --last_queue_id  || -q          show the job ID of the last added.\n");
-  printf(
-      "  --get_logdir                    get the path containing log files.\n");
-  printf(
-      "  --set_logdir [path]             set the path containing log files.\n");
-  printf(
-      "  --serialize   ||  -M [format]   serialize the job list to the specified format. Choices: {default, json, tab}.\n");
-  printf("  --daemon                        Run the server as daemon by Root "
-         "only.\n");
+  printf("  --get_logdir                    Retrieve the path where log files "
+         "are stored.\n");
+  printf("  --set_logdir [path]             Set the path for storing log "
+         "files.\n");
+  printf("  --serialize   ||  -M [format]   Serialize the job list to the "
+         "specified format. Options: {default, json, tab}.\n");
+  printf("  --daemon                        Run the server as a daemon (Root "
+         "access only).\n");
   printf("  --tmp                           save the logfile to tmp folder\n");
-  printf("  --pause [jobid]                 hold on a task.\n");
-  printf("  --rerun [jobid]                 rerun a paused task.\n");
-  printf("  --lock                          Locker the server (Timeout: 30 "
-         "sec.)"
-         " For Root, timeout is infinity.\n");
-  printf("  --unlock                        Unlocker the server.\n");
-  printf("  --stop [user]                   For normal user, pause all "
-         "tasks and lock the account. \n                                "
-         "  For root, to lock all users or single [user].\n");
-  printf("  --cont [user]                   For normal user, continue all "
-         "paused tasks and lock the account. \n                         "
-         "         For root, to unlock all users or single [user].\n");
-  printf("  --relink [PID]                  Relink the running tasks by its [PID] from an expected failure.\n");
-  printf(
-      "  --job [joibid] || -J [joibid]   set the jobid of the new or relink job\n");
-  // printf("  --stime [start_time]            Set the relinked task by starting time (Unix epoch).\n");
+  printf("  --hold [jobid]                  Pause a specific task by its job "
+         "ID.\n");
+  printf("  --cont [jobid]                  Resume a paused task by its job "
+         "ID.\n");
+  printf("  --suspend [user]                For regular users, pause all tasks "
+         "and lock the user account. \n");
+  printf("                                For root user, lock all user "
+         "accounts or a specific user's account.\n");
+  printf("  --resume [user]                 For regular users, resume all "
+         "paused tasks and unlock the user account. \n");
+  printf("                                For root user, unlock all user "
+         "accounts or a specific user's account.\n");
+  printf("  --lock                          Lock the server (Timeout: 30 "
+         "seconds). For root user, there is no timeout.\n");
+  printf("  --unlock                        Unlock the server.\n");
+  printf("  --relink [PID]                  Relink running tasks using their "
+         "[PID] in case of an unexpected failure.\n");
+
+  printf("  --job [joibid] || -J [joibid]   set the jobid of the new or relink "
+         "job\n");
+  // printf("  --stime [start_time]            Set the relinked task by starting
+  // time (Unix epoch).\n");
   printf("Actions:\n");
-  printf("  -A           Show all users information\n");
+  printf("  -A           Display information for all users.\n");
+  printf("  -X           Update user configuration by UID (Max. %d users, "
+         "root access only)\n", USER_MAX);
   printf(
-      "  -X           Refresh the user config by UID (Max. 100 users and only "
-      "available for root)\n");
-  printf("  -K           kill the task spooler server (only available for "
-         "root)\n");
-  printf("  -C           clear the list of finished jobs for current user\n");
-  printf("  -l           show the job list (default action)\n");
-  printf("  -S [num]     get/set the number of max simultaneous jobs of the "
-         "server.  (only available for root)\n");
+      "  -K           Terminate the task spooler server (root access only)\n");
+  printf(
+      "  -C           Clear the list of finished jobs for the current user.\n");
+  printf("  -l           Show the job list (default action).\n");
+  printf("  -S [num]     Get/Set the maximum number of simultaneous server "
+         "jobs (root access only).\n");
   printf("  -t [id]      \"tail -n 10 -f\" the output of the job. Last run if "
          "not specified.\n");
   printf("  -c [id]      like -t, but shows all the lines. Last run if not "
@@ -737,9 +754,9 @@ int main(int argc, char **argv) {
   ignore_sigpipe();
 
   if (command_line.request == c_CHECK_DAEMON) {
-      c_check_daemon();
+    c_check_daemon();
   }
-  
+
   if (command_line.need_server) {
     if (command_line.request == c_DAEMON) {
       ensure_server_up(1);
@@ -748,8 +765,6 @@ int main(int argc, char **argv) {
     }
     c_check_version();
   }
-  
-  
 
   switch (command_line.request) {
   case c_REFRESH_USER:
@@ -765,13 +780,13 @@ int main(int argc, char **argv) {
     break;
   case c_CHECK_DAEMON:
     break;
-  case c_PAUSE_JOB:
-    c_pause_job(command_line.jobid);
+  case c_HOLD_JOB:
+    c_hold_job(command_line.jobid);
     // c_wait_server_lines();
-
     break;
-  case c_RERUN_JOB:
-    c_rerun_job(command_line.jobid);
+
+  case c_CONT_JOB:
+    c_cont_job(command_line.jobid);
     break;
   case c_LOCK_SERVER:
     errorlevel = c_lock_server();
@@ -779,7 +794,7 @@ int main(int argc, char **argv) {
   case c_UNLOCK_SERVER:
     errorlevel = c_unlock_server();
     break;
-  case c_STOP_USER: {
+  case c_SUSPEND_USER: {
     int stop_uid = client_uid;
     if (command_line.label != NULL) {
       if (client_uid == 0) {
@@ -799,10 +814,10 @@ int main(int argc, char **argv) {
     } else {
       printf("To stop all users by `Root`\n");
     }
-    c_stop_user(stop_uid);
+    c_suspend_user(stop_uid);
     c_wait_server_lines();
   } break;
-  case c_CONT_USER: {
+  case c_RESUME_USER: {
     int cont_uid = client_uid;
     if (command_line.label != NULL) {
       if (client_uid == 0) {
@@ -822,7 +837,7 @@ int main(int argc, char **argv) {
     } else {
       printf("To rResume all users by `Root`\n");
     }
-    c_cont_user(cont_uid);
+    c_resume_user(cont_uid);
     c_wait_server_lines();
   } break;
   case c_SHOW_VERSION:
