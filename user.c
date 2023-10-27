@@ -290,22 +290,26 @@ int get_tsUID(int uid) {
   return -1;
 }
 
-
 void kill_pid(int pid, const char *signal, const char* extra) {
   if (signal == NULL && extra == NULL) return;
-  char command[1024];
   const char *path = get_kill_sh_path();
+
+  char* command = NULL;
+  int size = strnlen(path, 1000) + strlen(signal) + 100;
+
   if (extra == NULL) {
+    command = (char*) malloc(size);
     sprintf(command, "bash %s %d \"%s\"", path, pid, signal);
   } else {
+    command = (char*) malloc(size + strlen(extra));
     sprintf(command, "bash %s %d \"%s\" \"%s\"", path, pid, signal, extra);
   }
-  printf("command = %s\n", command);
+  // printf("command = %s\n", command);
   // fp = popen(command, "r");
-  FILE* f = fopen("/home/kylin/task-spooler/file.log", "a"); 
-  fprintf(f, "%s\n", command); 
+  // FILE* f = fopen("/home/kylin/task-spooler/file.log", "a"); 
+  //fprintf(f, "%s\n", command); 
   system(command);
-  fclose(f);
+  //fclose(f);
+  free(command);
   // pclose(fp);
 }
-

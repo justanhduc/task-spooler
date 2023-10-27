@@ -79,7 +79,7 @@ int set_task_cores(struct Job* p, const char* extra) {
     lock_core_by_job(p);
     
     char* core_str = ints_to_chars(N, task_cores_id, ",");
-    int size = strlen(core_str) + 30;
+    int size = strlen(core_str) + 100;
     char* cmd = (char*) malloc(sizeof(char) * size);
     sprintf(cmd, "taskset -cp %s ", core_str);
     if (extra == NULL) {
