@@ -923,7 +923,11 @@ static struct Job *newjobptr() {
     p = p->next;
 
   p->next = (struct Job *)calloc(sizeof(struct Job), sizeof(char));
-
+#ifdef TASKSET
+  p->next->taskset_flag = 1;
+#else
+  p->next->taskset_flag = 0;
+#endif
   /*
   p->next->next = 0;
   p->next->output_filename = 0;
@@ -1037,6 +1041,7 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
   p->notify_errorlevel_to_size = 0;
   p->depend_on_size = m->u.newjob.depend_on_size;
   p->depend_on = 0;
+  p->taskset_flag = m->u.newjob.taskset_flag;
 
   /* this error level here is used internally to decide whether a job should be
    * run or not so it only matters whether the error level is 0 or not. thus,

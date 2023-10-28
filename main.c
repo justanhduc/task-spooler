@@ -67,6 +67,11 @@ static void default_command_line() {
   command_line.start_time = 0;
   command_line.jobid = 0;
   command_line.list_format = DEFAULT;
+#ifdef TASKSET
+  command_line.taskset_flag = 1;
+#else
+  command_line.taskset_flag = 0;
+#endif
 }
 
 struct Msg default_msg() {
@@ -178,6 +183,7 @@ static struct option longOptions[] = {
     {"jobid", required_argument, NULL, 'J'},
     {"stime", required_argument, NULL, 0},
     {"check_daemon", no_argument, NULL, 0},
+    {"no-bind", no_argument, NULL, 0},
     {NULL, 0, NULL, 0}};
 
 void parse_opts(int argc, char **argv) {
@@ -255,6 +261,8 @@ void parse_opts(int argc, char **argv) {
         }
       } else if (strcmp(longOptions[optionIdx].name, "stime") == 0) {
         command_line.start_time = str2int(optarg);
+      } else if (strcmp(longOptions[optionIdx].name, "no-bind") == 0) {
+        command_line.taskset_flag = 0;
       } else
         error("Wrong option %s.", longOptions[optionIdx].name);
       break;
@@ -648,7 +656,7 @@ static void print_help(const char *cmd) {
   printf("  --cont [jobid]                  Resume a paused task by its job "
          "ID.\n");
   printf("  --suspend [user]                For regular users, pause all tasks "
-         "and lock the user account. \n");
+         "and lock the user account. \n"); 
   printf("                                For root user, lock all user "
          "accounts or a specific user's account.\n");
   printf("  --resume [user]                 For regular users, resume all "
@@ -660,7 +668,7 @@ static void print_help(const char *cmd) {
   printf("  --unlock                        Unlock the server.\n");
   printf("  --relink [PID]                  Relink running tasks using their "
          "[PID] in case of an unexpected failure.\n");
-
+  printf("  --no-taskset                    turn off taskset\n");
   printf("  --job [joibid] || -J [joibid]   set the jobid of the new or relink "
          "job\n");
   // printf("  --stime [start_time]            Set the relinked task by starting

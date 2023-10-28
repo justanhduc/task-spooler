@@ -304,7 +304,7 @@ void kill_pid(int pid, const char *signal, const char* extra) {
     command = (char*) malloc(size + strlen(extra));
     sprintf(command, "bash %s %d \"%s\" \"%s\"", path, pid, signal, extra);
   }
-  // printf("command = %s\n", command);
+  printf("command = %s\n", command);
   // fp = popen(command, "r");
   // FILE* f = fopen("/home/kylin/task-spooler/file.log", "a"); 
   //fprintf(f, "%s\n", command); 

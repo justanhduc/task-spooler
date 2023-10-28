@@ -90,6 +90,7 @@ void c_new_job() {
   } else
     m.u.newjob.email_size = 0;
 
+
   m.u.newjob.store_output = command_line.store_output;
   m.u.newjob.depend_on_size = command_line.depend_on_size;
   m.u.newjob.should_keep_finished = command_line.should_keep_finished;
@@ -98,7 +99,7 @@ void c_new_job() {
   m.u.newjob.num_slots = command_line.num_slots;
   m.u.newjob.taskpid = command_line.taskpid;
   m.u.newjob.start_time = command_line.start_time;
-
+  m.u.newjob.taskset_flag = command_line.taskset_flag;
   
   
   

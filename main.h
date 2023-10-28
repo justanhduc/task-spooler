@@ -137,6 +137,7 @@ struct CommandLine {
   char *email;
   char *logfile;
   char *outfile;
+  int taskset_flag;
   int num_slots;      /* Slots for the job to use. Default 1 */
   int taskpid;       /* to restore task by pid */
   int require_elevel; /* whether requires error level of dependencies or not */
@@ -184,6 +185,7 @@ struct Msg {
       int num_slots;
       int taskpid;
       long start_time;
+      int taskset_flag;
     } newjob;
     struct {
       int ofilename_size;
@@ -244,6 +246,7 @@ struct Job {
   int *notify_errorlevel_to;
   int notify_errorlevel_to_size;
   int dependency_errorlevel;
+  int taskset_flag;
   char *label;
   char *email;
   struct Procinfo info;
