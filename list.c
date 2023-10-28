@@ -85,8 +85,8 @@ char *joblist_headers() {
 
   line = malloc(256);
   snprintf(line, 256,
-           "%-4s %-7s %-7s %-6s %-10s %6s  %-20s   %s [run=%i/%i %.2f%%] Used Proc: %-3d %s\n",
-           "ID", "State", "Proc.", "User", "Label", "Time", "Command", "Log",
+           "%-4s %-9s %-6s %-7s %-10s %7s  %-20s  Log [run=%i/%i %.2f%%] Used Proc: %-3d %s\n",
+           "ID", "State", "Proc.", "User", "Label", "Time", "Command",
            busy_slots, max_slots, 100.0 * busy_slots / max_slots, core_usage, extra);
   return line;
 }
@@ -193,7 +193,7 @@ static char *print_noresult(const struct Job *p) {
   char *cmd = shorten(p->command + p->command_strip, cmd_len);
   if (p->label) {
     char *label = shorten(p->label, 10);
-    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-21s | %s\n",
+    snprintf(line, maxlen, "%-4i %-9s %-6i %-7s %-10s %6.2f%s  %-21s | %s\n",
              p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
              output_filename);
     free(label);
@@ -201,7 +201,7 @@ static char *print_noresult(const struct Job *p) {
   } else {
     char *cmd = shorten(p->command + p->command_strip, cmd_len);
     char *label = "(..)";
-    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-21s | %s\n",
+    snprintf(line, maxlen, "%-4i %-9s %-6i %-7s %-10s %6.2f%s  %-21s | %s\n",
              p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
              output_filename);
     free(cmd);
@@ -261,7 +261,7 @@ static char *print_result(const struct Job *p) {
   char *cmd = shorten(p->command + p->command_strip, cmd_len);
   if (p->label) {
     char *label = shorten(p->label, 10);
-    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-21s | %s\n",
+    snprintf(line, maxlen, "%-4i %-9s %-6i %-7s %-10s %6.2f%s  %-21s | %s\n",
              p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
              output_filename);
     free(label);
@@ -269,7 +269,7 @@ static char *print_result(const struct Job *p) {
   } else {
     char *cmd = shorten(p->command + p->command_strip, cmd_len);
     char *label = "(..)";
-    snprintf(line, maxlen, "%-4i %-10s %-3i %-7s %-10s %5.2f%s  %-21s | %s\n",
+    snprintf(line, maxlen, "%-4i %-9s %-6i %-7s %-10s %6.2f%s  %-21s | %s\n",
              p->jobid, jobstate, p->num_slots, uname, label, real_ms, unit, cmd,
              output_filename);
     free(cmd);

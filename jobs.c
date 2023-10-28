@@ -1475,7 +1475,7 @@ void job_finished(const struct Result *result, int jobid) {
     jpointer->next = newfirst;
   }
 }
-static int fork_cmd(int UID, const char *path, const char *cmd) {
+static int fork_cmd(const int UID, const char *path, const char *cmd) {
   int pid = -1; //定义一个进程ID变量
 
   pid = fork(); //调用fork()函数创建子进程
@@ -1526,9 +1526,10 @@ static void s_add_job(struct Job *j, struct Job **p) {
 
       char c[64];
       sprintf(c, " --relink %d -J %d ", j->pid, j->jobid);
-      char *str = insert_chars(j->command_strip, j->command, c);
+      char *str = insert_chars_check(j->command_strip, j->command, c);
 
       fork_cmd(user_UID[j->ts_UID], j->work_dir, str);
+      free(str);
       // fork_cmd(0, j->work_dir, str);
 
       jobids = jobids > j->jobid ? jobids : j->jobid + 1;
@@ -1548,7 +1549,7 @@ static void s_add_job(struct Job *j, struct Job **p) {
 
     char c[32];
     sprintf(c, " -J %d ", j->jobid);
-    char *str = insert_chars(j->command_strip, j->command, c);
+    char *str = insert_chars_check(j->command_strip, j->command, c);
 
     fork_cmd(user_UID[j->ts_UID], j->work_dir, str);
     jobids = jobids > j->jobid ? jobids : j->jobid + 1;

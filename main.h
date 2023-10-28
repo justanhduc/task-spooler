@@ -615,7 +615,7 @@ void set_state_DB(int jobid, int state);
 /* print.c */
 char* ints_to_chars(int n, int *array, const char *delim);
 int*  chars_to_ints(int *size, char* str, const char* delim);
-char* insert_chars(int pos, const char* input, const char* c);
+char* insert_chars_check(int pos, const char* input, const char* c);
 
 /* taskset.c */
 void init_taskset();
