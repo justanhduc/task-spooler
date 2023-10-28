@@ -1749,7 +1749,7 @@ void s_job_info(int s, int jobid) {
     fd_nprintf(s, slen, "Ouput: %s\n", p->output_filename);
   } else {
     int slen = strlen(p->work_dir) + 30;
-    fd_nprintf(s, slen, "Work dir: %s\n", p->work_dir);
+    fd_nprintf(s, slen, "Workdir: %s\n", p->work_dir);
   }
   fd_nprintf(s, 100, "Enqueue time: %s", ctime(&p->info.enqueue_time.tv_sec));
   fd_nprintf(s, 100, "Start time: %s", ctime(&p->info.start_time.tv_sec));
