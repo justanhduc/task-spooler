@@ -1339,10 +1339,10 @@ static int get_max_finished_jobs() {
 
   limit = getenv("TS_MAXFINISHED");
   if (limit == NULL)
-    return 1000;
+    return DEFAULT_MAXFINISHED;
   int num = abs(atoi(limit));
   if (num < 1)
-    num = 1000;
+    num = DEFAULT_MAXFINISHED;
   return num;
 }
 
@@ -1730,24 +1730,33 @@ void s_job_info(int s, int jobid) {
   fd_nprintf(s, 100, "\n");
   fd_nprintf(s, 100, "User: %s [%d]\n", user_name[p->ts_UID],
              user_UID[p->ts_UID]);
-  fd_nprintf(s, 100, "State: %-7s  PID: %-6d\n", jstate2string(p->state),
+  fd_nprintf(s, 100, "State: %9s PID: %-6d\n", jstate2string(p->state),
              p->pid);
 
 #ifdef TASKSET
   if (p->cores != NULL) {
     int buffer_len = strlen(p->cores) + 100;
-    fd_nprintf(s, buffer_len, "Slots: %-3d \tTaskset: %s\n", p->num_slots,
+    fd_nprintf(s, buffer_len, "Slots: %-3d       Taskset: %s\n", p->num_slots,
                p->cores);
+  } else {
+    fd_nprintf(s, 100, "Slots: %-3d\n", p->num_slots);
   }
 #else
   fd_nprintf(s, 100, "Slots: %-3d\n", p->num_slots);
 #endif
-  fd_nprintf(s, 100, "Output: %s\n", p->output_filename);
+  if (p->output_filename != NULL) {
+    int slen = strlen(p->output_filename) + 30;
+    fd_nprintf(s, slen, "Ouput: %s\n", p->output_filename);
+  } else {
+    int slen = strlen(p->work_dir) + 30;
+    fd_nprintf(s, slen, "Work dir: %s\n", p->work_dir);
+  }
   fd_nprintf(s, 100, "Enqueue time: %s", ctime(&p->info.enqueue_time.tv_sec));
   fd_nprintf(s, 100, "Start time: %s", ctime(&p->info.start_time.tv_sec));
   if (p->email) {
     fd_nprintf(s, 100, "Email: %s\n", p->email);
   }
+  
   if (p->state == RUNNING) {
     t = pinfo_time_until_now(&p->info);
   } else if (p->state == FINISHED) {
@@ -1755,7 +1764,7 @@ void s_job_info(int s, int jobid) {
     fd_nprintf(s, 100, "End time: %s", ctime(&p->info.end_time.tv_sec));
   }
   const char *unit = time_rep(&t);
-  fd_nprintf(s, 100, "Time running: %.4f %s\n", t, unit);
+  if (t > 0) fd_nprintf(s, 100, "Time running: %.4f %s\n", t, unit);
   if (p->state == FINISHED) {
     struct Result *res = &(p->result);
     fd_nprintf(s, 100, "Error: %d Signal: %d Die: %d\n", res->errorlevel,

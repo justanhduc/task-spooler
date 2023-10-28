@@ -42,65 +42,66 @@ static const char *set_kill_sh_path() {
 
 static void setup_kill_sh() {
   set_kill_sh_path();
-  const char* path = get_kill_sh_path();
+  const char *path = get_kill_sh_path();
   FILE *f = fopen(path, "w");
   if (f == NULL) {
     printf("Cannot create `kill_ppide.sh` file at %s\n", path);
     exit(0);
   }
-  const char* script = "#!/bin/bash\n\n"
-    "# getting children generally resolves nicely at some point\n"
-    "get_child() {\n"
-    "    echo $(pgrep -laP $1 | awk '{print $1}')\n"
-    "}\n\n"
-    "get_children() {\n"
-    "    __RET=$(get_child $1)\n"
-    "    __CHILDREN=\n"
-    "    while [ -n \"$__RET\" ]; do\n"
-    "        __CHILDREN+=\"$__RET \"\n"
-    "        __RET=$(get_child $__RET)\n"
-    "    done\n\n"
-    "    __CHILDREN=$(echo \"${__CHILDREN}\" | xargs | sort)\n\n"
-    "    echo \"${__CHILDREN} $1\"\n"
-    "}\n\n"
-    "if [ 1 -gt $# ]; \n"
-    "then\n"
-    "    echo \"not input PID\"\n"
-    "    exit 1\n"
-    "fi\n\n"
-    "owner=`ps -o user= -p $1`\n"
-    "if [ -z \"$owner\" ]; \n"
-    "then\n"
-    "    // echo \"not a valid PID\"\n"
-    "    exit 1\n"
-    "fi\n"
-    "pids=`get_children $1`\n\n"
-    "user=`whoami`\n\n"
-    "extra=\"\"\n"
-    "if [[ \"$owner\" != \"$user\" ]]; then\n"
-    "    extra=\"sudo\"\n"
-    "fi\n\n"
-    "if [ -z \"$3\" ]\n"
-    "then\n"
-    "    if [ -z \"$2\" ]\n"
-    "    then\n"
-    "        for pid in ${pids};\n"
-    "        do\n"
-    "            ${extra} echo ${pid}\n"
-    "        done\n"
-    "    else\n"
-    "        for pid in ${pids};\n"
-    "        do\n"
-    "            ${extra} $2 ${pid}\n"
-    "        done\n"
-    "    fi\n"
-    "else\n"
-    "    for pid in ${pids};\n"
-    "    do\n"
-    "        ${extra} $2 ${pid}\n"
-    "        ${extra} $3 ${pid}\n"
-    "    done\n"
-    "fi;\n";
+  const char *script =
+      "#!/bin/bash\n\n"
+      "# getting children generally resolves nicely at some point\n"
+      "get_child() {\n"
+      "    echo $(pgrep -laP $1 | awk '{print $1}')\n"
+      "}\n\n"
+      "get_children() {\n"
+      "    __RET=$(get_child $1)\n"
+      "    __CHILDREN=\n"
+      "    while [ -n \"$__RET\" ]; do\n"
+      "        __CHILDREN+=\"$__RET \"\n"
+      "        __RET=$(get_child $__RET)\n"
+      "    done\n\n"
+      "    __CHILDREN=$(echo \"${__CHILDREN}\" | xargs | sort)\n\n"
+      "    echo \"${__CHILDREN} $1\"\n"
+      "}\n\n"
+      "if [ 1 -gt $# ]; \n"
+      "then\n"
+      "    echo \"not input PID\"\n"
+      "    exit 1\n"
+      "fi\n\n"
+      "owner=`ps -o user= -p $1`\n"
+      "if [ -z \"$owner\" ]; \n"
+      "then\n"
+      "    // echo \"not a valid PID\"\n"
+      "    exit 1\n"
+      "fi\n"
+      "pids=`get_children $1`\n\n"
+      "user=`whoami`\n\n"
+      "extra=\"\"\n"
+      "if [[ \"$owner\" != \"$user\" ]]; then\n"
+      "    extra=\"sudo\"\n"
+      "fi\n\n"
+      "if [ -z \"$3\" ]\n"
+      "then\n"
+      "    if [ -z \"$2\" ]\n"
+      "    then\n"
+      "        for pid in ${pids};\n"
+      "        do\n"
+      "            ${extra} echo ${pid}\n"
+      "        done\n"
+      "    else\n"
+      "        for pid in ${pids};\n"
+      "        do\n"
+      "            ${extra} $2 ${pid}\n"
+      "        done\n"
+      "    fi\n"
+      "else\n"
+      "    for pid in ${pids};\n"
+      "    do\n"
+      "        ${extra} $2 ${pid}\n"
+      "        ${extra} $3 ${pid}\n"
+      "    done\n"
+      "fi;\n";
 
   fprintf(f, "%s", script);
   fclose(f);
@@ -175,8 +176,6 @@ void c_check_daemon() {
     exit(1);
   }
 }
-
-
 
 static void try_check_ownership() {
   int res;
@@ -263,7 +262,8 @@ int ensure_server_up(int daemonFlag) {
     error("getting the server socket");
 
   create_socket_path(&socket_path);
-  if (daemonFlag == 1) remove(socket_path); // try to delete it
+  if (daemonFlag == 1)
+    remove(socket_path); // try to delete it
   res = try_connect(server_socket);
 
   /* Good connection */
@@ -281,7 +281,8 @@ int ensure_server_up(int daemonFlag) {
     unlink(socket_path);
 
   int optval = 1;
-  if (setsockopt(server_socket, SOL_SOCKET, SO_PASSCRED, &optval, sizeof(optval)) == -1)
+  if (setsockopt(server_socket, SOL_SOCKET, SO_PASSCRED, &optval,
+                 sizeof(optval)) == -1)
     error("Error: cannot setup SO_PASSCRED");
 
   /* Try starting the server */
@@ -294,7 +295,8 @@ int ensure_server_up(int daemonFlag) {
       notify_fd = fork_server();
     }
   } else {
-    printf("only task-spooler server could be run as Root!\n");
+    printf("Running the Task-Spooler server as the ROOT user is the only "
+           "allowed option.\n");
   }
 
   wait_server_up(notify_fd);

@@ -37,7 +37,7 @@
 #include "main.h"
 #include "user.h"
 
-enum { MAXCONN = 1000 };
+#include "default.inc"
 
 enum Break { BREAK, NOBREAK, CLOSE };
 

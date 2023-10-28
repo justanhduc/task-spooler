@@ -580,36 +580,43 @@ static void go_background() {
 static void print_help(const char *cmd) {
   puts(version);
   printf("usage: %s [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]\n", cmd);
-  printf("Env vars:\n");
-  printf("  TS_SOCKET  the path to the unix socket used by the ts command.\n");
-  printf("  TS_MAIL_FROM who send the result mail, default (%s)\n",
+  printf("Environment Variables:\n");
+  printf("  TS_SOCKET        : The path to the Unix socket used by the 'ts' "
+         "command (default: $TMPDIR/socket-ts.root)\n");
+  printf("  TS_MAIL_FROM     : Specifies the sender for result emails "
+         "(default: %s).\n",
          DEFAULT_EMAIL_SENDER);
-  printf("  TS_MAIL_TIME the duration criterion to send a email, default (%.3f "
-         "sec)\n",
+  printf("  TS_MAIL_TIME     : Sets the duration criterion to send an email "
+         "(default: %.3f seconds).\n",
          DEFAULT_EMAIL_TIME);
-  printf("  TS_MAXFINISHED  maximum finished jobs in the queue.\n");
-  printf("  TS_MAXCONN  maximum number of ts connections at once.\n");
-  printf("  TS_ONFINISH  binary called on job end (passes jobid, error, "
-         "outfile, command).\n");
-  printf("  TS_ENV  command called on enqueue. Its output determines the job "
-         "information.\n");
-  printf("  TS_SAVELIST  filename which will store the list, if the server "
-         "dies.\n");
-  printf("  TS_SLOTS   amount of jobs which can run at once, read on server "
-         "start.\n");
-  printf("  TS_USER_PATH  path to the user configuration file, read on server "
-         "starts.\n");
-  printf("  TS_LOGFILE_PATH  path to the job log file, read on server "
-         "starts\n");
-  printf("  TS_SQLITE_PATH  path to the job log file, read on server "
-         "starts\n");
-  printf("  TS_FIRST_JOBID  The first job ID (default: 1000), read on server "
-         "starts.\n");
-  printf(
-      "  TS_SORTJOBS  Switch to control the job sequence sort, read on server "
-      "starts.\n");
-  printf("  TMPDIR     directory where to place the output files and the "
-         "default socket.\n");
+  printf("  TS_SERVICE_NAME  : Defines the name of the Task-Spooler service in "
+         "email notifications (default: %s).\n",
+         DEFAULT_HPC_NAME);
+  printf("  TS_MAXFINISHED   : Specifies the maximum number of finished jobs "
+         "in the queue (default: %d).\n", DEFAULT_MAXFINISHED);
+  printf("  TS_MAXCONN       : Sets the maximum number of 'ts' connections "
+         "allowed at once, must less than %d (default: %d).\n", MAXCONN, MAXCONN);
+  printf("  TS_ONFINISH      : Path to a binary called when a job finishes "
+         "(receives job ID, error status, output file, and command).\n");
+  printf("  TS_ENV           : Command executed on job enqueue to determine "
+         "job information.\n");
+  printf("  TS_SAVELIST      : File path to store the job list in case the "
+         "server crashes.\n");
+  printf("  TS_SLOTS         : Defines the maximum number of jobs that can run "
+         "simultaneously (read on server start with default 1 slot).\n");
+  printf("  TS_USER_PATH     : Path to the user configuration file (read on "
+         "server start).\n");
+  printf("  TS_LOGFILE_PATH  : Path to the job log file (read on server "
+         "start).\n");
+  printf("  TS_SQLITE_PATH   : Path to the SQLite database for job logs (read "
+         "on server start).\n");
+  printf("  TS_FIRST_JOBID   : Sets the first job ID (default: 1000, read on "
+         "server start).\n");
+  printf("  TS_SORTJOBS      : Control the job sequence sorting (read on "
+         "server start).\n");
+  printf("  TMPDIR           : Directory where output files and the default "
+         "socket are placed.\n");
+
   printf("Long option actions:\n");
   printf("  --getenv   [var]                get the value of the specified "
          "variable in server environment.\n");
@@ -661,7 +668,8 @@ static void print_help(const char *cmd) {
   printf("Actions:\n");
   printf("  -A           Display information for all users.\n");
   printf("  -X           Update user configuration by UID (Max. %d users, "
-         "root access only)\n", USER_MAX);
+         "root access only)\n",
+         USER_MAX);
   printf(
       "  -K           Terminate the task spooler server (root access only)\n");
   printf(
