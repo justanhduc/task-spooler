@@ -29,10 +29,6 @@
 
 #include "main.h"
 
-enum {
-    MAXCONN = 1000
-};
-
 enum Break {
     BREAK,
     NOBREAK,
@@ -63,7 +59,7 @@ struct Client_conn {
 };
 
 /* Globals */
-static struct Client_conn client_cs[MAXCONN];
+static struct Client_conn *client_cs;
 static int nconnections;
 static char *path;
 static int max_descriptors;
@@ -131,12 +127,16 @@ static void install_sigterm_handler() {
 
 static int get_max_descriptors() {
     const int MARGIN = 5; /* stdin, stderr, listen socket, and whatever */
-    int max;
+    int max = 1000; /* initial value used only if getrlimit fails to return a value */
     struct rlimit rlim;
     int res;
     const char *str;
 
-    max = MAXCONN;
+    res = getrlimit(RLIMIT_NOFILE, &rlim);
+    if (res != 0)
+        warning("getrlimit for open files");
+    else
+        max = rlim.rlim_cur - MARGIN;
 
     str = getenv("TS_MAXCONN");
     if (str != NULL) {
@@ -148,17 +148,6 @@ static int get_max_descriptors() {
 
     if (max > FD_SETSIZE)
         max = FD_SETSIZE - MARGIN;
-
-    /* I'd like to use OPEN_MAX or NR_OPEN, but I don't know if any
-     * of them is POSIX compliant */
-
-    res = getrlimit(RLIMIT_NOFILE, &rlim);
-    if (res != 0)
-        warning("getrlimit for open files");
-    else {
-        if (max > rlim.rlim_cur)
-            max = rlim.rlim_cur - MARGIN;
-    }
 
     if (max < 1)
         error("Too few opened descriptors available");
@@ -174,6 +163,9 @@ void server_main(int notify_fd, char *_path) {
 
     process_type = SERVER;
     max_descriptors = get_max_descriptors();
+    
+    /* allocate dynamic memory for client_cs, thus removing any arbitrary limit */
+    client_cs = malloc(max_descriptors * sizeof(struct Client_conn));
 
     /* Arbitrary limit, that will block the enqueuing, but should allow space
      * for usual ts queries */
@@ -316,6 +308,7 @@ static void end_server(int ls) {
     /* This comes from the parent, in the fork after server_main.
      * This is the last use of path in this process.*/
     free(path);
+    free(client_cs);
     free(logdir);
 #ifndef CPU
     cleanupGpu();
