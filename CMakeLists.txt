@@ -83,9 +83,16 @@ else(TASK_SPOOLER_COMPILE_CUDA)
   add_definitions(-DCPU)
 endif(TASK_SPOOLER_COMPILE_CUDA)
 
+# Man pages
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/man1/ts.1
+  COMMAND ${CMAKE_CURRENT_BINARY_DIR}/makeman
+  DEPENDS makeman
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/man1)
+add_custom_target(man ALL
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/man1/ts.1)
+
 # install
-install(CODE "execute_process(COMMAND install -c -d /usr/local/bin)")
-install(CODE "execute_process(COMMAND install -c ts /usr/local/bin)")
-install(CODE "execute_process(COMMAND ./makeman)")
-install(CODE "execute_process(COMMAND install -c -d /usr/local/share/man/man1)")
-install(CODE "execute_process(COMMAND install -c -m 644 ts.1 /usr/local/share/man/man1)")
+install(TARGETS ${target}
+        RUNTIME)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/man1
+        TYPE MAN)
