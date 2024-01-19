@@ -136,7 +136,14 @@ Options adding jobs:
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
 <!-- prettier-ignore-start -->
 <!-- markdownlint-disable -->
-
+<table>
+  <tbody>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://justanhduc.github.io/"><img src="https://avatars.githubusercontent.com/u/15206627?v=4?s=100" width="100px;" alt="Duc Nguyen"/><br /><sub><b>Duc Nguyen</b></sub></a><br /><a href="https://github.com/justanhduc/task-spooler/commits?author=justanhduc" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://jerinphilip.github.io"><img src="https://avatars.githubusercontent.com/u/727292?v=4?s=100" width="100px;" alt="Jerin Philip"/><br /><sub><b>Jerin Philip</b></sub></a><br /><a href="#infra-jerinphilip" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a></td>
+    </tr>
+  </tbody>
+</table>
 
 <!-- markdownlint-restore -->
 <!-- prettier-ignore-end -->
