@@ -14,12 +14,21 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "bstee615",
+      "name": "Benjamin Steenhoek",
+      "avatar_url": "https://avatars.githubusercontent.com/u/22305849?v=4",
+      "profile": "http://benjijang.com",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
   "skipCi": true,
   "repoType": "github",
   "repoHost": "https://github.com",
-  "projectName": "_task-spooler",
+  "projectName": "task-spooler",
   "projectOwner": "justanhduc"
 }
