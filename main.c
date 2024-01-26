@@ -657,11 +657,11 @@ static void print_help(const char *cmd) {
          "ID.\n");
   printf("  --suspend [user]                For regular users, pause all tasks "
          "and lock the user account. \n"); 
-  printf("                                For root user, lock all user "
+  printf("                                  For root user, lock all user "
          "accounts or a specific user's account.\n");
   printf("  --resume [user]                 For regular users, resume all "
          "paused tasks and unlock the user account. \n");
-  printf("                                For root user, unlock all user "
+  printf("                                  For root user, unlock all user "
          "accounts or a specific user's account.\n");
   printf("  --lock                          Lock the server (Timeout: 30 "
          "seconds). For root user, there is no timeout.\n");

@@ -1831,8 +1831,7 @@ void s_resume_user(int s, int ts_UID) {
     }
     p = p->next;
   }
-
-  snprintf(buff, 255, "Resume user: [%d] %199s\n", user_UID[ts_UID],
+  snprintf(buff, 255, "Resume user: [%04d] %-20s\n", user_UID[ts_UID],
            user_name[ts_UID]);
   send_list_line(s, buff);
 }
@@ -1870,7 +1869,7 @@ void s_suspend_user(int s, int ts_UID) {
     p = p->next;
   }
 
-  snprintf(buff, 255, "Lock user: [%d] %s\n", user_UID[ts_UID],
+  snprintf(buff, 255, "Suspend user: [%04d] %-20s\n", user_UID[ts_UID],
            user_name[ts_UID]);
   send_list_line(s, buff);
 }
