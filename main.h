@@ -601,17 +601,17 @@ void c_check_daemon();
 /* sqlite.c */
 const char *get_sqlite_path();
 int open_sqlite();
-void close_sqlite();
+int close_sqlite();
 int insert_DB(struct Job* job, const char* table);
 int insert_or_replace_DB(struct Job* job, const char* table);
 struct Job* read_DB(int jobid, const char* table);
 int read_jobid_DB(int** jobids, const char* table);
 int delete_DB(int jobid, const char* table);
-void movetop_DB(int jobid);
-void swap_DB(int, int);
-void set_jobids_DB(int value);
+int movetop_DB(int jobid);
+int swap_DB(int, int);
+int set_jobids_DB(int value);
 int get_jobids_DB();
-void set_state_DB(int jobid, int state);
+int set_state_DB(int jobid, int state);
 // int jobDB_num, jobDB_wait_num;
 // struct Job** jobDB_Jobs;
 

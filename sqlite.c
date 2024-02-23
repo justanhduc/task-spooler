@@ -7,6 +7,7 @@
 #include "main.h"
 
 sqlite3 *db = NULL;
+char sql[1024*16] = "";
 
 const char *get_sqlite_path() {
   char *str;
@@ -36,8 +37,7 @@ static int callback(void *max, int argc, char **argv, char **azColName) {
   return 0;
 }
 
-static int check_order_id(const char *op) {
-  char sql[100];
+static int check_order_id(const char *op, int* err) {
   char *err_msg = NULL;
   sprintf(sql, "SELECT %s(order_id) FROM Jobs", op);
   int value = 0;
@@ -45,31 +45,35 @@ static int check_order_id(const char *op) {
   if (rc != SQLITE_OK) {
     fprintf(stderr, "[check_order_id] SQL error: %s, sql: %s\n", sql, err_msg);
     sqlite3_free(err_msg);
+    err[0] = -1;
+  } else {
+    err[0] = 0;
   }
   return value;
 }
 
-static int max_order_id() { return check_order_id("MAX"); }
+static int max_order_id(int* err) { return check_order_id("MAX", err); }
 
-static int min_order_id() { return check_order_id("MIN"); }
+static int min_order_id(int* err) { return check_order_id("MIN", err); }
 
-static int get_order_id(int jobid) {
+static int get_order_id(int jobid, int* err) {
   char *err_msg = 0;
-  char sql[1024];
   int value = 0;
   sprintf(sql, "SELECT order_id FROM Jobs WHERE jobid=%d", jobid);
   int rc = sqlite3_exec(db, sql, callback, &value, &err_msg);
   if (rc != SQLITE_OK) {
     fprintf(stderr, "[get_order_id] SQL error: %s\n", err_msg);
     sqlite3_free(err_msg);
-    return 0;
+    err[0] = -1;
+  } else {
+    err[0] = 0;
   }
   return value;
 }
 
-void close_sqlite() {
+int close_sqlite() {
   // free(jobDB_Jobs);
-  sqlite3_close(db);
+  return sqlite3_close(db);
 }
 
 int open_sqlite() {
@@ -77,11 +81,12 @@ int open_sqlite() {
   char *zErrMsg = 0;
   int rc;
   rc = sqlite3_open(path, &db);
-
+  int error_flag = 0;
+  
   if (rc) {
     printf("Can't open database: %s\n", sqlite3_errmsg(db));
     sqlite3_close(db);
-    return (1);
+    return (-1);
   }
 
   char *sql =
@@ -119,6 +124,7 @@ int open_sqlite() {
   if (rc != SQLITE_OK) {
     printf("[open_sqlite0] SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
+    error_flag--;
   } else {
     printf("Table Jobs created successfully\n");
   }
@@ -158,6 +164,7 @@ int open_sqlite() {
   if (rc != SQLITE_OK) {
     printf("[open_sqlite1] SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
+    error_flag--;
   } else {
     printf("Table Finished created successfully\n");
   }
@@ -170,9 +177,10 @@ int open_sqlite() {
   if (rc != SQLITE_OK) {
     printf("[open_sqlite2] SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
+    //error_flag--;
   }
 
-  return 0;
+  return error_flag;
 }
 
 int get_jobids_DB() {
@@ -183,25 +191,27 @@ int get_jobids_DB() {
   if (rc != SQLITE_OK) {
     fprintf(stderr, "[get_jobids_DB] SQL error: %s\n", err_msg);
     sqlite3_free(err_msg);
-    return 1000;
+    return 1000; // default value
   }
   return value;
 }
 
-void set_jobids_DB(int value) {
+// return error code
+int set_jobids_DB(int value) {
   char *err_msg = 0;
-  char sql[1024];
   sprintf(sql, "INSERT OR REPLACE INTO Global (id, JOBIDs) VALUES (1, %d);",
           value);
   int rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
   if (rc != SQLITE_OK) {
     fprintf(stderr, "[set_jobids_DB] SQL error: %s\n", err_msg);
     sqlite3_free(err_msg);
+    return -1;
   }
+  return 0;
 }
 
+// return error code
 int delete_DB(int jobid, const char *table) {
-  char sql[1024];
   sprintf(sql, "DELETE FROM %s WHERE jobid=%d;", table, jobid);
   char *errmsg = NULL;
 
@@ -218,12 +228,11 @@ static int edit_DB(struct Job *job, const char *table, const char *action) {
   struct Procinfo *info = &(job->info);
   const char *label = job->label == NULL ? "(..)" : job->label;
   const char *email = job->email == NULL ? "(..)" : job->email;
-
-  char sql[1024];
-
-  int order_id = get_order_id(job->jobid);
-  if (order_id == 0) {
-    order_id = max_order_id() + 1;
+  int err = 0;
+  int order_id = get_order_id(job->jobid, &err);
+  if (err != 0) {
+    order_id = max_order_id(&err) + 1;
+    if (err !=0) return -1;
   }
   char *depend_on = ints_to_chars(job->depend_on_size, job->depend_on, ",");
   char *notify_errorlevel_to = ints_to_chars(job->notify_errorlevel_to_size,
@@ -275,40 +284,55 @@ int insert_or_replace_DB(struct Job *job, const char *table) {
   return edit_DB(job, table, "INSERT OR REPLACE");
 }
 
-static void set_order_id_DB(int jobid, int order_id) {
+//return error code
+static int set_order_id_DB(int jobid, int order_id) {
   char *err_msg = 0;
-  char sql[1024];
   sprintf(sql, "UPDATE Jobs SET order_id=%d WHERE jobid=%d", order_id, jobid);
   int rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
   if (rc != SQLITE_OK) {
     fprintf(stderr, "[movetop_DB] SQL error: %s\n", err_msg);
     sqlite3_free(err_msg);
+    return -1;
   }
+  return 0;
 }
 
-void set_state_DB(int jobid, int state) {
+//return error code
+int set_state_DB(int jobid, int state) {
   char *err_msg = 0;
-  char sql[1024];
   sprintf(sql, "UPDATE Jobs SET state=%d WHERE jobid=%d", state, jobid);
   int rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
   if (rc != SQLITE_OK) {
     fprintf(stderr, "[movetop_DB] SQL error: %s\n", err_msg);
     sqlite3_free(err_msg);
+    return -1;
   }
+  return 0;
 }
 
-void swap_DB(int jobid0, int jobid1) {
-  int id0 = get_order_id(jobid0);
-  int id1 = get_order_id(jobid1);
-  set_order_id_DB(jobid0, id1);
-  set_order_id_DB(jobid1, id0);
+int swap_DB(int jobid0, int jobid1) {
+  int err0, err1, err = 0;
+  int id0 = get_order_id(jobid0, &err0);
+  int id1 = get_order_id(jobid1, &err1);
+  if (err0 == 0 && err1 == 0) {
+    err0 = set_order_id_DB(jobid0, id1);
+    err1 = set_order_id_DB(jobid1, id0);
+    if (err0 != 0 || err1 != 0) {
+      err = -1;
+    }
+  } else {
+    err = -1;
+  }
+  return err;
 }
 
-void movetop_DB(int jobid) {
-  int order_id = min_order_id() - 1;
-  if (order_id == 0)
-    order_id = -1;
-  set_order_id_DB(jobid, order_id);
+int movetop_DB(int jobid) {
+  int err;
+  int order_id = min_order_id(&err) - 1;
+  if (err != 0) {
+    return err;
+  }
+  return set_order_id_DB(jobid, order_id);
 }
 
 /*
@@ -323,9 +347,10 @@ static void clear_DB(const char* table) {
     }
 }
 */
+
+// return error code
 int read_jobid_DB(int **jobids, const char *table) {
   int n;
-  char sql[1024];
   sprintf(sql, "SELECT COUNT(*) FROM %s;", table);
   char *errmsg = NULL;
 
@@ -342,7 +367,7 @@ int read_jobid_DB(int **jobids, const char *table) {
   if (rc != SQLITE_OK) {
     fprintf(stderr, "[read_jobid_DB1] SQL error: %s by %s\n",
             sqlite3_errmsg(db), sql);
-    return -2; // 返回-1表示查询失败
+    return -2; // 返回-2表示查询失败
   }
 
   if (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -377,7 +402,6 @@ struct Job *read_DB(int jobid, const char *table) {
   struct Result *result = &(job->result);
   struct Procinfo *info = &(job->info);
 
-  char sql[2048];
   sprintf(sql, "SELECT * FROM %s WHERE jobid=%d;", table, jobid);
   char *errmsg = NULL;
 

@@ -1374,8 +1374,10 @@ static void new_finished_job(struct Job *j) {
   p->next = j;
   p->next->next = 0;
 
-  insert_DB(j, "Finished");
-  delete_DB(j->jobid, "Jobs");
+  int err = insert_DB(j, "Finished");
+  if (err == 0) {
+    delete_DB(j->jobid, "Jobs");
+  }
 
 #ifdef TASKSET
   unlock_core_by_job(j);
