@@ -177,7 +177,7 @@ int open_sqlite() {
   if (rc != SQLITE_OK) {
     printf("[open_sqlite2] SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
-    //error_flag--;
+    // error_flag--;
   }
 
   return error_flag;
@@ -337,7 +337,6 @@ int movetop_DB(int jobid) {
 
 /*
 static void clear_DB(const char* table) {
-    char sql[1024];
     char* err_msg;
     sprintf(sql, "DELETE FROM %s", table);
     int rc = sqlite3_exec(db, sql, 0, 0, &err_msg);

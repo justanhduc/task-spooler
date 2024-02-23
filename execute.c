@@ -102,7 +102,7 @@ static void run_relink(int pid, struct Result *result) {
   if (client_uid == 0) {
     status = ptrace_pid(pid);
     /*
-    char buff[1024];
+    char buff[];
     sprintf(buff, "strace -e none -e exit_group -p %d", pid);
     status = system(buff);
     // sprintf(buff, "%d", pid);
@@ -382,8 +382,8 @@ int run_job(int jobid, struct Result *res) {
   int pid;
   int errorlevel = 0;
   int p[2];
-  char path[1024];
-  getcwd(path, 1024);
+  char path[2048];
+  getcwd(path, 2048);
   // const char *tmpdir = get_logdir();
   // printf("tmpdir: %s\n", tmpdir);
 

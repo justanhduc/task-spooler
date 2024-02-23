@@ -90,8 +90,8 @@ static void send_mail_via_ssmtp(struct Job *p) {
           ? "failed"
           : "finished";
   const char *unit = time_rep(&real_ms);
-  char cmd[1024];
-  snprintf(cmd, 1023,
+  char cmd[2048];
+  snprintf(cmd, 2047,
            "echo \"Subject: %s[%d] n_core: %d, Elsp %.3f %s from MSI\nFrom: "
            "TS<%s>\nTo: %s\n\n\n Cmd: %s [%s] Output: %s\" | ssmtp %s",
            p->label, p->jobid, p->num_slots, real_ms, unit, p->email,

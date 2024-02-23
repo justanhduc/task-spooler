@@ -58,12 +58,12 @@ char *charArray_string(int num, char** array) {
 void c_new_job() {
   // printf("new _job \n");
   struct Msg m = default_msg();
-  char *new_command, path[1024];
+  char *new_command, path[2048];
   char *myenv;
 
   m.type = NEWJOB;
 
-  getcwd(path, 1024);
+  getcwd(path, 2048);
   new_command = command_line.linux_cmd; // build_command_string();
   char* old_command = build_command_string();
 

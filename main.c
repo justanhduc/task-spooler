@@ -22,6 +22,7 @@
 #include "user.h"
 
 int client_uid;
+const int MAX_LEN = 1024 * 10;
 extern char *optarg;
 extern int optind, opterr, optopt;
 
@@ -529,6 +530,21 @@ void parse_opts(int argc, char **argv) {
   if (optind < argc && command_line.request == c_LIST) {
     command_line.request = c_QUEUE;
     get_command(optind, argc, argv);
+    // check_length
+    int n_len = 0;
+    for (size_t i = 0; i < command_line.command.num; i++)
+    {
+      n_len += strnlen(command_line.command.array[i], 1024);
+    }
+    if (n_len > MAX_LEN) {
+      printf("too long command:");
+      for (size_t i = 0; i < command_line.command.num; i++)
+      {
+        printf("%s ", command_line.command.array[i]);
+      }
+      printf(" with %d chars, Max. %d", n_len, MAX_LEN);
+    }
+    
   }
 
   command_line.linux_cmd = charArray_string(argc, argv);
