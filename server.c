@@ -395,6 +395,7 @@ static void server_loop(int ls) {
       }
       // printf("end of next_run_job for jobid[%d]\n", newjob);
     } // job != -1
+    s_check_holdjob();
   } // end of while (keep_loop)
 
   end_server(ls);

@@ -53,6 +53,7 @@ int max_jobs;
 
 static struct Job *get_job(int jobid);
 static int fork_cmd(int UID, const char *path, const char *cmd);
+static int safe_pause_pid(struct Job *p);
 
 void notify_errorlevel(struct Job *p);
 
@@ -157,14 +158,15 @@ static int allocate_cores_ex(struct Job *p, const char *extra) {
   if (p == NULL)
     return 0;
 
-  if (p->state == RUNNING || p->state == LOCKED) {
+  if (p->state == RUNNING || p->state == PAUSE) {
 #ifdef TASKSET
     set_task_cores(p, extra);
 #else
-    kill_pid(p->pid, extra, NULL);
+    kill_all_process(p->pid, SIGCONT);
+    // kill_pid(p->pid, extra, NULL);
 #endif
   }
-  
+
   if (extra == 0 || is_sleep(p->pid) == 0) {
     int ts_UID = p->ts_UID;
     user_busy[ts_UID] += p->num_slots;
@@ -208,7 +210,8 @@ void check_pause() {
     int pid = paused_pids[i];
     int res = is_sleep(pid);
     if (res == 0) {
-      kill_pid(pid, "kill -s STOP", NULL);
+      kill_all_process(pid, SIGSTOP);
+      // kill_pid(pid, "kill -s STOP", NULL);
     } else if (res == -1) {
       num_pause--;
       paused_pids[i] = paused_pids[num_pause];
@@ -683,7 +686,7 @@ void s_mark_job_running(int jobid) {
     }
     if (is_sleep(p->pid) == 1) {
       set_pause(p->pid);
-      p->state = RUNNING;
+      p->state = PAUSE;
       return;
     }
   }
@@ -738,6 +741,11 @@ const char *jstate2string(enum Jobstate s) {
   case LOCKED:
     jobstate = "locked  ";
     break;
+  case PAUSE:
+    jobstate = "holdon  ";
+    break;
+  default:
+    jobstate = "UNKNOWN ";
   }
   return jobstate;
 }
@@ -1635,6 +1643,18 @@ void s_clear_finished(int ts_UID) {
   other_user_job->next = NULL;
 }
 
+void s_check_holdjob() {
+  struct Job *p = firstjob.next;
+  while (p != NULL) {
+    if (p->pid != 0 && p->state == PAUSE) {
+      if (is_sleep(p->pid) == 0) {
+        kill_all_process(p->pid, SIGSTOP);
+      }
+    }
+    p = p->next;
+  }
+}
+
 // run the jobs
 void s_process_runjob_ok(int jobid, char *oname, int pid) {
   // printf("s_process_runjob_ok \n ");
@@ -1642,7 +1662,7 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
   p = findjob(jobid);
   if (p == 0)
     error("Job %i already run not found on runjob_ok", jobid);
-  if (p->state != RUNNING)
+  if (p->state != RUNNING && p->state != PAUSE)
     error("Job %i not running, but %i on runjob_ok", jobid, p->state);
 
   p->pid = pid;
@@ -1654,7 +1674,9 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
     write_logfile(p);
     set_task_cores(p, NULL);
   }
-  insert_or_replace_DB(p, "Jobs");
+  if (p->state == RUNNING) {
+    insert_or_replace_DB(p, "Jobs");
+  }
 }
 
 void s_send_runjob(int s, int jobid) {
@@ -1738,8 +1760,7 @@ void s_job_info(int s, int jobid) {
   fd_nprintf(s, 100, "\n");
   fd_nprintf(s, 100, "User: %s [%d]\n", user_name[p->ts_UID],
              user_UID[p->ts_UID]);
-  fd_nprintf(s, 100, "State: %9s PID: %-6d\n", jstate2string(p->state),
-             p->pid);
+  fd_nprintf(s, 100, "State: %9s PID: %-6d\n", jstate2string(p->state), p->pid);
 
 #ifdef TASKSET
   if (p->cores != NULL) {
@@ -1764,7 +1785,7 @@ void s_job_info(int s, int jobid) {
   if (p->email) {
     fd_nprintf(s, 100, "Email: %s\n", p->email);
   }
-  
+
   if (p->state == RUNNING) {
     t = pinfo_time_until_now(&p->info);
   } else if (p->state == FINISHED) {
@@ -1772,7 +1793,8 @@ void s_job_info(int s, int jobid) {
     fd_nprintf(s, 100, "End time: %s", ctime(&p->info.end_time.tv_sec));
   }
   const char *unit = time_rep(&t);
-  if (t > 0) fd_nprintf(s, 100, "Time running: %.4f %s\n", t, unit);
+  if (t > 0)
+    fd_nprintf(s, 100, "Time running: %.4f %s\n", t, unit);
   if (p->state == FINISHED) {
     struct Result *res = &(p->result);
     fd_nprintf(s, 100, "Error: %d Signal: %d Die: %d\n", res->errorlevel,
@@ -1816,19 +1838,13 @@ void s_resume_user(int s, int ts_UID) {
 
   struct Job *p = firstjob.next;
   while (p != NULL) {
-    if (p->ts_UID == ts_UID && p->state == LOCKED) {
+    if (p->ts_UID == ts_UID && p->state == PAUSE) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
         printf("pid = %d\n", p->pid);
-        if (is_sleep(p->pid) == 1) {
-          printf("allocate = %d\n", p->pid);
-          int status = allocate_cores_ex(p, "kill -s CONT");
-          if (status == 1) {
-            p->state = RUNNING;
-            free_pause(p->pid);
-          }
-        }
-        // kill_pid(p->pid, "kill -s CONT");
+        allocate_cores_ex(p, "kill -s CONT");
+        p->state = RUNNING;
+        free_pause(p->pid);
       }
     }
     p = p->next;
@@ -1851,14 +1867,8 @@ void s_suspend_user(int s, int ts_UID) {
     if (p->ts_UID == ts_UID && p->state == RUNNING) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
-        if (is_sleep(p->pid) == 0) {
-          kill_pid(p->pid, "kill -s STOP", NULL);
-          if (is_sleep(p->pid) == 1) {
-            p->state = LOCKED;
-            free_cores(p);
-            set_pause(p->pid);
-          }
-        }
+        safe_pause_pid(p);
+        p->state = PAUSE;
       } else {
         char *label = "(...)";
         if (p->label != NULL)
@@ -2203,6 +2213,19 @@ static void s_unlock_queue(struct Job *p) {
   }
 }
 
+static int safe_pause_pid(struct Job *p) {
+  kill(p->pid, SIGSTOP);
+  kill_all_process(p->pid, SIGSTOP);
+  if (is_sleep(p->pid) == 1) {
+    set_pause(p->pid);
+    free_cores(p);
+    return 0;
+  } else {
+    kill_all_process(p->pid, SIGCONT);
+    return 1;
+  }
+}
+
 void s_hold_job(int s, int jobid, int ts_UID) {
   if (user_max_slots[ts_UID] < 0) {
     snprintf(buff, 255, "Error: The owner `%s` is locked\n", user_name[ts_UID]);
@@ -2237,20 +2260,22 @@ void s_hold_job(int s, int jobid, int ts_UID) {
     return;
   }
 
-  if (is_sleep(p->pid) == 1) {
-    snprintf(buff, 255, "job [%d] is aleady in PAUSE.\n", jobid);
+  if (p->state == PAUSE) {
+    snprintf(buff, 255, "job [%d] is aleady in HOLDON.\n", jobid);
     send_list_line(s, buff);
     return;
   }
 
   int job_tsUID = p->ts_UID;
   if (p->pid != 0 && (job_tsUID = ts_UID || ts_UID == 0)) {
-    kill_pid(p->pid, "kill -s STOP", NULL);
-    if (is_sleep(p->pid) == 1) {
-      set_pause(p->pid);
-      free_cores(p);
+    // kill_pid(p->pid, "kill -s STOP", NULL);
+    if (safe_pause_pid(p) == 0) {
+      p->state = PAUSE;
+      snprintf(buff, 255, "To pause job [%d] successfully!\n", jobid);
+    } else {
+      snprintf(buff, 255, "Error: cannot pause job [%d] using kill SIGSTOP\n",
+               jobid);
     }
-    snprintf(buff, 255, "To pause job [%d] successfully!\n", jobid);
   } else {
     snprintf(buff, 255, "Error: cannot pause job [%d]\n", jobid);
   }
@@ -2292,31 +2317,34 @@ void s_cont_job(int s, int jobid, int ts_UID) {
     return;
   }
 
-  if (is_sleep(p->pid) == 0) {
-    snprintf(buff, 255, "job [%d] is aleady in RUNNING.\n", jobid);
-    send_list_line(s, buff);
-    return;
-  }
-
-  int job_tsUID = p->ts_UID;
-  if (p->pid != 0 && (job_tsUID = ts_UID || ts_UID == 0)) {
-    int num_slots = p->num_slots;
-    if (user_busy[ts_UID] + num_slots <= user_max_slots[ts_UID] &&
-        busy_slots + num_slots <= max_slots) {
-          
-      int status = allocate_cores_ex(p, "kill -s CONT");
-      if (status == 1) {
-        p->state = RUNNING;
-        free_pause(p->pid);
-      }
-      snprintf(buff, 255, "To rerun job [%d] successfully!\n", jobid);
+  if (p->state == RUNNING) {
+    if (is_sleep(p->pid) == 0) {
+      snprintf(buff, 255, "job [%d] is aleady in RUNNING.\n", jobid);
     } else {
-      snprintf(buff, 255, "Error: not enough slots [%d]\n", jobid);
+      kill_all_process(p->pid, SIGCONT);
+      snprintf(buff, 255, "job [%d] is continued.\n", jobid);
     }
   } else {
-    snprintf(buff, 255, "Error: cannot rerun job [%d]\n", jobid);
-  }
-  // kill_pid(p->pid, "kill -s CONT", NULL);
+    int job_tsUID = p->ts_UID;
+    if (p->pid != 0 && (job_tsUID = ts_UID || ts_UID == 0)) {
+      int num_slots = p->num_slots;
+      if (user_busy[ts_UID] + num_slots <= user_max_slots[ts_UID] &&
+          busy_slots + num_slots <= max_slots) {
+
+        int status = allocate_cores_ex(p, "kill -s CONT");
+        if (status == 1) {
+          p->state = RUNNING;
+          free_pause(p->pid);
+        }
+        snprintf(buff, 255, "To rerun job [%d] successfully!\n", jobid);
+      } else {
+        snprintf(buff, 255, "Error: not enough slots [%d]\n", jobid);
+      }
+    } else {
+      snprintf(buff, 255, "Error: cannot rerun job [%d]\n", jobid);
+    }
+  } // p->pid
+
   send_list_line(s, buff);
 }
 /* Don't complain, if the socket doesn't exist */

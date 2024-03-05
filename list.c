@@ -139,10 +139,14 @@ static char *print_noresult(const struct Job *p) {
       jobstate = "N/A";
     } else {
       if (is_sleep(p->pid) == 1) {
-        jobstate = "pause";
+        jobstate = "sleep  ";
       }
     }
   }
+  if (p->state == PAUSE && is_sleep(p->pid) == 1) {
+    jobstate = "pause  "; // TODO delete this
+  }
+
   output_filename = ofilename_shown(p);
 
   char *uname = user_name[p->ts_UID];

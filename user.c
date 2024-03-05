@@ -1,16 +1,18 @@
 
 #define _GNU_SOURCE
+#include <dirent.h>
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <time.h>
+#include <unistd.h>
 
+#include "default.inc"
 #include "main.h"
 #include "user.h"
-#include "default.inc"
 
 void send_list_line(int s, const char *str);
 void error(const char *str, ...);
@@ -27,7 +29,6 @@ const char *get_user_path() {
   }
 }
 
-
 int get_env(const char *env, int v0) {
   char *str;
   str = getenv(env);
@@ -43,23 +44,24 @@ int get_env(const char *env, int v0) {
 
 //按空格自动分割子串的函数
 char **split_str(const char *str0, int *size) {
-    char **result = (char**)malloc(sizeof(char*)); //存储分割后的子串
-    char *str = (char*) malloc(sizeof(char)*strlen(str0));
-    strcpy(str, str0);
-    int n = 0; //数组的大小
-    char *token; //分割得到的子串
-    token = strtok(str, " "); //以空格为分隔符分割字符串
-    while (token != NULL) { //循环分割，直到遇到NULL
-        result = realloc(result, (n + 1) * sizeof(char *)); //重新分配内存空间，增加一个元素
-        if (result == NULL) { //如果内存分配失败，返回NULL
-            return NULL;
-        }
-        result[n] = token; //将子串存入数组
-        n++; //更新数组的大小
-        token = strtok(NULL, " "); //继续分割
+  char **result = (char **)malloc(sizeof(char *)); //存储分割后的子串
+  char *str = (char *)malloc(sizeof(char) * strlen(str0));
+  strcpy(str, str0);
+  int n = 0;                //数组的大小
+  char *token;              //分割得到的子串
+  token = strtok(str, " "); //以空格为分隔符分割字符串
+  while (token != NULL) {   //循环分割，直到遇到NULL
+    result = realloc(result,
+                     (n + 1) * sizeof(char *)); //重新分配内存空间，增加一个元素
+    if (result == NULL) { //如果内存分配失败，返回NULL
+      return NULL;
     }
-    *size = n; //返回数组的大小
-    return result; //返回数组
+    result[n] = token;         //将子串存入数组
+    n++;                       //更新数组的大小
+    token = strtok(NULL, " "); //继续分割
+  }
+  *size = n;     //返回数组的大小
+  return result; //返回数组
 }
 
 /*
@@ -259,10 +261,11 @@ void s_user_status_all(int s) {
   send_list_line(s, "-- Users ----------- \n");
   for (int i = 0; i < user_number; i++) {
     extra = user_locked[i] != 0 ? "Locked" : "";
-    if (user_max_slots[i] == 0 && user_busy[i] == 0) continue;
-    snprintf(buffer, 256, "[%04d] %3d/%-4d Q:%-3d %16s Run. %2d %s\n", user_UID[i],
-            user_busy[i], abs(user_max_slots[i]), user_queue[i], user_name[i], user_jobs[i],
-            extra);
+    if (user_max_slots[i] == 0 && user_busy[i] == 0)
+      continue;
+    snprintf(buffer, 256, "[%04d] %3d/%-4d Q:%-3d %16s Run. %2d %s\n",
+             user_UID[i], user_busy[i], abs(user_max_slots[i]), user_queue[i],
+             user_name[i], user_jobs[i], extra);
     send_list_line(s, buffer);
   }
   snprintf(buffer, 256, "Service at UID:%d\n", server_uid);
@@ -273,11 +276,11 @@ void s_user_status_all(int s) {
 void s_user_status(int s, int i) {
   char buffer[256];
   char *extra = "";
-  if (user_locked[i] != 0)  
+  if (user_locked[i] != 0)
     extra = "Locked";
-  snprintf(buffer, 256, "[%04d] %3d/%-4d Q:%-3d %16s Run. %2d %s\n", user_UID[i],
-           user_busy[i], abs(user_max_slots[i]), user_queue[i], user_name[i], user_jobs[i],
-           extra);
+  snprintf(buffer, 256, "[%04d] %3d/%-4d Q:%-3d %16s Run. %2d %s\n",
+           user_UID[i], user_busy[i], abs(user_max_slots[i]), user_queue[i],
+           user_name[i], user_jobs[i], extra);
   send_list_line(s, buffer);
 }
 
@@ -290,26 +293,68 @@ int get_tsUID(int uid) {
   return -1;
 }
 
-void kill_pid(int pid, const char *signal, const char* extra) {
-  if (signal == NULL && extra == NULL) return;
+void kill_all_process(int parent_pid, int signal) {
+  char path[256];
+  DIR *dir;
+  struct dirent *entry;
+
+  snprintf(path, sizeof(path), "/proc/%d/task", parent_pid);
+
+  if ((dir = opendir(path)) == NULL) {
+    printf("Cannot find PID from %s\n", path);
+    return;
+  }
+
+  while ((entry = readdir(dir)) != NULL) {
+    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+      continue;
+    }
+
+    int tid = atoi(entry->d_name);
+    printf("TID: %d\n", tid);
+    snprintf(path, sizeof(path), "/proc/%d/task/%d/children", parent_pid, tid);
+
+    FILE *file = fopen(path, "r");
+    if (path == NULL) {
+      printf("cannot open %s\n", path);
+      continue;
+    }
+    int cPID;
+    while (fscanf(file, "%d", &cPID) == 1) {
+      printf("Children PID: %d\n", cPID);
+      kill_all_process(cPID, signal);
+    }
+    fclose(file);
+  }
+  closedir(dir);
+
+  if (kill(parent_pid, signal) != 0) {
+    printf("kill %d -%d ", parent_pid, signal);
+    perror("Error resuming process");
+  }
+}
+
+void kill_pid(int pid, const char *signal, const char *extra) {
+  if (signal == NULL && extra == NULL)
+    return;
   const char *path = get_kill_sh_path();
 
-  char* command = NULL;
+  char *command = NULL;
   int size = strnlen(path, 1000) + strlen(signal) + 100;
 
   if (extra == NULL) {
-    command = (char*) malloc(size);
+    command = (char *)malloc(size);
     sprintf(command, "bash %s %d \"%s\"", path, pid, signal);
   } else {
-    command = (char*) malloc(size + strlen(extra));
+    command = (char *)malloc(size + strlen(extra));
     sprintf(command, "bash %s %d \"%s\" \"%s\"", path, pid, signal, extra);
   }
   printf("command = %s\n", command);
   // fp = popen(command, "r");
-  // FILE* f = fopen("/home/kylin/task-spooler/file.log", "a"); 
-  //fprintf(f, "%s\n", command); 
+  // FILE* f = fopen("/home/kylin/task-spooler/file.log", "a");
+  // fprintf(f, "%s\n", command);
   system(command);
-  //fclose(f);
+  // fclose(f);
   free(command);
   // pclose(fp);
 }

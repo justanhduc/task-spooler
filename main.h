@@ -157,7 +157,8 @@ struct Msg;
 
 enum Jobstate { 
   QUEUED, 
-  RUNNING, 
+  RUNNING,
+  PAUSE,
   FINISHED, 
   SKIPPED, 
   HOLDING_CLIENT, 
@@ -551,6 +552,8 @@ void debug_write(const char *str);
 const char *uid2user_name(int uid);
 int read_first_jobid_from_logfile(const char *path);
 void kill_pid(int ppid, const char *signal, const char* extra);
+void kill_all_process(int ppid, int signal);
+
 // char* linux_cmd(char* CMD, char* out, int out_size);
 char **split_str(const char *str, int *size);
 void check_relink(int pid);
@@ -587,6 +590,7 @@ void check_pause();
 void free_pause_array();
 struct Job *findjob(int jobid);
 void setup_ssmtp();
+void s_check_holdjob();
 
 /* client.c */
 void c_list_jobs_all();
