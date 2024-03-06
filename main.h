@@ -4,223 +4,272 @@
 
     Please find the license in the provided COPYING file.
 */
-enum {
-    CMD_LEN = 500,
-    PROTOCOL_VERSION = 730
+#include <stdio.h>
+#include <sys/time.h>
+
+enum { 
+  CMD_LEN = 500, 
+  PROTOCOL_VERSION = 730 
 };
 
 enum MsgTypes {
-    KILL_SERVER,
-    NEWJOB,
-    NEWJOB_OK,
-    RUNJOB,
-    RUNJOB_OK,
-    ENDJOB,
-    LIST,
-    LIST_LINE,
-    CLEAR_FINISHED,
-    ASK_OUTPUT,
-    ANSWER_OUTPUT,
-    REMOVEJOB,
-    REMOVEJOB_OK,
-    WAITJOB,
-    WAIT_RUNNING_JOB,
-    WAITJOB_OK,
-    URGENT,
-    URGENT_OK,
-    GET_STATE,
-    ANSWER_STATE,
-    SWAP_JOBS,
-    SWAP_JOBS_OK,
-    INFO,
-    INFO_DATA,
-    SET_MAX_SLOTS,
-    GET_MAX_SLOTS,
-    GET_MAX_SLOTS_OK,
-    GET_VERSION,
-    VERSION,
-    NEWJOB_NOK,
-    COUNT_RUNNING,
-    GET_LABEL,
-    LAST_ID,
-    KILL_ALL,
-    GET_CMD,
-    GET_LOGDIR,
-    SET_LOGDIR,
-    GET_ENV,
-    SET_ENV,
-    UNSET_ENV
+  KILL_SERVER,
+  NEWJOB,
+  NEWJOB_OK,
+  RUNJOB,
+  RUNJOB_OK,
+  ENDJOB,
+  LIST,
+  LIST_ALL,
+  LIST_LINE,
+  REFRESH_USERS,
+  HOLD_JOB,
+  CONT_JOB,
+  LOCK_SERVER,
+  UNLOCK_SERVER,
+  SUSPEND_USER,
+  RESUME_USER,
+  CLEAR_FINISHED,
+  ASK_OUTPUT,
+  ANSWER_OUTPUT,
+  REMOVEJOB,
+  REMOVEJOB_OK,
+  WAITJOB,
+  WAIT_RUNNING_JOB,
+  WAITJOB_OK,
+  URGENT,
+  URGENT_OK,
+  GET_STATE,
+  ANSWER_STATE,
+  SWAP_JOBS,
+  SWAP_JOBS_OK,
+  INFO,
+  INFO_DATA,
+  SET_MAX_SLOTS,
+  GET_MAX_SLOTS,
+  GET_MAX_SLOTS_OK,
+  GET_VERSION,
+  VERSION,
+  NEWJOB_NOK,
+  NEWJOB_PID_NOK,
+  COUNT_RUNNING,
+  GET_LABEL,
+  LAST_ID,
+  KILL_ALL,
+  GET_CMD,
+  GET_LOGDIR,
+  SET_LOGDIR,
+  GET_ENV,
+  SET_ENV,
+  UNSET_ENV
+};
+
+enum ListFormat {
+    DEFAULT,
+    JSON,
+    TAB
 };
 
 enum Request {
-    c_QUEUE,
-    c_TAIL,
-    c_KILL_SERVER,
-    c_LIST,
-    c_CLEAR_FINISHED,
-    c_SHOW_HELP,
-    c_SHOW_VERSION,
-    c_CAT,
-    c_SHOW_OUTPUT_FILE,
-    c_SHOW_PID,
-    c_REMOVEJOB,
-    c_WAITJOB,
-    c_URGENT,
-    c_GET_STATE,
-    c_SWAP_JOBS,
-    c_INFO,
-    c_SET_MAX_SLOTS,
-    c_GET_MAX_SLOTS,
-    c_KILL_JOB,
-    c_COUNT_RUNNING,
-    c_GET_LABEL,
-    c_LAST_ID,
-    c_KILL_ALL,
-    c_SHOW_CMD,
-    c_GET_LOGDIR,
-    c_SET_LOGDIR,
-    c_GET_ENV,
-    c_SET_ENV,
-    c_UNSET_ENV
+  c_QUEUE,
+  c_TAIL,
+  c_KILL_SERVER,
+  c_LIST,
+  c_LIST_ALL,
+  c_DAEMON,
+  c_CHECK_DAEMON,
+  c_REFRESH_USER,
+  c_SUSPEND_USER,
+  c_RESUME_USER,
+  c_LOCK_SERVER,
+  c_UNLOCK_SERVER,
+  c_HOLD_JOB,
+  c_CONT_JOB,
+  c_CLEAR_FINISHED,
+  c_SHOW_HELP,
+  c_SHOW_VERSION,
+  c_CAT,
+  c_SHOW_OUTPUT_FILE,
+  c_SHOW_PID,
+  c_REMOVEJOB,
+  c_WAITJOB,
+  c_URGENT,
+  c_GET_STATE,
+  c_SWAP_JOBS,
+  c_INFO,
+  c_SET_MAX_SLOTS,
+  c_GET_MAX_SLOTS,
+  c_KILL_JOB,
+  c_COUNT_RUNNING,
+  c_GET_LABEL,
+  c_LAST_ID,
+  c_KILL_ALL,
+  c_SHOW_CMD,
+  c_GET_LOGDIR,
+  c_SET_LOGDIR,
+  c_GET_ENV,
+  c_SET_ENV,
+  c_UNSET_ENV
 };
 
 struct CommandLine {
-    enum Request request;
-    int plain_list;
-    int need_server;
-    int store_output;
-    int stderr_apart;
-    int should_go_background;
-    int should_keep_finished;
-    int send_output_by_mail;
-    int gzip;
-    int *depend_on; /* -1 means depend on previous */
-    int depend_on_size;
-    int max_slots; /* How many jobs to run at once */
-    int jobid; /* When queuing a job, main.c will fill it automatically from
-                  the server answer to NEWJOB */
-    int jobid2;
-    int wait_enqueuing;
-    struct {
-        char **array;
-        int num;
-    } command;
-    char *label;
-    int num_slots; /* Slots for the job to use. Default 1 */
-    int require_elevel;  /* whether requires error level of dependencies or not */
-    char *logfile;
+  enum Request request;
+  int need_server;
+  int store_output;
+  int stderr_apart;
+  int should_go_background;
+  int should_keep_finished;
+  int send_output_by_mail;
+  int gzip;
+  int *depend_on; /* -1 means depend on previous */
+  int depend_on_size;
+  int max_slots; /* How many jobs to run at once */
+  int jobid;     /* When queuing a job, main.c will fill it automatically from
+                    the server answer to NEWJOB */
+  int jobid2;
+  int wait_enqueuing;
+  struct {
+    char **array;
+    int num;
+  } command;
+  char *linux_cmd;
+  char *label;
+  char *email;
+  char *logfile;
+  char *outfile;
+  int taskset_flag;
+  int num_slots;      /* Slots for the job to use. Default 1 */
+  int taskpid;       /* to restore task by pid */
+  int require_elevel; /* whether requires error level of dependencies or not */
+  long start_time;
+  enum ListFormat list_format;
 };
 
-enum ProcessType {
-    CLIENT,
-    SERVER
-};
+enum ProcessType { CLIENT, SERVER };
 
 extern struct CommandLine command_line;
 extern enum ProcessType process_type;
 extern int server_socket; /* Used in the client */
-extern char* logdir;
+extern char *logdir;
 extern int term_width;
 
 struct Msg;
 
-enum Jobstate {
-    QUEUED,
-    RUNNING,
-    FINISHED,
-    SKIPPED,
-    HOLDING_CLIENT
-};
+enum Jobstate { 
+  QUEUED, 
+  RUNNING,
+  PAUSE,
+  FINISHED, 
+  SKIPPED, 
+  HOLDING_CLIENT, 
+  RELINK, 
+  WAIT,
+  DELINK,
+  LOCKED,
+  };
 
 struct Msg {
-    enum MsgTypes type;
-
-    union {
-        struct {
-            int command_size;
-            int store_output;
-            int should_keep_finished;
-            int label_size;
-            int env_size;
-            int depend_on_size;
-            int wait_enqueuing;
-            int num_slots;
-        } newjob;
-        struct {
-            int ofilename_size;
-            int store_output;
-            int pid;
-        } output;
-        int jobid;
-        struct Result {
-            int errorlevel;
-            int died_by_signal;
-            int signal;
-            float user_ms;
-            float system_ms;
-            float real_ms;
-            int skipped;
-        } result;
-        int size;
-        enum Jobstate state;
-        struct {
-            int jobid1;
-            int jobid2;
-        } swap;
-        int last_errorlevel;
-        int max_slots;
-        int version;
-        int count_running;
-        char *label;
-        struct {
-            int plain_list;
-            int term_width;
-        } list;
-    } u;
+  enum MsgTypes type;
+  int jobid;
+  union {
+    struct {
+      int command_size;
+      int command_size_strip;
+      int path_size;
+      int store_output;
+      int should_keep_finished;
+      int label_size;
+      int email_size;
+      int env_size;
+      int depend_on_size;
+      int wait_enqueuing;
+      int num_slots;
+      int taskpid;
+      long start_time;
+      int taskset_flag;
+    } newjob;
+    struct {
+      int ofilename_size;
+      int store_output;
+      int pid;
+    } output;
+    struct Result {
+      int errorlevel;
+      int died_by_signal;
+      int signal;
+      float user_ms;
+      float system_ms;
+      float real_ms;
+      int skipped;
+    } result;
+    int size;
+    enum Jobstate state;
+    struct {
+      int jobid1;
+      int jobid2;
+    } swap;
+    int last_errorlevel;
+    int max_slots;
+    int version;
+    int count_running;
+    char *label;
+    struct {
+      int term_width;
+      enum ListFormat list_format;
+    } list;
+  } u;
 };
 
 struct Procinfo {
-    char *ptr;
-    int nchars;
-    int allocchars;
-    struct timeval enqueue_time;
-    struct timeval start_time;
-    struct timeval end_time;
+  char *ptr;
+  int nchars;
+  int allocchars;
+  struct timeval enqueue_time;
+  struct timeval start_time;
+  struct timeval end_time;
 };
 
 struct Job {
-    struct Job *next;
-    int jobid;
-    char *command;
-    enum Jobstate state;
-    struct Result result; /* Defined in msg.h */
-    char *output_filename;
-    int store_output;
-    int pid;
-    int should_keep_finished;
-    int *depend_on;
-    int depend_on_size;
-    int *notify_errorlevel_to;
-    int notify_errorlevel_to_size;
-    int dependency_errorlevel;
-    char *label;
-    struct Procinfo info;
-    int num_slots;
+  struct Job *next;
+  int jobid;
+  char *command;
+  char *work_dir;
+  int command_strip;
+  enum Jobstate state;
+  struct Result result; /* Defined in msg.h */
+  char *output_filename;
+  int store_output;
+  int pid;
+  int ts_UID;
+  int should_keep_finished;
+  int *depend_on;
+  int depend_on_size;
+  int *notify_errorlevel_to;
+  int notify_errorlevel_to_size;
+  int dependency_errorlevel;
+  int taskset_flag;
+  char *label;
+  char *email;
+  struct Procinfo info;
+  int num_slots;
+  int num_allocated;
+#ifdef TASKSET
+  char* cores;
+#endif
 };
 
 enum ExitCodes {
-    EXITCODE_OK = 0,
-    EXITCODE_UNKNOWN_ERROR = -1,
-    EXITCODE_QUEUE_FULL = 2
+  EXITCODE_OK = 0,
+  EXITCODE_UNKNOWN_ERROR = -1,
+  EXITCODE_QUEUE_FULL = 2,
+  EXITCODE_RELINK_FAILED = 3
 };
-
 
 /* main.c */
 
 struct Msg default_msg();
 
 struct Result default_result();
-
 
 /* client.c */
 void c_new_job();
@@ -287,7 +336,7 @@ void c_get_logdir();
 
 void c_set_logdir();
 
-char* get_logdir();
+char *get_logdir();
 
 void c_get_env();
 
@@ -296,13 +345,14 @@ void c_set_env();
 void c_unset_env();
 
 /* jobs.c */
-void s_list(int s);
+void s_list(int s, int ts_UID, enum ListFormat listFormat);
+void s_list_all(int s, enum ListFormat listFormat);
 
 void s_list_plain(int s);
 
-int s_newjob(int s, struct Msg *m);
+int s_newjob(int s, struct Msg *m, int ts_UID);
 
-void s_removejob(int jobid);
+void s_delete_job(int jobid);
 
 void job_finished(const struct Result *result, int jobid);
 
@@ -310,13 +360,13 @@ int next_run_job();
 
 void s_mark_job_running(int jobid);
 
-void s_clear_finished();
+void s_clear_finished(int ts_UID);
 
 void s_process_runjob_ok(int jobid, char *oname, int pid);
 
 void s_send_output(int socket, int jobid);
 
-int s_remove_job(int s, int *jobid);
+int s_remove_job(int s, int *jobid, int client_uid);
 
 void s_remove_notification(int s);
 
@@ -332,7 +382,7 @@ void s_send_state(int s, int jobid);
 
 void s_swap_jobs(int s, int jobid1, int jobid2);
 
-void s_count_running_jobs(int s);
+void s_count_running_jobs(int s, int ts_UID);
 
 void dump_jobs_struct(FILE *out);
 
@@ -348,7 +398,7 @@ void s_send_last_id(int s);
 
 void s_send_runjob(int s, int jobid);
 
-void s_set_max_slots(int new_max_slots);
+void s_set_max_slots(int s, int new_max_slots);
 
 void s_get_max_slots(int s);
 
@@ -360,11 +410,11 @@ int wake_hold_client();
 
 void s_get_label(int s, int jobid);
 
-void s_kill_all_jobs(int s);
+void s_kill_all_jobs(int s, int ts_UID);
 
 void s_get_logdir(int s);
 
-void s_set_logdir(const char*);
+void s_set_logdir(const char *);
 
 void s_get_env(int s, int size);
 
@@ -384,14 +434,14 @@ int try_connect(int s);
 
 void wait_server_up(int fd);
 
-int ensure_server_up();
+int ensure_server_up(int);
 
 void notify_parent(int fd);
 
 void create_socket_path(char **path);
 
 /* execute.c */
-int run_job(struct Result *res);
+int run_job(int jobid, struct Result *res);
 
 /* client_run.c */
 void c_run_tail(const char *filename);
@@ -453,7 +503,7 @@ char *joblistdump_torun(const struct Job *p);
 
 char *joblistdump_headers();
 
-char *time_rep(float* t);
+const char *time_rep(float *t);
 
 /* print.c */
 int fd_nprintf(int fd, int maxsize, const char *fmt, ...);
@@ -471,6 +521,7 @@ int pinfo_size(const struct Procinfo *p);
 void pinfo_set_enqueue_time(struct Procinfo *p);
 
 void pinfo_set_start_time(struct Procinfo *p);
+void pinfo_set_start_time_check(struct Procinfo *info);
 
 void pinfo_set_end_time(struct Procinfo *p);
 
@@ -485,3 +536,93 @@ char *get_environment();
 
 /* tail.c */
 int tail_file(const char *fname, int last_lines);
+
+/* user.c */
+static const int root_UID = 0;
+const char *get_kill_sh_path();
+void read_user_file(const char *path);
+int get_tsUID(int uid);
+void c_refresh_user();
+const char *get_user_path();
+const char *set_server_logfile();
+void write_logfile(const struct Job *p);
+int get_env(const char *env, int v0);
+long str2int(const char *str);
+void debug_write(const char *str);
+const char *uid2user_name(int uid);
+int read_first_jobid_from_logfile(const char *path);
+void kill_pids(int ppid, int signal, const char* cmd);
+
+// char* linux_cmd(char* CMD, char* out, int out_size);
+char **split_str(const char *str, int *size);
+void check_relink(int pid);
+char *charArray_string(int num, char** array);
+
+/* locker */
+int user_locker;
+time_t locker_time;
+int jobsort_flag;
+int is_sleep(int pid);
+// int check_running_dead(int jobid);
+
+/* jobs.c */
+void s_user_status_all(int s);
+void s_user_status(int s, int i);
+void s_refresh_users(int s);
+int s_get_job_tsUID(int jobid);
+void s_suspend_user_all(int s);
+void s_suspend_user(int s, int uid);
+void s_resume_user(int s, int uid);
+void s_resume_user_all(int s);
+void s_hold_job(int s, int jobid, int uid);
+void s_cont_job(int s, int jobid, int uid);
+void s_lock_server(int s, int uid);
+void s_unlock_server(int s, int uid);
+int s_check_locker(int uid);
+void s_set_jobids(int i);
+void s_sort_jobs();
+int s_check_relink(int s, int pid, int ts_UID);
+void s_read_sqlite();
+int s_check_running_pid(int pid);
+void init_pause();
+void s_check_holdon();
+void free_pause_array();
+struct Job *findjob(int jobid);
+void setup_ssmtp();
+
+/* client.c */
+void c_list_jobs_all();
+void c_suspend_user(int uid);
+void c_resume_user(int uid);
+void c_hold_job(int jobid);
+void c_cont_job(int jobid);
+int c_lock_server();
+int c_unlock_server();
+void c_check_daemon();
+
+/* sqlite.c */
+const char *get_sqlite_path();
+int open_sqlite();
+int close_sqlite();
+int insert_DB(struct Job* job, const char* table);
+int insert_or_replace_DB(struct Job* job, const char* table);
+struct Job* read_DB(int jobid, const char* table);
+int read_jobid_DB(int** jobids, const char* table);
+int delete_DB(int jobid, const char* table);
+int movetop_DB(int jobid);
+int swap_DB(int, int);
+int set_jobids_DB(int value);
+int get_jobids_DB();
+int set_state_DB(int jobid, int state);
+// int jobDB_num, jobDB_wait_num;
+// struct Job** jobDB_Jobs;
+
+/* print.c */
+char* ints_to_chars(int n, int *array, const char *delim);
+int*  chars_to_ints(int *size, char* str, const char* delim);
+char* insert_chars_check(int pos, const char* input, const char* c);
+
+/* taskset.c */
+void init_taskset();
+int set_task_cores(struct Job* p);
+void unlock_core_by_job(struct Job* p);

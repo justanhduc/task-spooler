@@ -1,8 +1,9 @@
+
 PREFIX?=/usr/local
 PREFIX_LOCAL=~
-GLIBCFLAGS=-D_XOPEN_SOURCE=500 -D__STRICT_ANSI__
+GLIBCFLAGS=#-D_XOPEN_SOURCE=500 -D__STRICT_ANSI__
 CPPFLAGS+=$(GLIBCFLAGS)
-CFLAGS?=-pedantic -ansi -Wall -g -O0 -std=c11
+CFLAGS?=-pedantic -ansi -Wall -g -std=gnu11 -DNO_TASKSET -DSOUND -fcommon -Wno-format-truncation
 OBJECTS=main.o \
 	server.o \
 	server_start.o \
@@ -18,7 +19,11 @@ OBJECTS=main.o \
 	print.o \
 	info.o \
 	env.o \
-	tail.o
+	tail.o \
+	user.o \
+	cJSON.o \
+	sqlite.o \
+	taskset.o
 TARGET=ts
 INSTALL=install -c
 
@@ -27,7 +32,7 @@ GIT_REPO=$(shell git rev-parse --is-inside-work-tree)
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $(TARGET) $^
+	$(CC) $(LDFLAGS) -o $(TARGET) $^ -lsqlite3
 
 %.o : %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
@@ -36,8 +41,9 @@ $(TARGET): $(OBJECTS)
 main.o: main.c main.h
 ifeq ($(GIT_REPO), true)
 	GIT_VERSION=$$(echo $$(git describe --dirty --always --tags) | tr - +); \
-	$(CC) $(CFLAGS) $(CPPFLAGS) -DTS_VERSION=$${GIT_VERSION} -c $< -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 endif
+user.o: user.c
 server_start.o: server_start.c main.h
 server.o: server.c main.h
 client.o: client.c main.h
@@ -50,9 +56,14 @@ error.o: error.c main.h
 signals.o: signals.c main.h
 list.o: list.c main.h
 tail.o: tail.c main.h
+cJSON.o: cjson/cJSON.c cjson/cJSON.h
+sqlite.o: sqlite.c main.h
+taskset.o: taskset.c main.h
+cJSON.o : cjson/cJSON.c cjson/cJSON.h
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 clean:
-	rm -f *.o $(TARGET)
+	rm -f *.o $(TARGET); killall ts; rm ts;
 
 install: $(TARGET)
 	$(INSTALL) -d $(PREFIX)/bin

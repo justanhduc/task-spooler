@@ -100,6 +100,11 @@ void pinfo_set_enqueue_time(struct Procinfo *p)
     p->end_time.tv_usec = 0;
 }
 
+void pinfo_set_start_time_check(struct Procinfo *info) {
+    if (info->start_time.tv_sec == 0 && info->start_time.tv_usec == 0) {
+        pinfo_set_start_time(info);
+    }
+}
 void pinfo_set_start_time(struct Procinfo *p)
 {
     gettimeofday(&p->start_time, 0);

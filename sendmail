@@ -1,0 +1,14 @@
+#!/bin/env bash                                                                    
+
+echo $#
+if (( $# > 1 )); then
+    echo "Subject: Calculation result for ${@:2} from MSI-workstation
+To: $1
+From: kylin<kylincaster@foxmail.com>
+
+    The job for ${@:2} finish! Please check it soon~
+    " | ssmtp $1
+fi
+
+
+
