@@ -21,7 +21,7 @@ extern int core_usage;
 
 /* return 0 for running and 1 for sleep and -1 for error */
 int is_sleep(int pid) {
-  // if (pid == 0) return -1;
+  if (pid == 0) return -1;
   char filename[256];
   char name[256];
   char status = '\0';

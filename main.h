@@ -551,8 +551,7 @@ long str2int(const char *str);
 void debug_write(const char *str);
 const char *uid2user_name(int uid);
 int read_first_jobid_from_logfile(const char *path);
-void kill_pid(int ppid, const char *signal, const char* extra);
-void kill_all_process(int ppid, int signal);
+void kill_pids(int ppid, int signal, const char* cmd);
 
 // char* linux_cmd(char* CMD, char* out, int out_size);
 char **split_str(const char *str, int *size);
@@ -586,11 +585,10 @@ int s_check_relink(int s, int pid, int ts_UID);
 void s_read_sqlite();
 int s_check_running_pid(int pid);
 void init_pause();
-void check_pause();
+void s_check_holdon();
 void free_pause_array();
 struct Job *findjob(int jobid);
 void setup_ssmtp();
-void s_check_holdjob();
 
 /* client.c */
 void c_list_jobs_all();
@@ -626,5 +624,5 @@ char* insert_chars_check(int pos, const char* input, const char* c);
 
 /* taskset.c */
 void init_taskset();
-int set_task_cores(struct Job* p, const char* extra);
+int set_task_cores(struct Job* p);
 void unlock_core_by_job(struct Job* p);

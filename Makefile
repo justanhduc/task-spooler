@@ -3,7 +3,7 @@ PREFIX?=/usr/local
 PREFIX_LOCAL=~
 GLIBCFLAGS=#-D_XOPEN_SOURCE=500 -D__STRICT_ANSI__
 CPPFLAGS+=$(GLIBCFLAGS)
-CFLAGS?=-pedantic -ansi -Wall -g -std=gnu11 -DTASKSET_ -DSOUND -fcommon -Wno-format-truncation
+CFLAGS?=-pedantic -ansi -Wall -g -std=gnu11 -DTASKSET -DSOUND -fcommon -Wno-format-truncation
 OBJECTS=main.o \
 	server.o \
 	server_start.o \

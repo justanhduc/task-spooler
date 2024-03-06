@@ -19,95 +19,10 @@
 #include "main.h"
 
 int server_socket;
-char kill_sh_path[1024] = {0};
-
 static char *socket_path;
 static int should_check_owner = 0;
 
 static int fork_server();
-
-const char *get_kill_sh_path() { return kill_sh_path; }
-
-static const char *set_kill_sh_path() {
-  char *tmpdir;
-  tmpdir = getenv("TMPDIR");
-  if (tmpdir == NULL)
-    tmpdir = "/tmp";
-  // char *path = NULL;
-  int size = strlen(tmpdir) + strlen("/kill_ppid.sh") + 1;
-  // path = (char *)malloc(size);
-  snprintf(kill_sh_path, size, "%s/kill_ppid.sh", tmpdir);
-  return kill_sh_path;
-}
-
-static void setup_kill_sh() {
-  set_kill_sh_path();
-  const char *path = get_kill_sh_path();
-  FILE *f = fopen(path, "w");
-  if (f == NULL) {
-    printf("Cannot create `kill_ppide.sh` file at %s\n", path);
-    exit(0);
-  }
-  const char *script =
-      "#!/bin/bash\n\n"
-      "# getting children generally resolves nicely at some point\n"
-      "get_child() {\n"
-      "    echo $(pgrep -laP $1 | awk '{print $1}')\n"
-      "}\n\n"
-      "get_children() {\n"
-      "    __RET=$(get_child $1)\n"
-      "    __CHILDREN=\n"
-      "    while [ -n \"$__RET\" ]; do\n"
-      "        __CHILDREN+=\"$__RET \"\n"
-      "        __RET=$(get_child $__RET)\n"
-      "    done\n\n"
-      "    __CHILDREN=$(echo \"${__CHILDREN}\" | xargs | sort)\n\n"
-      "    echo \"${__CHILDREN} $1\"\n"
-      "}\n\n"
-      "if [ 1 -gt $# ]; \n"
-      "then\n"
-      "    echo \"not input PID\"\n"
-      "    exit 1\n"
-      "fi\n\n"
-      "owner=`ps -o user= -p $1`\n"
-      "if [ -z \"$owner\" ]; \n"
-      "then\n"
-      "    // echo \"not a valid PID\"\n"
-      "    exit 1\n"
-      "fi\n"
-      "pids=`get_children $1`\n\n"
-      "user=`whoami`\n\n"
-      "extra=\"\"\n"
-      "if [[ \"$owner\" != \"$user\" ]]; then\n"
-      "    extra=\"sudo\"\n"
-      "fi\n\n"
-      "if [ -z \"$3\" ]\n"
-      "then\n"
-      "    if [ -z \"$2\" ]\n"
-      "    then\n"
-      "        for pid in ${pids};\n"
-      "        do\n"
-      "            ${extra} echo ${pid}\n"
-      "        done\n"
-      "    else\n"
-      "        for pid in ${pids};\n"
-      "        do\n"
-      "            ${extra} $2 ${pid}\n"
-      "        done\n"
-      "    fi\n"
-      "else\n"
-      "    for pid in ${pids};\n"
-      "    do\n"
-      "        ${extra} $2 ${pid}\n"
-      "        ${extra} $3 ${pid}\n"
-      "    done\n"
-      "fi;\n";
-
-  fprintf(f, "%s", script);
-  fclose(f);
-
-  printf("  Kill_PPID.sh at `%s`\n\n", path);
-}
 
 void create_socket_path(char **path) {
   char *tmpdir;
@@ -206,8 +121,6 @@ static void server_info() {
   printf("  Read user file from %s  [TS_USER_PATH]\n", get_user_path());
   printf("  Write log file to %s    [TS_LOGFILE_PATH]\n", set_server_logfile());
   printf("  Sqlite Database @ %s    [TS_SQLITE_PATH]\n", get_sqlite_path());
-
-  setup_kill_sh();
 }
 
 static void server_daemon() {

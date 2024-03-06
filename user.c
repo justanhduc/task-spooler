@@ -293,7 +293,7 @@ int get_tsUID(int uid) {
   return -1;
 }
 
-void kill_all_process(int parent_pid, int signal) {
+void kill_pids(int parent_pid, int signal, const char* cmd) {
   char path[256];
   DIR *dir;
   struct dirent *entry;
@@ -301,7 +301,7 @@ void kill_all_process(int parent_pid, int signal) {
   snprintf(path, sizeof(path), "/proc/%d/task", parent_pid);
 
   if ((dir = opendir(path)) == NULL) {
-    printf("Cannot find PID from %s\n", path);
+    // printf("Cannot find PID from %s\n", path);
     return;
   }
 
@@ -311,7 +311,7 @@ void kill_all_process(int parent_pid, int signal) {
     }
 
     int tid = atoi(entry->d_name);
-    printf("TID: %d\n", tid);
+    // printf("TID: %d\n", tid);
     snprintf(path, sizeof(path), "/proc/%d/task/%d/children", parent_pid, tid);
 
     FILE *file = fopen(path, "r");
@@ -321,40 +321,26 @@ void kill_all_process(int parent_pid, int signal) {
     }
     int cPID;
     while (fscanf(file, "%d", &cPID) == 1) {
-      printf("Children PID: %d\n", cPID);
-      kill_all_process(cPID, signal);
+      // printf("Children PID: %d\n", cPID);
+      kill_pids(cPID, signal, cmd);
     }
     fclose(file);
   }
   closedir(dir);
 
-  if (kill(parent_pid, signal) != 0) {
+  if (signal >= 0 && kill(parent_pid, signal) != 0) {
     printf("kill %d -%d ", parent_pid, signal);
     perror("Error resuming process");
   }
-}
 
-void kill_pid(int pid, const char *signal, const char *extra) {
-  if (signal == NULL && extra == NULL)
-    return;
-  const char *path = get_kill_sh_path();
+  if (cmd != NULL) {
+    char buf[1024] = "";
+    snprintf(buf, 1024, "%s %d", cmd, parent_pid);
+    printf("%s\n", buf);
+    int result = system(buf);
 
-  char *command = NULL;
-  int size = strnlen(path, 1000) + strlen(signal) + 100;
-
-  if (extra == NULL) {
-    command = (char *)malloc(size);
-    sprintf(command, "bash %s %d \"%s\"", path, pid, signal);
-  } else {
-    command = (char *)malloc(size + strlen(extra));
-    sprintf(command, "bash %s %d \"%s\" \"%s\"", path, pid, signal, extra);
+    if (result == -1) {
+      ; // perror("Error executing command");
+    }
   }
-  printf("command = %s\n", command);
-  // fp = popen(command, "r");
-  // FILE* f = fopen("/home/kylin/task-spooler/file.log", "a");
-  // fprintf(f, "%s\n", command);
-  system(command);
-  // fclose(f);
-  free(command);
-  // pclose(fp);
 }

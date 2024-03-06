@@ -28,7 +28,7 @@ void init_taskset() {
     #endif
 }
 
-int allocate_cores(int N) {
+static int allocate_cores(int N) {
     if (N + core_usage > MAX_CORE_NUM) return 0;
     task_core_num = 0;
     int i = 0;
@@ -68,7 +68,7 @@ void unlock_core_by_job(struct Job* p) {
     #endif
 }
 
-int set_task_cores(struct Job* p, const char* extra) {
+int set_task_cores(struct Job* p) {
     if (p == NULL || p->pid <= 0) return -1;
     if (p->taskset_flag == 0) return 0;
 #ifdef TASKSET
@@ -81,18 +81,12 @@ int set_task_cores(struct Job* p, const char* extra) {
     lock_core_by_job(p);
     
     char* core_str = ints_to_chars(N, task_cores_id, ",");
-    int size = strlen(core_str) + 50;
+    int size = strlen(core_str) + 30;
     char* cmd = (char*) malloc(sizeof(char) * size);
     sprintf(cmd, "taskset -cp %s ", core_str);
-    if (extra == NULL) {
-        ; // printf("[CMD] %s %d\n", cmd, p->pid);
-    } else {       
-        printf("[CMD] %s %d; %s %d\n", cmd, p->pid, extra, p->pid);
-    }
 
-    kill_pid(p->pid, cmd, extra);
+    kill_pids(p->pid, -1, cmd);
     p->cores = core_str;
-    // free(core_str);
     free(cmd);
 #endif
     return 0;
