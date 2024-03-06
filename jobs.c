@@ -154,29 +154,23 @@ static void free_cores(struct Job *p) {
 #endif
 }
 
-static int allocate_cores(struct Job *p) {
-  if (p == NULL)
-    return 0;
+static int config_running(struct Job *p) {
+  if (p == NULL || (p->state != PAUSE && p->state != QUEUED)) return 1;
 
-  if (p->state == RUNNING || p->state == PAUSE) {
 #ifdef TASKSET
     set_task_cores(p);
-#else
-    if (is_sleep(p->pid)) {
-      kill_pids(p->pid, SIGCONT, NULL);
-    }
-    // kill_pid(p->pid, extra, NULL);
 #endif
+
+  if (is_sleep(p->pid)) {
+    kill_pids(p->pid, SIGCONT, NULL);
   }
 
-  if (is_sleep(p->pid) == 0) {
-    int ts_UID = p->ts_UID;
-    user_busy[ts_UID] += p->num_slots;
-    busy_slots += p->num_slots;
-    p->num_allocated = p->num_slots;
-    user_jobs[ts_UID]++;
-    return 1;
-  }
+  int ts_UID = p->ts_UID;
+  user_busy[ts_UID] += p->num_slots;
+  busy_slots += p->num_slots;
+  p->num_allocated = p->num_slots;
+  user_jobs[ts_UID]++;
+  p->state = RUNNING;
   return 0;
 }
 
@@ -640,18 +634,13 @@ void s_mark_job_running(int jobid) {
     if (is_sleep(p->pid) == 1) {
       p->state = PAUSE;
       return;
+    } else {
+      p->state = QUEUED;
     }
   }
-
-  /*
-  int ts_UID = p->ts_UID;
-  user_busy[ts_UID] += p->num_slots;
-  busy_slots += p->num_slots;
-  user_jobs[ts_UID]++;
-  p->num_allocated = p->num_slots
-  */
-  allocate_cores(p);
-  p->state = RUNNING;
+  if (config_running(p)) {
+    error("Err. in s_mark_job_running(): Cannot mark Job %d as RUNNING from state %i\n", jobid, p->state);
+  }
 }
 
 /* -1 means nothing awaken, otherwise returns the jobid awaken */
@@ -1612,12 +1601,15 @@ void s_check_holdon() {
 
 // run the jobs
 void s_process_runjob_ok(int jobid, char *oname, int pid) {
-  // printf("s_process_runjob_ok \n ");
+
   struct Job *p;
   p = findjob(jobid);
   if (p == 0)
     error("Job %i already run not found on runjob_ok", jobid);
-  if (p->state != RUNNING && p->state != PAUSE)
+  if (p->state == PAUSE) {
+    return;
+  }
+  if (p->state != RUNNING)
     error("Job %i not running, but %i on runjob_ok", jobid, p->state);
 
   p->pid = pid;
@@ -1625,13 +1617,15 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
     p->output_filename = oname;
   }
   pinfo_set_start_time_check(&p->info);
-  if (pid > 0 && is_sleep(pid) == 0) {
+  if (pid > 0) {
+    // printf("s_process_runjob_ok = %d\n", jobid);
     write_logfile(p);
-    set_task_cores(p);
-  }
-  if (p->state == RUNNING) {
+    //if (p->state == PAUSE) {
+    // config_running(p);
+    //}
     insert_or_replace_DB(p, "Jobs");
   }
+
 }
 
 void s_send_runjob(int s, int jobid) {
@@ -1710,12 +1704,16 @@ void s_job_info(int s, int jobid) {
       fd_nprintf(s, 100, ",%i", p->depend_on[i]);
     fd_nprintf(s, 100, "]&& ");
   }
+  const char* status = "";
+  if (p->state != PAUSE && is_sleep(p->pid)) {
+    status = " in SLEEP!";
+  }
   write(s, p->command + p->command_strip,
         strlen(p->command + p->command_strip));
   fd_nprintf(s, 100, "\n");
   fd_nprintf(s, 100, "User: %s [%d]\n", user_name[p->ts_UID],
              user_UID[p->ts_UID]);
-  fd_nprintf(s, 100, "State: %9s PID: %-6d\n", jstate2string(p->state), p->pid);
+  fd_nprintf(s, 100, "State: %9s PID: %-6d%s\n", jstate2string(p->state), p->pid, status);
 
 #ifdef TASKSET
   if (p->cores != NULL) {
@@ -1796,9 +1794,8 @@ void s_resume_user(int s, int ts_UID) {
     if (p->ts_UID == ts_UID && p->state == PAUSE) {
       // p->state = HOLDING_CLIENT;
       if (p->pid != 0) {
-        printf("pid = %d\n", p->pid);
-        allocate_cores(p);
-        p->state = RUNNING;
+        // printf("pid = %d\n", p->pid);
+        config_running(p);
       }
     }
     p = p->next;
@@ -2284,8 +2281,8 @@ void s_cont_job(int s, int jobid, int ts_UID) {
       if (user_busy[ts_UID] + num_slots <= user_max_slots[ts_UID] &&
           busy_slots + num_slots <= max_slots) {
 
-        if (allocate_cores(p)) {
-          p->state = RUNNING;
+        if (config_running(p)) {
+          printf("Cannot set Job %i as RUNNING", p->jobid);
         }
         snprintf(buff, 255, "To rerun job [%d] successfully!\n", jobid);
       } else {
