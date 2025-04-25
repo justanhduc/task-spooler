@@ -290,8 +290,8 @@ void parse_opts(int argc, char **argv) {
             case 'S':
                 command_line.request = c_SET_MAX_SLOTS;
                 command_line.max_slots = atoi(optarg);
-                if (command_line.max_slots < 1) {
-                    fprintf(stderr, "You should set at minimum 1 slot.\n");
+                if (command_line.max_slots < 0) { /* -S 0 lets active jobs end without starting new ones. */
+                    fprintf(stderr, "You should set to 0 or more slots.\n"); /* was: You should set at minimum 1 slot.\n */
                     exit(-1);
                 }
                 break;

@@ -1585,7 +1585,7 @@ void s_wait_running_job(int s, int jobid) {
 }
 
 void s_set_max_slots(int new_max_slots) {
-    if (new_max_slots > 0)
+    if (new_max_slots >= 0)  /* -S 0 lets active jobs end without starting new ones. */
         max_slots = new_max_slots;
     else
         warning("Received new_max_slots=%i", new_max_slots);
