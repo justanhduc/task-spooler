@@ -3,11 +3,11 @@
 //
 
 #include <stdlib.h>
+#include <stdbool.h>
 #include <nvml.h>
 #include <string.h>
 
 #include "main.h"
-
 #define TS_VISIBLE_DEVICES "TS_VISIBLE_DEVICES"
 
 static int free_percentage = 90;
@@ -90,6 +90,7 @@ int * getGpuList(int *num) {
 
         nvmlMemory_t mem;
         nvmlDevice_t dev;
+        nvmlComputeMode_t computeMode;
         result = nvmlDeviceGetHandleByIndex_v2(visible[i], &dev);
         if (result != 0) {
             warning("Failed to get GPU handle for GPU %d: %s", visible[i], nvmlErrorString(result));
@@ -101,8 +102,33 @@ int * getGpuList(int *num) {
             warning("Failed to get GPU memory for GPU %d: %s", visible[i], nvmlErrorString(result));
             goto Error;
         }
+        
+        result = nvmlDeviceGetComputeMode(dev, &computeMode);
+        if (result != 0) {
+            warning("Failed to get GPU compute mode for GPU %d: %s", visible[i], nvmlErrorString(result));
+            goto Error;
+        }
 
-        if (mem.free > free_percentage / 100. * mem.total)
+        // Check if there are any running processes on the GPU
+        bool anyRunningProcesses = false;
+        unsigned int infoCount = 0;
+        result = nvmlDeviceGetComputeRunningProcesses(dev, &infoCount, NULL);
+        if (result == NVML_ERROR_INSUFFICIENT_SIZE){
+            anyRunningProcesses = true;
+        } else if (result != 0) {
+            warning("Failed to get GPU compute processes for GPU %d: %s", visible[i], nvmlErrorString(result));
+            goto Error;
+        }
+
+        // Check if the GPU memory is free enough
+        bool isMemFree = mem.free > free_percentage / 100. * mem.total;
+        // When the compute mode is prohibited or in exclusive process mode with a
+        // running processes, the GPU is not free to use.
+        bool blockedByComputeMode = (computeMode == NVML_COMPUTEMODE_PROHIBITED) ||
+                                    (computeMode == NVML_COMPUTEMODE_EXCLUSIVE_PROCESS && anyRunningProcesses);
+
+        bool isFree = isMemFree && !blockedByComputeMode;
+        if (isFree)
             gpuList[count++] = visible[i];
     }
     free(visible);
