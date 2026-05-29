@@ -570,17 +570,20 @@ void s_add_wtime(int s, int jobid, int64_t add_wtime) {
 
     int64_t new_wtime = i64abs(p->wall_time) + add_wtime;
     if (new_wtime <= 0) {
+        time_repr_t old_r = format_time(i64abs(p->wall_time));
+        time_repr_t new_r = format_time(i64abs(new_wtime));
         snprintf(buff, 255,
-                 "Error: [%d], negative wall-time after change from %ld => %ld\n",
-                 jobid, i64abs(p->wall_time), new_wtime);
+                 "Error: [%d], negative wall-time after change %.3f%c => %.3f%c\n",
+                 jobid, old_r.value, old_r.unit, new_r.value, new_r.unit);
         send_list_line(s, buff);
         return;
     }
     p->wall_time = (p->wall_time < 0) ? -new_wtime : new_wtime;
 
     insert_or_replace_DB(p, "Jobs");
-    snprintf(buff, 255, "Set [%d] wall-time as %ld hr\n", jobid,
-             i64abs(p->wall_time));
+    time_repr_t r = format_time(i64abs(p->wall_time));
+    snprintf(buff, 255, "Set [%d] wall-time as %.3f %c\n", jobid,
+             r.value, r.unit);
     send_list_line(s, buff);
     printf("s_add_wtime(): %s", buff);
 }

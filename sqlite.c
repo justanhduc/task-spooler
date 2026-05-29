@@ -93,6 +93,10 @@ int open_sqlite() {
     return (-1);
   }
 
+  /* WAL: writes don't block reads. busy_timeout: retry on SQLITE_BUSY */
+  sqlite3_exec(db, "PRAGMA journal_mode=WAL", 0, 0, 0);
+  sqlite3_exec(db, "PRAGMA busy_timeout=5000", 0, 0, 0);
+
   char *sql =
       "CREATE TABLE IF NOT EXISTS Jobs("
       "jobid INT PRIMARY KEY     NOT NULL,"
@@ -406,69 +410,58 @@ static void clear_DB(const char* table) {
 
 // return error code
 int read_jobid_DB(int **jobids, const char *table) {
-  int n;
+  int n = 0;
   sprintf(sql, "SELECT COUNT(*) FROM %s;", table);
-  char *errmsg = NULL;
 
-  if (sqlite3_exec(db, sql, NULL, NULL, &errmsg) != SQLITE_OK) {
-    fprintf(stderr, "[read_jobid_DB0] SQL error: %s by %s\n",
-            sqlite3_errmsg(db), sql);
-    sqlite3_free(errmsg);
-    return -1; // 返回-1表示查询失败
-  }
-
-  // 从查询结果中读取数据
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
   if (rc != SQLITE_OK) {
-    fprintf(stderr, "[read_jobid_DB1] SQL error: %s by %s\n",
+    fprintf(stderr, "[read_jobid_DB] SQL error: %s by %s\n",
             sqlite3_errmsg(db), sql);
-    return -2; // 返回-2表示查询失败
+    return -1;
   }
 
   if (sqlite3_step(stmt) == SQLITE_ROW) {
     n = sqlite3_column_int(stmt, 0);
   }
-  if (n == 0)
+  sqlite3_finalize(stmt);
+
+  if (n <= 0)
     return 0;
-  *jobids = (int *)malloc(n * sizeof(int));
+  *jobids = (int *)malloc((size_t)n * sizeof(int));
 
   sprintf(sql, "SELECT jobid FROM %s ORDER BY order_id;", table);
   rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
   if (rc != SQLITE_OK) {
-    fprintf(stderr, "[read_jobid_DB2] SQL error: %s from %s\n",
+    fprintf(stderr, "[read_jobid_DB] SQL error: %s from %s\n",
             sqlite3_errmsg(db), sql);
-    return -3; // 返回-1表示查询失败
+    free(*jobids);
+    return -1;
   }
 
   int i = 0;
   while (sqlite3_step(stmt) == SQLITE_ROW) {
     (*jobids)[i++] = sqlite3_column_int(stmt, 0);
   }
+  sqlite3_finalize(stmt);
 
-  return n; // 返回0表示查询成功
+  return n;
 }
 
 struct Job *read_DB(int jobid, const char *table) {
-  struct Job *job = (struct Job *)malloc(sizeof(struct Job) * 1);
+  struct Job *job = (struct Job *)calloc(1, sizeof(struct Job));
+  if (job == NULL) return NULL;
   struct Result *result = &(job->result);
   struct Procinfo *info = &(job->info);
 
   sprintf(sql, "SELECT * FROM %s WHERE jobid=%d;", table, jobid);
-  char *errmsg = NULL;
 
-  if (sqlite3_exec(db, sql, NULL, NULL, &errmsg) != SQLITE_OK) {
-    fprintf(stderr, "[read_DB0] SQL error: %s\n", errmsg);
-    sqlite3_free(errmsg);
-    return NULL; // 返回-1表示查询失败
-  }
-
-  // 从查询结果中读取数据
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
   if (rc != SQLITE_OK) {
-    fprintf(stderr, "[read_DB1] SQL error: %s\n", sqlite3_errmsg(db));
-    return NULL; // 返回-1表示查询失败
+    fprintf(stderr, "[read_DB] SQL error: %s\n", sqlite3_errmsg(db));
+    free(job);
+    return NULL;
   }
 
   rc = sqlite3_step(stmt);
@@ -547,9 +540,12 @@ struct Job *read_DB(int jobid, const char *table) {
     copy_with_nullcheck(&(job->work_dir), sql);
 
   } else {
-    fprintf(stderr, "[read_DB2] SQL error: %s\n", sqlite3_errmsg(db));
-    return NULL; // 返回-1表示查询失败
+    fprintf(stderr, "[read_DB] no row found for job %d in %s\n", jobid, table);
+    sqlite3_finalize(stmt);
+    free(job);
+    return NULL;
   }
 
-  return job; // 返回0表示查询成功
+  sqlite3_finalize(stmt);
+  return job;
 }
