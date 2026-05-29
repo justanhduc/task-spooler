@@ -638,18 +638,19 @@ void c_remove_job() {
   case REMOVEJOB_OK:
     return;
     /* WILL NOT GO FURTHER */
-  case LIST_LINE: /* Only ONE line accepted */
+  case REMOVEJOB_NOK: {
     string = (char *)malloc(m.u.size);
     res = recv_bytes(server_socket, string, m.u.size);
     if (strncmp(string, "Running job", 11) == 0) {
       printf("%s", string);
+      free(string);
       c_kill_job();
-    } else {
-      fprintf(stderr, "Error: in the request: %s", string);
+      return;
     }
+    fprintf(stderr, "Error: %s", string);
     free(string);
-    exit(EXIT_FAILURE);;
-    /* WILL NOT GO FURTHER */
+    exit(EXIT_FAILURE);
+  }
   default:
     warning("Wrong internal message in remove_job");
   }

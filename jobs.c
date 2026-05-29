@@ -1395,15 +1395,23 @@ void notify_errorlevel(struct Job *p) {
 
 /* jobid is input/output. If the input is -1, it's changed to the jobid
  * removed */
+static void s_send_removejob_nok(int s, char const *msg) {
+    struct Msg m = default_msg();
+    m.type = REMOVEJOB_NOK;
+    m.u.size = (int)strlen(msg) + 1;
+    send_msg(s, &m);
+    send_bytes(s, msg, m.u.size);
+}
+
 int s_remove_job(int s, int *jobid, int client_tsUID) {
     struct Job *p = 0;
     struct Msg m = default_msg();
     int in_active = 1; /* 1 = active_jobs, 0 = finished_jobs */
     int remove_idx = -1;
 
-    if (client_tsUID < 0 || client_tsUID > USER_MAX) {
+    if (client_tsUID < 0 || client_tsUID >= USER_MAX) {
         snprintf(buff, 255, "invalid ts_UID [%d] in job removal.\n", client_tsUID);
-        send_list_line(s, buff);
+        s_send_removejob_nok(s, buff);
         return 0;
     }
 
@@ -1442,7 +1450,7 @@ int s_remove_job(int s, int *jobid, int client_tsUID) {
         } else {
             snprintf(buff, 255, "The job %i is not in queue.\n", *jobid);
         }
-        send_list_line(s, buff);
+        s_send_removejob_nok(s, buff);
         return 0;
     }
 
@@ -1452,7 +1460,7 @@ int s_remove_job(int s, int *jobid, int client_tsUID) {
         else
             snprintf(buff, 255, "Running job [%i] PID: %d by `%s` is removed.\n",
                      *jobid, p->pid, p->user->name);
-        send_list_line(s, buff);
+        s_send_removejob_nok(s, buff);
         return 0;
     }
 
