@@ -66,12 +66,11 @@ void write_logfile(const struct Job *p) {
   time_t now = time(0);
   strftime(buf, 100, "%Y-%m-%d %H:%M:%S", localtime(&now));
   // snprintf(buf, 1024, "[%d] %s @ %s\n", p->jobid, p->command, date);
-  int ts_UID = p->ts_UID;
   char *label = "..";
   if (p->label)
     label = p->label;
   fprintf(f, "[%d] %s P:%d <%s> Pid: %d CMD: %s @ %s\n", p->jobid,
-          USER(ts_UID)->name, p->num_slots, label, p->pid, p->command, buf);
+          p->user->name, p->num_slots, label, p->pid, p->command, buf);
   fclose(f);
 }
 

@@ -5,6 +5,7 @@
 
 #include "defaults.h"
 #include "main.h"
+#include "user.h"
 #include "sqlite.h"
 #include "utils.h"
 #include "error.h"
@@ -282,6 +283,12 @@ static int edit_DB(struct Job *job, const char *table, const char *action) {
   char *esc_ptr = sqlite3_mprintf("%q", info->ptr);
   char *esc_work_dir = sqlite3_mprintf("%q", job->work_dir);
 
+  int ts_uid = -1;
+  size_t nu = vec_size(&users_vec);
+  for (size_t i = 0; i < nu; i++) {
+      if (USER(i) == job->user) { ts_uid = (int)i; break; }
+  }
+
   sprintf(
       sql,
       "%s INTO %s (jobid, command, state, output_filename, store_output, pid, "
@@ -298,7 +305,7 @@ static int edit_DB(struct Job *job, const char *table, const char *action) {
       "'%s',%d,%d,%ld,'%ld','%ld','%ld','%ld','%ld','%ld', "
       "%d, %d,'%s');",
       action, table, job->jobid, esc_command, job->state, esc_output,
-      job->store_output, job->pid, job->ts_UID, job->should_keep_finished,
+      job->store_output, job->pid, ts_uid, job->should_keep_finished,
       esc_depend, // job->depend_on,
       job->depend_on_size, esc_notify, job->notify_errorlevel_to_size,
       job->dependency_errorlevel, esc_label, esc_email, job->num_slots,
@@ -483,7 +490,8 @@ struct Job *read_DB(int jobid, const char *table) {
 
     job->store_output = sqlite3_column_int(stmt, 4);
     job->pid = sqlite3_column_int(stmt, 5);
-    job->ts_UID = sqlite3_column_int(stmt, 6);
+    int ts_uid = sqlite3_column_int(stmt, 6);
+    job->user = (ts_uid >= 0 && ts_uid < (int)vec_size(&users_vec)) ? USER(ts_uid) : NULL;
     job->should_keep_finished = sqlite3_column_int(stmt, 7);
 
     // job->depend_on_size = sqlite3_column_bytes(stmt, 9);

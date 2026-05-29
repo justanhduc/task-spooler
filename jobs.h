@@ -60,7 +60,7 @@ struct Job {
   char *output_filename;
   int store_output;
   pid_t pid;
-  int ts_UID;
+  struct User *user;
   int64_t wall_time;
   int should_keep_finished;
   int *depend_on;

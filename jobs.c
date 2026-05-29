@@ -198,12 +198,11 @@ void free_cores(struct Job *p) {
     if (p == NULL || p->num_allocated == 0) {
         return;
     }
-    int ts_UID = p->ts_UID;
-    USER(ts_UID)->busy -= p->num_slots;
+    p->user->busy -= p->num_slots;
     busy_slots -= p->num_slots;
     p->num_allocated = 0;
-    // USER(ts_UID)->queue--;
-    USER(ts_UID)->jobs--;
+    // p->user->queue--;
+    p->user->jobs--;
 }
 
 int config_running(struct Job *p) {
@@ -216,11 +215,10 @@ int config_running(struct Job *p) {
     }
 
     // printf("Start job[%d]: PID: %d\n", p->jobid, p->pid);
-    int ts_UID = p->ts_UID;
-    USER(ts_UID)->busy += p->num_slots;
+    p->user->busy += p->num_slots;
     busy_slots += p->num_slots;
     p->num_allocated = p->num_slots;
-    USER(ts_UID)->jobs++;
+    p->user->jobs++;
     p->state = RUNNING;
     rerun_job_config(p);
     return 0;
@@ -302,13 +300,12 @@ int s_update_slots_usage() {
     size_t n = vec_size(&active_jobs);
     for (size_t i = 0; i < n; i++) {
         struct Job *p = (struct Job *)vec_get(&active_jobs, i);
-        int uid = p->ts_UID;
         if (p->state == RUNNING) {
             slots_usage += p->num_slots;
-            USER(uid)->busy += p->num_slots;
-            USER(uid)->jobs++;
+            p->user->busy += p->num_slots;
+            p->user->jobs++;
         } else {
-            USER(uid)->queue++;
+            p->user->queue++;
         }
     }
 
@@ -535,7 +532,7 @@ void s_kill_all_jobs(int s, int ts_UID) {
     size_t n = vec_size(&active_jobs);
     for (size_t i = 0; i < n; i++) {
         struct Job *p = (struct Job *)vec_get(&active_jobs, i);
-        if (p->state == RUNNING && (ts_UID == 0 || p->ts_UID == ts_UID)) {
+        if (p->state == RUNNING && (ts_UID == 0 || p->user == USER(ts_UID))) {
             send(s, &p->pid, sizeof(int), 0);
         }
     }
@@ -548,7 +545,7 @@ void s_count_running_jobs(int s, int ts_UID) {
 
     for (size_t i = 0; i < n; i++) {
         struct Job *p = (struct Job *)vec_get(&active_jobs, i);
-        if (p->state == RUNNING && (ts_UID == 0 || p->ts_UID == ts_UID))
+        if (p->state == RUNNING && (ts_UID == 0 || p->user == USER(ts_UID)))
             ++count;
     }
 
@@ -757,8 +754,8 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
             printf("relink to pid: %d\n", m->u.newjob.taskpid);
         }
     }
-    // save the ts_UID and record the number of waiting jobs
-    p->ts_UID = ts_UID; // get_tsUID(m->uid);
+    // save the user and record the number of waiting jobs
+    p->user = USER(ts_UID);
     p->client_socket = s;
     p->num_slots = m->u.newjob.num_slots;
     p->store_output = m->u.newjob.store_output;
@@ -970,7 +967,7 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
         // manually insert
     } else if (p->state == WAIT) {
         p->state = QUEUED;
-        USER(p->ts_UID)->queue++;
+        p->user->queue++;
     } else if (p->state == RELINK) {
         /* for manually relink running task */
         p->pid = m->u.newjob.taskpid;
@@ -978,12 +975,12 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
         insert_or_replace_DB(p, "Jobs");
     } else if (p->state == QUEUED) {
         insert_DB(p, "Jobs");
-        USER(p->ts_UID)->queue++;
+        p->user->queue++;
     } else if (p->state == LOCKED) {
         ;
     } else {
         insert_DB(p, "Jobs");
-        USER(p->ts_UID)->queue++;
+        p->user->queue++;
     }
 
     set_jobids_DB(jobids);
@@ -1051,7 +1048,7 @@ int next_run_job(void) {
 
             for (size_t j = 0; j < n; j++) {
                 struct Job *p = (struct Job *)vec_get(&active_jobs, j);
-                if (p->ts_UID != uid) continue;
+                if (p->user != USER(uid)) continue;
 
                 if (p->state == QUEUED) {
                     if (p->depend_on_size) {
@@ -1242,7 +1239,7 @@ static void s_add_job(struct Job *j) {
             sprintf(c, " --relink %d -J %d ", j->pid, j->jobid);
             char *str = insert_chars_check(j->command_strip, j->command, c);
 
-            fork_cmd(USER(j->ts_UID)->uid, j->work_dir, str);
+            fork_cmd(j->user->uid, j->work_dir, str);
             free(str);
             jobids = jobids > j->jobid ? jobids : j->jobid + 1;
             return;
@@ -1259,7 +1256,7 @@ static void s_add_job(struct Job *j) {
         sprintf(c, " -J %d ", j->jobid);
         char *str = insert_chars_check(j->command_strip, j->command, c);
 
-        fork_cmd(USER(j->ts_UID)->uid, j->work_dir, str);
+        fork_cmd(j->user->uid, j->work_dir, str);
         jobids = jobids > j->jobid ? jobids : j->jobid + 1;
         free(str);
         return;
@@ -1304,7 +1301,7 @@ void s_clear_finished(int ts_UID) {
     for (size_t i = n; i > 0; i--) {
         size_t idx = i - 1;
         struct Job *p = (struct Job *)vec_get(&finished_jobs, idx);
-        if (p->ts_UID == ts_UID || ts_UID == 0) {
+        if (p->user == USER(ts_UID) || ts_UID == 0) {
             delete_DB(p->jobid, "Finished");
             vec_remove(&finished_jobs, idx);
             destroy_job(p);
@@ -1439,10 +1436,7 @@ int s_remove_job(int s, int *jobid, int client_tsUID) {
         }
     }
 
-    if (p != NULL && client_tsUID == 0)
-        client_tsUID = p->ts_UID;
-
-    if (p == NULL || (p->ts_UID != client_tsUID)) {
+    if (p == NULL || (client_tsUID != 0 && p->user != USER(client_tsUID))) {
         if (*jobid == -1) {
             snprintf(buff, 255, "The last job cannot be removed.\n");
         } else {
@@ -1457,7 +1451,7 @@ int s_remove_job(int s, int *jobid, int client_tsUID) {
             snprintf(buff, 255, "Running job of last job is removed.\n");
         else
             snprintf(buff, 255, "Running job [%i] PID: %d by `%s` is removed.\n",
-                     *jobid, p->pid, USER(p->ts_UID)->name);
+                     *jobid, p->pid, p->user->name);
         send_list_line(s, buff);
         return 0;
     }
@@ -1470,24 +1464,26 @@ int s_remove_job(int s, int *jobid, int client_tsUID) {
     check_notify_list(*jobid);
 
     /* Remove from the appropriate vec */
-    if (in_active)
+    if (in_active) {
         vec_remove(&active_jobs, (size_t)remove_idx);
-    else
-        vec_remove(&finished_jobs, (size_t)remove_idx);
-
-    /* PAUSE jobs were running — preserve them in the finished queue.
-       QUEUED/LOCKED jobs never ran, just free them. */
-    if (p->pid != 0) {
-        /* Finalize pause timing so work/pause duration display is correct */
-        if (p->info.pause_time != 0) {
-            p->info.pause_duration += get_monotonic_sec() - p->info.pause_time;
-            p->info.pause_time = 0;
+        /* PAUSE jobs were running — preserve them in the finished queue.
+           QUEUED/LOCKED jobs never ran, just free them. */
+        if (p->pid != 0) {
+            /* Finalize pause timing so work/pause duration display is correct */
+            if (p->info.pause_time != 0) {
+                p->info.pause_duration += get_monotonic_sec() - p->info.pause_time;
+                p->info.pause_time = 0;
+            }
+            pinfo_set_end_time(&p->info);
+            free_cores(p);
+            cgroups_clean_job(p);
+            new_finished_job(p);
+        } else {
+            destroy_job(p);
         }
-        pinfo_set_end_time(&p->info);
-        free_cores(p);
-        cgroups_clean_job(p);
-        new_finished_job(p);
     } else {
+        vec_remove(&finished_jobs, (size_t)remove_idx);
+        delete_DB(p->jobid, "Finished");
         destroy_job(p);
     }
 

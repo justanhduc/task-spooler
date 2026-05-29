@@ -51,7 +51,7 @@ static int add_job_to_json_array(struct Job *p, cJSON *jobs) {
   if (field == NULL) { error("Error initializing JSON field Proc for job %i.", p->jobid); return 0; }
   cJSON_AddItemToObject(job, "Proc.", field);
 
-  field = cJSON_CreateStringReference(USER(p->ts_UID)->name);
+  field = cJSON_CreateStringReference(p->user->name);
   if (field == NULL) { error("Error initializing JSON field User for job %i.", p->jobid); return 0; }
   cJSON_AddItemToObject(job, "User", field);
 
@@ -104,7 +104,7 @@ void s_list(int s, int ts_UID, enum ListFormat listFormat) {
     for (size_t i = 0; i < an; i++) {
       struct Job *p = (struct Job *)vec_get(&active_jobs, i);
       if (p->state != HOLDING_CLIENT) {
-        if (p->ts_UID == ts_UID || ts_UID == 0) {
+        if (p->user == USER(ts_UID) || ts_UID == 0) {
           buffer = joblist_line(p);
           send_list_line(s, buffer);
           free(buffer);
@@ -117,7 +117,7 @@ void s_list(int s, int ts_UID, enum ListFormat listFormat) {
 
     for (size_t i = 0; i < fn; i++) {
       struct Job *p = (struct Job *)vec_get(&finished_jobs, i);
-      if (p->ts_UID == ts_UID || ts_UID == 0) {
+      if (p->user == USER(ts_UID) || ts_UID == 0) {
         buffer = joblist_line(p);
         send_list_line(s, buffer);
         free(buffer);
@@ -246,7 +246,7 @@ void s_job_info(int s, int jobid) {
   }
   write(s, p->command + p->command_strip, strlen(p->command + p->command_strip));
   fd_nprintf(s, 100, "\n");
-  fd_nprintf(s, 100, "User: %s [%d]\n", USER(p->ts_UID)->name, USER(p->ts_UID)->uid);
+  fd_nprintf(s, 100, "User: %s [%d]\n", p->user->name, p->user->uid);
   fd_nprintf(s, 100, "State: %9s PID: %-6d%s\n", jstate2string(p->state), p->pid, status);
   fd_nprintf(s, 100, "Slots: %-3d\n", p->num_slots);
   if (p->output_filename != NULL) {

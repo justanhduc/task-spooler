@@ -26,7 +26,7 @@ void s_user_status_all(int s) {
   char buffer[256];
   char *extra;
   send_list_line(s, "-- Users ----------- \n");
-  for (int i = 0; i < vec_size(&users_vec); i++) {
+  for (int i = 0; i < (int)vec_size(&users_vec); i++) {
     extra = USER(i)->locked != 0 ? "Locked" : "";
     if (USER(i)->max_slots == 0 && USER(i)->busy == 0)
       continue;
@@ -39,21 +39,25 @@ void s_user_status_all(int s) {
   send_list_line(s, buffer);
 }
 
-void s_user_status(int s, int i) {
+void s_user_status(int s, int ts_UID) {
   char buffer[256];
   char *extra = "";
-  if (USER(i)->locked != 0)
+  if (USER(ts_UID)->locked != 0)
     extra = "Locked";
   snprintf(buffer, 256, "[%04d] %3d/%-4d Q:%-3d %16s Run. %2d %s\n",
-           USER(i)->uid, USER(i)->busy, abs(USER(i)->max_slots), USER(i)->queue,
-           USER(i)->name, USER(i)->jobs, extra);
+           USER(ts_UID)->uid, USER(ts_UID)->busy, abs(USER(ts_UID)->max_slots), USER(ts_UID)->queue,
+           USER(ts_UID)->name, USER(ts_UID)->jobs, extra);
   send_list_line(s, buffer);
 }
 
 int s_get_job_tsUID(int jobid) {
   struct Job *p = get_job(jobid);
   if (p == NULL) return -1;
-  return p->ts_UID;
+  size_t n = vec_size(&users_vec);
+  for (size_t i = 0; i < n; i++) {
+    if (USER(i) == p->user) return (int)i;
+  }
+  return -1;
 }
 
 void s_refresh_users(int s) {
@@ -63,42 +67,40 @@ void s_refresh_users(int s) {
 }
 
 void s_suspend_user_all(int s) {
-  for (int i = 1; i < vec_size(&users_vec); i++)
+  for (int i = 1; i < (int)vec_size(&users_vec); i++)
     s_suspend_user(s, i);
 }
 
 void s_resume_user_all(int s) {
-  for (int i = 1; i < vec_size(&users_vec); i++)
+  for (int i = 1; i < (int)vec_size(&users_vec); i++)
     s_resume_user(s, i);
 }
 
-void s_resume_user(int s, int ts_UID) {
-  if (ts_UID < 0 || ts_UID >= USER_MAX) return;
-
-  USER(ts_UID)->max_slots = abs(USER(ts_UID)->max_slots);
-  USER(ts_UID)->locked = 0;
+void s_resume_user(int s, int uid) {
+  struct User *u = USER(uid);
+  u->max_slots = abs(u->max_slots);
+  u->locked = 0;
 
   size_t n = vec_size(&active_jobs);
   for (size_t i = 0; i < n; i++) {
     struct Job *p = (struct Job *)vec_get(&active_jobs, i);
-    if (p->ts_UID == ts_UID && p->state == PAUSE) {
+    if (p->user == u && p->state == PAUSE) {
       if (p->pid != 0) config_running(p);
     }
   }
-  snprintf(buff, 255, "Resume user: [%04d] %-20s\n", USER(ts_UID)->uid, USER(ts_UID)->name);
+  snprintf(buff, 255, "Resume user: [%04d] %-20s\n", u->uid, u->name);
   send_list_line(s, buff);
 }
 
-void s_suspend_user(int s, int ts_UID) {
-  if (ts_UID < 0 || ts_UID >= USER_MAX) return;
-
-  USER(ts_UID)->max_slots = -abs(USER(ts_UID)->max_slots);
-  USER(ts_UID)->locked = 1;
+void s_suspend_user(int s, int uid) {
+  struct User *u = USER(uid);
+  u->max_slots = -abs(u->max_slots);
+  u->locked = 1;
 
   size_t n = vec_size(&active_jobs);
   for (size_t i = 0; i < n; i++) {
     struct Job *p = (struct Job *)vec_get(&active_jobs, i);
-    if (p->ts_UID == ts_UID && p->state == RUNNING) {
+    if (p->user == u && p->state == RUNNING) {
       if (p->pid != 0) {
         safe_pause_job(p);
         p->state = PAUSE;
@@ -106,18 +108,18 @@ void s_suspend_user(int s, int ts_UID) {
         const char *label = "(...)";
         if (p->label != NULL) label = p->label;
         snprintf(buff, 255, "Error in stop %s [%d] %s | %s\n",
-                 USER(ts_UID)->name, p->jobid, label, p->command);
+                 u->name, p->jobid, label, p->command);
         send_list_line(s, buff);
       }
     }
   }
 
-  snprintf(buff, 255, "Suspend user: [%04d] %-20s\n", USER(ts_UID)->uid, USER(ts_UID)->name);
+  snprintf(buff, 255, "Suspend user: [%04d] %-20s\n", u->uid, u->name);
   send_list_line(s, buff);
   s_update_slots_usage();
 }
 
-int s_check_locker(int ts_UID) {
+int s_check_locker(int uid) {
   time_t dt = get_monotonic_sec() - locker_time;
   int res;
   if (user_locker != 0 && dt > 30)
@@ -125,27 +127,28 @@ int s_check_locker(int ts_UID) {
 
   if (user_locker == -1)
     res = 0;
-  else if (user_locker == ts_UID)
+  else if (user_locker == uid)
     res = 0;
   else
     res = 1;
   return res;
 }
 
-void s_lock_server(int s, int ts_UID) {
-  if (ts_UID == 0) {
+void s_lock_server(int s, int uid) {
+  struct User *u = USER(uid);
+  if (u->uid == 0) {
     s_update_slots_usage();
     user_locker = 0;
     locker_time = get_monotonic_sec();
     snprintf(buff, 255, "lock the task-spooler server by Root\n");
   } else {
     if (user_locker == -1) {
-      user_locker = ts_UID;
+      user_locker = uid;
       locker_time = get_monotonic_sec();
       snprintf(buff, 255, "lock the task-spooler server by [%d] `%s`\n",
-               USER(user_locker)->uid, USER(ts_UID)->name);
+               USER(user_locker)->uid, u->name);
     } else {
-      if (user_locker == ts_UID) {
+      if (user_locker == uid) {
         snprintf(buff, 255,
                  "The task-spooler server has already been locked by [%d] `%s`\n",
                  USER(user_locker)->uid, USER(user_locker)->name);
@@ -159,22 +162,23 @@ void s_lock_server(int s, int ts_UID) {
   send_list_line(s, buff);
 }
 
-void s_unlock_server(int s, int ts_UID) {
+void s_unlock_server(int s, int uid) {
+  struct User *u = USER(uid);
   if (user_locker == -1) {
     snprintf(buff, 255, "The task-spooler server has already been unlocked\n");
   } else {
-    if (ts_UID == 0) {
+    if (u->uid == 0) {
       user_locker = -1;
       snprintf(buff, 255, "Unlock the task-spooler server by Root\n");
     } else {
-      if (user_locker == ts_UID) {
+      if (user_locker == uid) {
         user_locker = -1;
         snprintf(buff, 255, "Unlock the task-spooler server by [%d] `%s`\n",
-                 USER(ts_UID)->uid, USER(ts_UID)->name);
+                 u->uid, u->name);
       } else {
         snprintf(buff, 255,
                  "Error: the task-spooler server locked by other user cannot be unlocked by [%d] `%s`\n",
-                 USER(ts_UID)->uid, USER(ts_UID)->name);
+                 u->uid, u->name);
       }
     }
   }
@@ -183,7 +187,7 @@ void s_unlock_server(int s, int ts_UID) {
 
 static void s_lock_queue(struct Job *p) {
   if (p->state == QUEUED) {
-    USER(p->ts_UID)->queue--;
+    p->user->queue--;
     p->state = LOCKED;
     set_state_DB(p->jobid, LOCKED);
   }
@@ -191,15 +195,16 @@ static void s_lock_queue(struct Job *p) {
 
 static void s_unlock_queue(struct Job *p) {
   if (p->state == LOCKED) {
-    USER(p->ts_UID)->queue++;
+    p->user->queue++;
     p->state = QUEUED;
     set_state_DB(p->jobid, QUEUED);
   }
 }
 
-void s_hold_job(int s, int jobid, int ts_UID) {
-  if (USER(ts_UID)->max_slots < 0) {
-    snprintf(buff, 255, "Error: The owner `%s` is locked\n", USER(ts_UID)->name);
+void s_hold_job(int s, int jobid, int uid) {
+  struct User *u = USER(uid);
+  if (u->max_slots < 0) {
+    snprintf(buff, 255, "Error: The owner `%s` is locked\n", u->name);
     send_list_line(s, buff);
     return;
   }
@@ -211,7 +216,7 @@ void s_hold_job(int s, int jobid, int ts_UID) {
   }
 
   if (p->state == QUEUED) {
-    if (p->ts_UID == ts_UID || ts_UID == 0) {
+    if (p->user == u || u->uid == 0) {
       snprintf(buff, 255, "The queued job [%d] is hold on.\n", jobid);
       s_lock_queue(p);
       send_list_line(s, buff);
@@ -235,8 +240,7 @@ void s_hold_job(int s, int jobid, int ts_UID) {
     return;
   }
 
-  int job_tsUID = p->ts_UID;
-  if (p->pid != 0 && (job_tsUID == ts_UID || ts_UID == 0)) {
+  if (p->pid != 0 && (p->user == u || u->uid == 0)) {
     if (safe_pause_job(p) == 0) {
       p->state = PAUSE;
       snprintf(buff, 255, "To pause job [%d] successfully!\n", jobid);
@@ -249,10 +253,11 @@ void s_hold_job(int s, int jobid, int ts_UID) {
   send_list_line(s, buff);
 }
 
-void s_cont_job(int s, int jobid, int ts_UID) {
+void s_cont_job(int s, int jobid, int uid) {
+  struct User *u = USER(uid);
   s_update_slots_usage();
-  if (USER(ts_UID)->max_slots < 0) {
-    snprintf(buff, 255, "Error: The owner `%s` is locked\n", USER(ts_UID)->name);
+  if (u->max_slots < 0) {
+    snprintf(buff, 255, "Error: The owner `%s` is locked\n", u->name);
     send_list_line(s, buff);
     return;
   }
@@ -264,7 +269,7 @@ void s_cont_job(int s, int jobid, int ts_UID) {
   }
 
   if (p->state == LOCKED) {
-    if (p->ts_UID == ts_UID || ts_UID == 0) {
+    if (p->user == u || u->uid == 0) {
       snprintf(buff, 255, "The locked job [%d] is in queue.\n", jobid);
       s_unlock_queue(p);
       send_list_line(s, buff);
@@ -291,10 +296,9 @@ void s_cont_job(int s, int jobid, int ts_UID) {
       snprintf(buff, 255, "job [%d] is continued.\n", jobid);
     }
   } else {
-    int job_tsUID = p->ts_UID;
-    if (p->pid != 0 && (job_tsUID == ts_UID || ts_UID == 0)) {
+    if (p->pid != 0 && (p->user == u || u->uid == 0)) {
       int num_slots = p->num_slots;
-      if (USER(ts_UID)->busy + num_slots <= USER(ts_UID)->max_slots &&
+      if (u->busy + num_slots <= u->max_slots &&
           busy_slots + num_slots <= max_slots) {
         if (config_running(p))
           printf("Cannot set Job %i as RUNNING", p->jobid);
