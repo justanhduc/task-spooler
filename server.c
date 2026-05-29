@@ -259,15 +259,12 @@ void server_main(int notify_fd, char *_path) {
     error("Error listening.");
 
   // setup root user
-  user_number = 1;
-  user_UID[0] = 0;
-  user_max_slots[0] = 0;
-  strcpy(user_name[0], "Root");
-  for (int i = 0; i < USER_MAX; i++) {
-    user_busy[i] = 0;
-    user_jobs[i] = 0;
-    user_queue[i] = 0;
-  }
+  vec_init(&users_vec);
+  struct User *root = (struct User *)calloc(1, sizeof(struct User));
+  root->uid = 0;
+  root->max_slots = 0;
+  strcpy(root->name, "Root");
+  vec_push(&users_vec, root);
   // jobDB_num = jobDB_wait_num = 0;
   // jobDB_Jobs = NULL;
   set_server_logfile();

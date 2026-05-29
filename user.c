@@ -16,15 +16,8 @@
 void send_list_line(int s, const char *str);
 void error(const char *str, ...);
 
-char user_name[USER_MAX][USER_NAME_WIDTH];
+vec_t users_vec;
 int server_uid;
-int user_max_slots[USER_MAX];
-int user_UID[USER_MAX];
-int user_busy[USER_MAX];
-int user_jobs[USER_MAX];
-int user_queue[USER_MAX];
-int user_locked[USER_MAX] = {0};
-int user_number;
 char *logfile_path;
 
 const char *get_user_path() {
@@ -78,7 +71,7 @@ void write_logfile(const struct Job *p) {
   if (p->label)
     label = p->label;
   fprintf(f, "[%d] %s P:%d <%s> Pid: %d CMD: %s @ %s\n", p->jobid,
-          user_name[ts_UID], p->num_slots, label, p->pid, p->command, buf);
+          USER(ts_UID)->name, p->num_slots, label, p->pid, p->command, buf);
   fclose(f);
 }
 
@@ -161,18 +154,22 @@ void read_user_file(const char *path) {
     } else {
       int ts_UID = get_tsUID(UID);
       if (ts_UID == -1) {
-        if (user_number >= USER_MAX)
+        if ((int)vec_size(&users_vec) >= USER_MAX)
           continue;
 
-        ts_UID = user_number;
-        user_number++;
+        ts_UID = (int)vec_size(&users_vec);
 
-        user_UID[ts_UID] = UID;
-        user_max_slots[ts_UID] = slots;
-        strncpy(user_name[ts_UID], name, USER_NAME_WIDTH - 1);
-        user_name[ts_UID][USER_NAME_WIDTH - 1] = '\0';
+        struct User *u = (struct User *)calloc(1, sizeof(struct User));
+        if (u == NULL) {
+          continue;
+        }
+        u->uid = UID;
+        u->max_slots = slots;
+        strncpy(u->name, name, USER_NAME_WIDTH - 1);
+        u->name[USER_NAME_WIDTH - 1] = '\0';
+        vec_push(&users_vec, u);
       } else {
-        user_max_slots[ts_UID] = slots;
+        USER(ts_UID)->max_slots = slots;
       }
     }
   }
@@ -187,16 +184,18 @@ const char *uid2user_name(int uid) {
   //  return "Root";
   int ts_UID = get_tsUID(uid);
   if (ts_UID != -1) {
-    return user_name[ts_UID];
+    return USER(ts_UID)->name;
   } else {
     return "Unknown";
   }
 }
 
 int get_tsUID(int uid) {
-  for (int i = 0; i < user_number; i++) {
-    if (uid == user_UID[i]) {
-      return i;
+  size_t n = vec_size(&users_vec);
+  for (size_t i = 0; i < n; i++) {
+    struct User *u = (struct User *)vec_get(&users_vec, i);
+    if (uid == (int)u->uid) {
+      return (int)i;
     }
   }
   return -1;

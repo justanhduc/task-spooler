@@ -159,7 +159,7 @@ static void sound_notify(struct Job *p) {
                  DEFAULT_PULSE_SERVER);
     }
     printf("%s\n", cmd);
-    fork_cmd(user_UID[p->ts_UID], NULL, cmd);
+    fork_cmd(USER(p->ts_UID)->uid, NULL, cmd);
 #endif
 }
 
@@ -199,11 +199,11 @@ void free_cores(struct Job *p) {
         return;
     }
     int ts_UID = p->ts_UID;
-    user_busy[ts_UID] -= p->num_slots;
+    USER(ts_UID)->busy -= p->num_slots;
     busy_slots -= p->num_slots;
     p->num_allocated = 0;
-    // user_queue[ts_UID]--;
-    user_jobs[ts_UID]--;
+    // USER(ts_UID)->queue--;
+    USER(ts_UID)->jobs--;
 }
 
 int config_running(struct Job *p) {
@@ -217,10 +217,10 @@ int config_running(struct Job *p) {
 
     // printf("Start job[%d]: PID: %d\n", p->jobid, p->pid);
     int ts_UID = p->ts_UID;
-    user_busy[ts_UID] += p->num_slots;
+    USER(ts_UID)->busy += p->num_slots;
     busy_slots += p->num_slots;
     p->num_allocated = p->num_slots;
-    user_jobs[ts_UID]++;
+    USER(ts_UID)->jobs++;
     p->state = RUNNING;
     rerun_job_config(p);
     return 0;
@@ -296,8 +296,8 @@ int s_update_slots_usage() {
     int timeout_flag = s_check_timeout();
 
     int slots_usage = 0;
-    for (int i = 0; i < user_number; i++)
-        user_busy[i] = user_jobs[i] = user_queue[i] = 0;
+    for (int i = 0; i < vec_size(&users_vec); i++)
+        USER(i)->busy = USER(i)->jobs = USER(i)->queue = 0;
 
     size_t n = vec_size(&active_jobs);
     for (size_t i = 0; i < n; i++) {
@@ -305,10 +305,10 @@ int s_update_slots_usage() {
         int uid = p->ts_UID;
         if (p->state == RUNNING) {
             slots_usage += p->num_slots;
-            user_busy[uid] += p->num_slots;
-            user_jobs[uid]++;
+            USER(uid)->busy += p->num_slots;
+            USER(uid)->jobs++;
         } else {
-            user_queue[uid]++;
+            USER(uid)->queue++;
         }
     }
 
@@ -484,8 +484,8 @@ int s_check_relink(int s, int jobid, pid_t pid, int ts_UID) {
         snprintf(buff, 255,
                  "  Error: PID [%i] is owned by [%d] `%150s` not the user [%d] "
                  "`%s`\n",
-                 pid, user_UID[job_tsUID], user_name[job_tsUID],
-                 user_UID[ts_UID], user_name[ts_UID]);
+                 pid, USER(job_tsUID)->uid, USER(job_tsUID)->name,
+                 USER(ts_UID)->uid, USER(ts_UID)->name);
         send_list_line(s, buff);
         return -1;
     }
@@ -970,7 +970,7 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
         // manually insert
     } else if (p->state == WAIT) {
         p->state = QUEUED;
-        user_queue[p->ts_UID]++;
+        USER(p->ts_UID)->queue++;
     } else if (p->state == RELINK) {
         /* for manually relink running task */
         p->pid = m->u.newjob.taskpid;
@@ -978,12 +978,12 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
         insert_or_replace_DB(p, "Jobs");
     } else if (p->state == QUEUED) {
         insert_DB(p, "Jobs");
-        user_queue[p->ts_UID]++;
+        USER(p->ts_UID)->queue++;
     } else if (p->state == LOCKED) {
         ;
     } else {
         insert_DB(p, "Jobs");
-        user_queue[p->ts_UID]++;
+        USER(p->ts_UID)->queue++;
     }
 
     set_jobids_DB(jobids);
@@ -1042,9 +1042,9 @@ int next_run_job(void) {
 
         /* ---- Round-robin: one job per user per round (QUEUED or PAUSE-timeout) ---- */
         int found = 0;
-        for (int i = 0; i < user_number; i++) {
-            int uid = (last_uid + i) % user_number;
-            if (user_queue[uid] == 0) continue;
+        for (int i = 0; i < vec_size(&users_vec); i++) {
+            int uid = (last_uid + i) % vec_size(&users_vec);
+            if (USER(uid)->queue == 0) continue;
 
             int free_slots = max_slots - busy_slots;
             if (free_slots <= 0) break;
@@ -1068,12 +1068,12 @@ int next_run_job(void) {
                     }
 
                     if (free_slots < p->num_slots) continue;
-                    if (user_max_slots[uid] - user_busy[uid] < p->num_slots) continue;
+                    if (USER(uid)->max_slots - USER(uid)->busy < p->num_slots) continue;
 
-                    user_queue[uid]--;
+                    USER(uid)->queue--;
                     s_mark_job_running(p->jobid);
                     s_send_runjob(p->client_socket, p->jobid);
-                    last_uid = (uid + 1) % user_number;
+                    last_uid = (uid + 1) % vec_size(&users_vec);
                     found = 1;
                     dispatched++;
                     break;
@@ -1082,11 +1082,11 @@ int next_run_job(void) {
                 if (p->state == PAUSE && p->wall_time < 0) {
                     if (i64abs(p->wall_time) <= get_cpu_time_by_pid(p->pid)) continue;
                     if (free_slots < p->num_slots) continue;
-                    if (user_max_slots[uid] - user_busy[uid] < p->num_slots) continue;
+                    if (USER(uid)->max_slots - USER(uid)->busy < p->num_slots) continue;
 
                     config_running(p);
                     s_send_runjob(p->client_socket, p->jobid);
-                    last_uid = (uid + 1) % user_number;
+                    last_uid = (uid + 1) % vec_size(&users_vec);
                     found = 1;
                     dispatched++;
                     break;
@@ -1242,7 +1242,7 @@ static void s_add_job(struct Job *j) {
             sprintf(c, " --relink %d -J %d ", j->pid, j->jobid);
             char *str = insert_chars_check(j->command_strip, j->command, c);
 
-            fork_cmd(user_UID[j->ts_UID], j->work_dir, str);
+            fork_cmd(USER(j->ts_UID)->uid, j->work_dir, str);
             free(str);
             jobids = jobids > j->jobid ? jobids : j->jobid + 1;
             return;
@@ -1259,7 +1259,7 @@ static void s_add_job(struct Job *j) {
         sprintf(c, " -J %d ", j->jobid);
         char *str = insert_chars_check(j->command_strip, j->command, c);
 
-        fork_cmd(user_UID[j->ts_UID], j->work_dir, str);
+        fork_cmd(USER(j->ts_UID)->uid, j->work_dir, str);
         jobids = jobids > j->jobid ? jobids : j->jobid + 1;
         free(str);
         return;
@@ -1457,7 +1457,7 @@ int s_remove_job(int s, int *jobid, int client_tsUID) {
             snprintf(buff, 255, "Running job of last job is removed.\n");
         else
             snprintf(buff, 255, "Running job [%i] PID: %d by `%s` is removed.\n",
-                     *jobid, p->pid, user_name[p->ts_UID]);
+                     *jobid, p->pid, USER(p->ts_UID)->name);
         send_list_line(s, buff);
         return 0;
     }

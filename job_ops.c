@@ -51,7 +51,7 @@ static int add_job_to_json_array(struct Job *p, cJSON *jobs) {
   if (field == NULL) { error("Error initializing JSON field Proc for job %i.", p->jobid); return 0; }
   cJSON_AddItemToObject(job, "Proc.", field);
 
-  field = cJSON_CreateStringReference(user_name[p->ts_UID]);
+  field = cJSON_CreateStringReference(USER(p->ts_UID)->name);
   if (field == NULL) { error("Error initializing JSON field User for job %i.", p->jobid); return 0; }
   cJSON_AddItemToObject(job, "User", field);
 
@@ -246,7 +246,7 @@ void s_job_info(int s, int jobid) {
   }
   write(s, p->command + p->command_strip, strlen(p->command + p->command_strip));
   fd_nprintf(s, 100, "\n");
-  fd_nprintf(s, 100, "User: %s [%d]\n", user_name[p->ts_UID], user_UID[p->ts_UID]);
+  fd_nprintf(s, 100, "User: %s [%d]\n", USER(p->ts_UID)->name, USER(p->ts_UID)->uid);
   fd_nprintf(s, 100, "State: %9s PID: %-6d%s\n", jstate2string(p->state), p->pid, status);
   fd_nprintf(s, 100, "Slots: %-3d\n", p->num_slots);
   if (p->output_filename != NULL) {

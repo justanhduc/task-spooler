@@ -82,7 +82,7 @@ char *joblist_headers() {
     time_repr_t r = format_time(dt);
 
     snprintf(extra, 100, "Locked by `%s` for %3.2f%c.",
-             user_name[user_locker], r.value, r.unit);
+             USER(user_locker)->name, r.value, r.unit);
   }
 
   line = malloc(256);
@@ -157,7 +157,7 @@ static char *print_noresult(const struct Job *p) {
   output_filename = ofilename_shown(p);
 
   char *uname = (p->ts_UID >= 0 && p->ts_UID < USER_MAX)
-                    ? user_name[p->ts_UID] : "???";
+                    ? USER(p->ts_UID)->name : "???";
   maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1 + 25 + 1 + strlen(p->command) + 20 +
            strlen(uname) + 240 +
            strlen(output_filename); /* 20 is the margin for errors */
@@ -243,7 +243,7 @@ static char *print_result(const struct Job *p) {
   output_filename = ofilename_shown(p);
 
   char *uname = (p->ts_UID >= 0 && p->ts_UID < USER_MAX)
-                    ? user_name[p->ts_UID] : "???";
+                    ? USER(p->ts_UID)->name : "???";
   maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1 + 25 + 1 + strlen(p->command) + 20 +
            strlen(uname) + 240 +
            strlen(output_filename); /* 20 is the margin for errors */
@@ -305,7 +305,7 @@ static char *plainprint_noresult(const struct Job *p) {
   jobstate = jstate2string(p->state);
   output_filename = ofilename_shown(p);
   char *uname = (p->ts_UID >= 0 && p->ts_UID < USER_MAX)
-                    ? user_name[p->ts_UID] : "???";
+                    ? USER(p->ts_UID)->name : "???";
   maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1 + 25 + 1 + strlen(p->command) + 20 +
            strlen(uname) + 2; /* 20 is the margin for errors */
 
@@ -358,7 +358,7 @@ static char *plainprint_noresult(const struct Job *p) {
     */
   
   snprintf(line, maxlen, "%i\t%s\t%d\t%s\t%s\t%i\t%.2f%s\t%s\t%s\t%s\n", 
-    p->jobid, jobstate, p->num_slots, user_name[p->ts_UID], label,
+    p->jobid, jobstate, p->num_slots, USER(p->ts_UID)->name, label,
     p->result.errorlevel, r.value, buf, p->command + p->command_strip,
     dependstr, output_filename);
 
@@ -384,7 +384,7 @@ static char *plainprint_result(const struct Job *p) {
   output_filename = ofilename_shown(p);
 
   maxlen = 4 + 1 + 10 + 1 + 20 + 1 + 8 + 1 + 25 + 1 + strlen(p->command) +
-           30 + strlen(user_name[p->ts_UID]); /* 30 is the margin for errors */
+           30 + strlen(USER(p->ts_UID)->name); /* 30 is the margin for errors */
 
   
   char* label = "(..)";
@@ -415,7 +415,7 @@ static char *plainprint_result(const struct Job *p) {
     error("Malloc for %i failed.\n", maxlen);
 
   snprintf(line, maxlen, "%i\t%s\t%d\t%s\t%s\t%i\t%.2f%c\t%s\t%s\t%s\n", 
-    p->jobid, jobstate, p->num_slots, user_name[p->ts_UID], label,
+    p->jobid, jobstate, p->num_slots, USER(p->ts_UID)->name, label,
     p->result.errorlevel, r.value, r.unit, p->command + p->command_strip,
     dependstr, output_filename);
   return line;

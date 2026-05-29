@@ -8,6 +8,8 @@
 #define USER_H
 
 #include <stdint.h>
+#include <sys/types.h>
+#include "vec.h"
 
 #define USER_NAME_WIDTH 256
 #define USER_MAX 100
@@ -15,16 +17,21 @@
 
 struct Job;
 
-extern char user_name[USER_MAX][USER_NAME_WIDTH];
+struct User {
+    char name[USER_NAME_WIDTH];
+    uid_t uid;
+    int max_slots;
+    int busy;
+    int jobs;
+    int queue;
+    int locked;
+};
+
+extern vec_t users_vec;
 extern int server_uid;
-extern int user_max_slots[USER_MAX];
-extern int user_UID[USER_MAX];
-extern int user_busy[USER_MAX];
-extern int user_jobs[USER_MAX];
-extern int user_queue[USER_MAX];
-extern int user_locked[USER_MAX];
-extern int user_number;
 extern char *logfile_path;
+
+#define USER(ts) ((struct User *)vec_get(&users_vec, (size_t)(ts)))
 
 const char *get_kill_sh_path(void);
 void read_user_file(const char *path);
