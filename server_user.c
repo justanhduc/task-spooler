@@ -39,25 +39,21 @@ void s_user_status_all(int s) {
   send_list_line(s, buffer);
 }
 
-void s_user_status(int s, int ts_UID) {
+void s_user_status(int s, struct User *u) {
   char buffer[256];
   char *extra = "";
-  if (USER(ts_UID)->locked != 0)
+  if (u->locked != 0)
     extra = "Locked";
   snprintf(buffer, 256, "[%04d] %3d/%-4d Q:%-3d %16s Run. %2d %s\n",
-           USER(ts_UID)->uid, USER(ts_UID)->busy, abs(USER(ts_UID)->max_slots), USER(ts_UID)->queue,
-           USER(ts_UID)->name, USER(ts_UID)->jobs, extra);
+           u->uid, u->busy, abs(u->max_slots), u->queue,
+           u->name, u->jobs, extra);
   send_list_line(s, buffer);
 }
 
-int s_get_job_tsUID(int jobid) {
+struct User *s_get_job_user(int jobid) {
   struct Job *p = get_job(jobid);
-  if (p == NULL) return -1;
-  size_t n = vec_size(&users_vec);
-  for (size_t i = 0; i < n; i++) {
-    if (USER(i) == p->user) return (int)i;
-  }
-  return -1;
+  if (p == NULL) return NULL;
+  return p->user;
 }
 
 void s_refresh_users(int s) {
@@ -68,16 +64,15 @@ void s_refresh_users(int s) {
 
 void s_suspend_user_all(int s) {
   for (int i = 1; i < (int)vec_size(&users_vec); i++)
-    s_suspend_user(s, i);
+    s_suspend_user(s, USER(i));
 }
 
 void s_resume_user_all(int s) {
   for (int i = 1; i < (int)vec_size(&users_vec); i++)
-    s_resume_user(s, i);
+    s_resume_user(s, USER(i));
 }
 
-void s_resume_user(int s, int uid) {
-  struct User *u = USER(uid);
+void s_resume_user(int s, struct User *u) {
   u->max_slots = abs(u->max_slots);
   u->locked = 0;
 
@@ -92,8 +87,7 @@ void s_resume_user(int s, int uid) {
   send_list_line(s, buff);
 }
 
-void s_suspend_user(int s, int uid) {
-  struct User *u = USER(uid);
+void s_suspend_user(int s, struct User *u) {
   u->max_slots = -abs(u->max_slots);
   u->locked = 1;
 
@@ -119,60 +113,58 @@ void s_suspend_user(int s, int uid) {
   s_update_slots_usage();
 }
 
-int s_check_locker(int uid) {
+int s_check_locker(struct User *u) {
   time_t dt = get_monotonic_sec() - locker_time;
   int res;
-  if (user_locker != 0 && dt > 30)
-    user_locker = -1;
+  if (user_locker != NULL && dt > 30)
+    user_locker = NULL;
 
-  if (user_locker == -1)
+  if (user_locker == NULL)
     res = 0;
-  else if (user_locker == uid)
+  else if (user_locker == u)
     res = 0;
   else
     res = 1;
   return res;
 }
 
-void s_lock_server(int s, int uid) {
-  struct User *u = USER(uid);
+void s_lock_server(int s, struct User *u) {
   if (u->uid == 0) {
     s_update_slots_usage();
-    user_locker = 0;
+    user_locker = USER(0);
     locker_time = get_monotonic_sec();
     snprintf(buff, 255, "lock the task-spooler server by Root\n");
   } else {
-    if (user_locker == -1) {
-      user_locker = uid;
+    if (user_locker == NULL) {
+      user_locker = u;
       locker_time = get_monotonic_sec();
       snprintf(buff, 255, "lock the task-spooler server by [%d] `%s`\n",
-               USER(user_locker)->uid, u->name);
+               user_locker->uid, u->name);
     } else {
-      if (user_locker == uid) {
+      if (user_locker == u) {
         snprintf(buff, 255,
                  "The task-spooler server has already been locked by [%d] `%s`\n",
-                 USER(user_locker)->uid, USER(user_locker)->name);
+                 user_locker->uid, user_locker->name);
       } else {
         snprintf(buff, 255,
                  "Error: the task-spooler server has already been locked by other user [%d] `%s`\n",
-                 USER(user_locker)->uid, USER(user_locker)->name);
+                 user_locker->uid, user_locker->name);
       }
     }
   }
   send_list_line(s, buff);
 }
 
-void s_unlock_server(int s, int uid) {
-  struct User *u = USER(uid);
-  if (user_locker == -1) {
+void s_unlock_server(int s, struct User *u) {
+  if (user_locker == NULL) {
     snprintf(buff, 255, "The task-spooler server has already been unlocked\n");
   } else {
     if (u->uid == 0) {
-      user_locker = -1;
+      user_locker = NULL;
       snprintf(buff, 255, "Unlock the task-spooler server by Root\n");
     } else {
-      if (user_locker == uid) {
-        user_locker = -1;
+      if (user_locker == u) {
+        user_locker = NULL;
         snprintf(buff, 255, "Unlock the task-spooler server by [%d] `%s`\n",
                  u->uid, u->name);
       } else {
@@ -201,8 +193,7 @@ static void s_unlock_queue(struct Job *p) {
   }
 }
 
-void s_hold_job(int s, int jobid, int uid) {
-  struct User *u = USER(uid);
+void s_hold_job(int s, int jobid, struct User *u) {
   if (u->max_slots < 0) {
     snprintf(buff, 255, "Error: The owner `%s` is locked\n", u->name);
     send_list_line(s, buff);
@@ -253,8 +244,7 @@ void s_hold_job(int s, int jobid, int uid) {
   send_list_line(s, buff);
 }
 
-void s_cont_job(int s, int jobid, int uid) {
-  struct User *u = USER(uid);
+void s_cont_job(int s, int jobid, struct User *u) {
   s_update_slots_usage();
   if (u->max_slots < 0) {
     snprintf(buff, 255, "Error: The owner `%s` is locked\n", u->name);

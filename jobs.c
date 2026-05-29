@@ -44,7 +44,7 @@ char *email_sender;
 
 /* Server globals */
 int jobsort_flag;
-int user_locker = -1;
+struct User *user_locker = NULL;
 time_t locker_time;
 
 /* Globals — dynamic arrays replacing linked lists */
@@ -159,7 +159,7 @@ static void sound_notify(struct Job *p) {
                  DEFAULT_PULSE_SERVER);
     }
     printf("%s\n", cmd);
-    fork_cmd(USER(p->ts_UID)->uid, NULL, cmd);
+    fork_cmd(p->user->uid, NULL, cmd);
 #endif
 }
 
@@ -416,7 +416,7 @@ int s_check_running_pid(pid_t pid) {
 
 
 // if any error return non-0;
-int s_check_relink(int s, int jobid, pid_t pid, int ts_UID) {
+struct User *s_check_relink(int s, int jobid, pid_t pid, struct User *user) {
     struct Job *p  = job_by_pid(pid);     // 按 PID 查，看这个进程是否已在 job 中
     struct Job *p2 = get_job(jobid);      // 按 jobid 查，看 jobid 是否已被占用
 
@@ -428,7 +428,7 @@ int s_check_relink(int s, int jobid, pid_t pid, int ts_UID) {
             sprintf(buff, "  Error: Duplicate Jobid [%d] already exists with state [%s], cannot reuse with pid: %i\n",
                     jobid, jstate2string(p2->state), pid);
             send_list_line(s, buff);
-            return -1;
+            return NULL;
         }
         // p == p2，是同一个 job，走到下面按状态判断
     }
@@ -441,7 +441,7 @@ int s_check_relink(int s, int jobid, pid_t pid, int ts_UID) {
             sprintf(buff, "  Error: PID [%i] is already in jobs as Jobid: %i [%s]\n",
                     pid, p->jobid, jstate2string(p->state));
             send_list_line(s, buff);
-            return -1;
+            return NULL;
         }
 
         // p == p2，同一个 job，检查状态是否允许操作
@@ -449,14 +449,14 @@ int s_check_relink(int s, int jobid, pid_t pid, int ts_UID) {
             sprintf(buff, "  Error: Jobid [%d] is FINISHED, cannot reuse with pid: %i\n",
                     jobid, pid);
             send_list_line(s, buff);
-            return -1;
+            return NULL;
         }
 
         if (p->state != DELINK && p->state != WAIT) {
             sprintf(buff, "  Error: PID [%i] is already in jobs as Jobid: %i [%s]\n",
                     pid, p->jobid, jstate2string(p->state));
             send_list_line(s, buff);
-            return -1;
+            return NULL;
         }
 
         check_timeout(p);
@@ -469,25 +469,25 @@ int s_check_relink(int s, int jobid, pid_t pid, int ts_UID) {
     if (stat(filename, &t_stat) == -1) {
         sprintf(buff, "  Error: PID [%i] is not running\n", pid);
         send_list_line(s, buff);
-        return -1;
+        return NULL;
     }
 
-    int job_tsUID = get_tsUID(t_stat.st_uid);
-    if (ts_UID == 0) {
+    struct User *job_user = find_user_by_uid(t_stat.st_uid);
+    if (user->uid == 0) {
         ;
-    } else if (ts_UID == job_tsUID) {
+    } else if (user == job_user) {
         ;
     } else {
         snprintf(buff, 255,
                  "  Error: PID [%i] is owned by [%d] `%150s` not the user [%d] "
                  "`%s`\n",
-                 pid, USER(job_tsUID)->uid, USER(job_tsUID)->name,
-                 USER(ts_UID)->uid, USER(ts_UID)->name);
+                 pid, job_user->uid, job_user->name,
+                 user->uid, user->name);
         send_list_line(s, buff);
-        return -1;
+        return NULL;
     }
 
-    return job_tsUID;
+    return job_user;
 }
 
 static struct Job *findjob_holding_client() {
@@ -525,27 +525,27 @@ static void add_notify_errorlevel_to(struct Job *job, int jobid) {
     job->notify_errorlevel_to[job->notify_errorlevel_to_size - 1] = jobid;
 }
 
-void s_kill_all_jobs(int s, int ts_UID) {
-    s_count_running_jobs(s, ts_UID);
+void s_kill_all_jobs(int s, struct User *user) {
+    s_count_running_jobs(s, user);
 
     /* send running job PIDs */
     size_t n = vec_size(&active_jobs);
     for (size_t i = 0; i < n; i++) {
         struct Job *p = (struct Job *)vec_get(&active_jobs, i);
-        if (p->state == RUNNING && (ts_UID == 0 || p->user == USER(ts_UID))) {
+        if (p->state == RUNNING && (user == USER(0) || p->user == user)) {
             send(s, &p->pid, sizeof(int), 0);
         }
     }
 }
 
-void s_count_running_jobs(int s, int ts_UID) {
+void s_count_running_jobs(int s, struct User *user) {
     int count = 0;
     size_t n = vec_size(&active_jobs);
     struct Msg m = default_msg();
 
     for (size_t i = 0; i < n; i++) {
         struct Job *p = (struct Job *)vec_get(&active_jobs, i);
-        if (p->state == RUNNING && (ts_UID == 0 || p->user == USER(ts_UID)))
+        if (p->state == RUNNING && (user == USER(0) || p->user == user))
             ++count;
     }
 
@@ -709,7 +709,7 @@ static int find_last_stored_jobid_finished() {
 }
 
 /* Returns job id or -1 on error */
-int s_newjob(int s, struct Msg *m, int ts_UID) {
+int s_newjob(int s, struct Msg *m, struct User *user) {
     s_update_slots_usage();
 
     struct Job *p = NULL;
@@ -755,7 +755,7 @@ int s_newjob(int s, struct Msg *m, int ts_UID) {
         }
     }
     // save the user and record the number of waiting jobs
-    p->user = USER(ts_UID);
+    p->user = user;
     p->client_socket = s;
     p->num_slots = m->u.newjob.num_slots;
     p->store_output = m->u.newjob.store_output;
@@ -1295,13 +1295,13 @@ void s_read_sqlite() {
     set_jobids_DB(jobids);
 }
 
-void s_clear_finished(int ts_UID) {
+void s_clear_finished(struct User *user) {
     size_t n = vec_size(&finished_jobs);
     /* Iterate backwards so removals don't shift unvisited indices */
     for (size_t i = n; i > 0; i--) {
         size_t idx = i - 1;
         struct Job *p = (struct Job *)vec_get(&finished_jobs, idx);
-        if (p->user == USER(ts_UID) || ts_UID == 0) {
+        if (p->user == user || user == USER(0)) {
             delete_DB(p->jobid, "Finished");
             vec_remove(&finished_jobs, idx);
             destroy_job(p);
@@ -1403,14 +1403,14 @@ static void s_send_removejob_nok(int s, char const *msg) {
     send_bytes(s, msg, m.u.size);
 }
 
-int s_remove_job(int s, int *jobid, int client_tsUID) {
+int s_remove_job(int s, int *jobid, struct User *client) {
     struct Job *p = 0;
     struct Msg m = default_msg();
     int in_active = 1; /* 1 = active_jobs, 0 = finished_jobs */
     int remove_idx = -1;
 
-    if (client_tsUID < 0 || client_tsUID >= USER_MAX) {
-        snprintf(buff, 255, "invalid ts_UID [%d] in job removal.\n", client_tsUID);
+    if (client == NULL) {
+        snprintf(buff, 255, "invalid user in job removal.\n");
         s_send_removejob_nok(s, buff);
         return 0;
     }
@@ -1444,7 +1444,7 @@ int s_remove_job(int s, int *jobid, int client_tsUID) {
         }
     }
 
-    if (p == NULL || (client_tsUID != 0 && p->user != USER(client_tsUID))) {
+    if (p == NULL || (client != USER(0) && p->user != client)) {
         if (*jobid == -1) {
             snprintf(buff, 255, "The last job cannot be removed.\n");
         } else {

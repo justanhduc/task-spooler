@@ -283,11 +283,7 @@ static int edit_DB(struct Job *job, const char *table, const char *action) {
   char *esc_ptr = sqlite3_mprintf("%q", info->ptr);
   char *esc_work_dir = sqlite3_mprintf("%q", job->work_dir);
 
-  int ts_uid = -1;
-  size_t nu = vec_size(&users_vec);
-  for (size_t i = 0; i < nu; i++) {
-      if (USER(i) == job->user) { ts_uid = (int)i; break; }
-  }
+  int ts_uid = job->user ? (int)job->user->uid : -1;
 
   sprintf(
       sql,
@@ -490,8 +486,8 @@ struct Job *read_DB(int jobid, const char *table) {
 
     job->store_output = sqlite3_column_int(stmt, 4);
     job->pid = sqlite3_column_int(stmt, 5);
-    int ts_uid = sqlite3_column_int(stmt, 6);
-    job->user = (ts_uid >= 0 && ts_uid < (int)vec_size(&users_vec)) ? USER(ts_uid) : NULL;
+    int saved_uid = sqlite3_column_int(stmt, 6);
+    job->user = find_user_by_uid((uid_t)saved_uid);
     job->should_keep_finished = sqlite3_column_int(stmt, 7);
 
     // job->depend_on_size = sqlite3_column_bytes(stmt, 9);

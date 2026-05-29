@@ -12,6 +12,7 @@
 #include "defaults.h"
 #include "main.h"
 #include "user.h"
+#include <pwd.h>
 
 void send_list_line(int s, const char *str);
 void error(const char *str, ...);
@@ -115,9 +116,7 @@ int read_first_jobid_from_logfile(const char *path) {
 
 void read_user_file(const char *path) {
   server_uid = getuid();
-  // if (server_uid != root_UID) {
-  //  error("the service is not run as root!");
-  //}
+
   FILE *fp;
   fp = fopen(path, "r");
   if (fp == NULL)
@@ -125,7 +124,7 @@ void read_user_file(const char *path) {
   char *line = NULL;
   size_t len = 0;
   size_t read;
-  int UID, slots;
+  int slots;
   char name[USER_NAME_WIDTH];
 
   while ((read = getline(&line, &len, fp)) != -1) {
@@ -146,31 +145,36 @@ void read_user_file(const char *path) {
         continue;
       }
     }
-    int res = sscanf(line, "%d %256s %d", &UID, name, &slots);
-    if (res != 3) {
+    int res = sscanf(line, "%255s %d", name, &slots);
+    if (res != 2) {
       printf("error in read %s at line %s", path, line);
       continue;
-    } else {
-      int ts_UID = get_tsUID(UID);
-      if (ts_UID == -1) {
-        if ((int)vec_size(&users_vec) >= USER_MAX)
-          continue;
-
-        ts_UID = (int)vec_size(&users_vec);
-
-        struct User *u = (struct User *)calloc(1, sizeof(struct User));
-        if (u == NULL) {
-          continue;
-        }
-        u->uid = UID;
-        u->max_slots = slots;
-        strncpy(u->name, name, USER_NAME_WIDTH - 1);
-        u->name[USER_NAME_WIDTH - 1] = '\0';
-        vec_push(&users_vec, u);
-      } else {
-        USER(ts_UID)->max_slots = slots;
-      }
     }
+
+    struct passwd *pw = getpwnam(name);
+    if (pw == NULL) {
+      printf("Warning: user '%s' not found on system, skipping\n", name);
+      continue;
+    }
+
+    struct User *existing = find_user_by_uid(pw->pw_uid);
+    if (existing != NULL) {
+      existing->max_slots = slots;
+      continue;
+    }
+
+    if ((int)vec_size(&users_vec) >= USER_MAX)
+      continue;
+
+    struct User *u = (struct User *)calloc(1, sizeof(struct User));
+    if (u == NULL) {
+      continue;
+    }
+    u->uid = (uid_t)pw->pw_uid;
+    u->max_slots = slots;
+    strncpy(u->name, name, USER_NAME_WIDTH - 1);
+    u->name[USER_NAME_WIDTH - 1] = '\0';
+    vec_push(&users_vec, u);
   }
 
   fclose(fp);
@@ -179,25 +183,23 @@ void read_user_file(const char *path) {
 }
 
 const char *uid2user_name(int uid) {
-  // if (uid == 0)
-  //  return "Root";
-  int ts_UID = get_tsUID(uid);
-  if (ts_UID != -1) {
-    return USER(ts_UID)->name;
+  struct User *u = find_user_by_uid((uid_t)uid);
+  if (u != NULL) {
+    return u->name;
   } else {
     return "Unknown";
   }
 }
 
-int get_tsUID(int uid) {
+struct User *find_user_by_uid(uid_t uid) {
   size_t n = vec_size(&users_vec);
   for (size_t i = 0; i < n; i++) {
     struct User *u = (struct User *)vec_get(&users_vec, i);
-    if (uid == (int)u->uid) {
-      return (int)i;
+    if (uid == u->uid) {
+      return u;
     }
   }
-  return -1;
+  return NULL;
 }
 
 void kill_pids(int parent_pid, int signal, const char* cmd) {

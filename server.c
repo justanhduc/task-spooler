@@ -335,10 +335,10 @@ static void server_loop(int ls) {
       
       client_cs[nconnections].hasjob = 0;
       client_cs[nconnections].socket = cs;
-      
-      client_cs[nconnections].ts_UID = get_tsUID(scred.uid);
 
-      if (client_cs[nconnections].ts_UID == -1) {
+      client_cs[nconnections].user = find_user_by_uid(scred.uid);
+
+      if (client_cs[nconnections].user == NULL) {
         printf("Unauthorized connection from UID: %d, please check the user configuration file\n", scred.uid);
         struct Msg m = default_msg();
         m.type = ERROR_INFO;
@@ -439,17 +439,17 @@ static void clean_after_client_disappeared(int socket, int index) {
 }
 
 
-static void s_remove_all_queues(int ts_UID) {
+static void s_remove_all_queues(struct User *user) {
   int i = 0;
-  while(i < nconnections) {
-    if (ts_UID == 0 || client_cs[i].ts_UID == ts_UID) {
+  while (i < nconnections) {
+    if (user == USER(0) || client_cs[i].user == user) {
       if (job_is_running(client_cs[i].jobid) != 1) {
         clean_after_client_disappeared(client_cs[i].socket, i);
       } else {
-        i++; // To next one
+        i++;
       }
     } else {
-      i++; // To next one
+      i++;
     }
   }
 }
@@ -473,15 +473,15 @@ static enum Break client_read(int index) {
     return NOBREAK;
   }
   // printf("client_read(%d), m.type = %d\n", index, m.type);
-  int ts_UID = client_cs[index].ts_UID;
+  struct User *user = client_cs[index].user;
 
   /* Time-out unlock */
-  if (user_locker >= 0) {
+  if (user_locker != NULL) {
     time_t dt = get_monotonic_sec() - locker_time;
-    if (user_locker == 0) {
-      if (dt > DEFAULT_ROOT_LOCK_TIME) user_locker = -1;
+    if (user_locker->uid == 0) {
+      if (dt > DEFAULT_ROOT_LOCK_TIME) user_locker = NULL;
     } else {
-      if (dt > DEFAULT_USER_LOCK_TIME) user_locker = -1;
+      if (dt > DEFAULT_USER_LOCK_TIME) user_locker = NULL;
     }
   }
 
@@ -489,87 +489,88 @@ static enum Break client_read(int index) {
   /* Process message */
   switch (m.type) {
   case REFRESH_USERS:
-    if (ts_UID == 0) {
+    if (user == USER(0)) {
       s_refresh_users(s);
     }
     close(s);
     remove_connection(index);
     break;
   case LOCK_SERVER:
-    s_lock_server(s, ts_UID);
+    s_lock_server(s, user);
     close(s);
     remove_connection(index);
     break;
   case UNLOCK_SERVER:
-    s_unlock_server(s, ts_UID);
+    s_unlock_server(s, user);
     close(s);
     remove_connection(index);
     break;
   case HOLD_JOB:
-    s_hold_job(s, m.jobid, ts_UID);
+    s_hold_job(s, m.jobid, user);
     close(s);
     remove_connection(index);
     break;
   case CONT_JOB:
-    s_cont_job(s, m.jobid, ts_UID);
+    s_cont_job(s, m.jobid, user);
     close(s);
     remove_connection(index);
     break;
   case SUSPEND_USER:
     // Root, uid in m.jobid
-    if (ts_UID == 0) {
+    if (user == USER(0)) {
       if (m.jobid != 0) {
-        s_suspend_user(s, get_tsUID(m.jobid));
-        s_user_status(s, get_tsUID(m.jobid));
+        struct User *target = find_user_by_uid((uid_t)m.jobid);
+        s_suspend_user(s, target);
+        s_user_status(s, target);
       } else {
         s_suspend_user_all(s);
         s_user_status_all(s);
       }
     } else {
-      s_suspend_user(s, ts_UID);
-      s_user_status(s, ts_UID);
+      s_suspend_user(s, user);
+      s_user_status(s, user);
     }
     close(s);
     remove_connection(index);
     break;
   case RESUME_USER:
-    if (ts_UID == 0) {
+    if (user == USER(0)) {
       if (m.jobid != 0) {
-        s_resume_user(s, get_tsUID(m.jobid));
-        s_user_status(s, get_tsUID(m.jobid));
+        struct User *target = find_user_by_uid((uid_t)m.jobid);
+        s_resume_user(s, target);
+        s_user_status(s, target);
       } else {
         s_resume_user_all(s);
         s_user_status_all(s);
       }
     } else {
-      s_resume_user(s, ts_UID);
-      s_user_status(s, ts_UID);
+      s_resume_user(s, user);
+      s_user_status(s, user);
     }
     close(s);
     remove_connection(index);
     break;
   case KILL_SERVER:
-    if (ts_UID == 0)
+    if (user == USER(0))
       return BREAK; /* break in the parent*/
     break;
   case NEWJOB:
     if (m.u.newjob.taskpid != 0) {
       // check if taskpid isnot in queue and from a valid user.
-      ts_UID = s_check_relink(s, m.jobid, m.u.newjob.taskpid, ts_UID);
+      user = s_check_relink(s, m.jobid, m.u.newjob.taskpid, user);
     } else {
-      if (s_check_locker(ts_UID) == 1) { break; }
+      if (s_check_locker(user) == 1) { break; }
     }
 
-    if (ts_UID < 0 || ts_UID >= USER_MAX) {
+    if (user == NULL) {
       struct Msg m = default_msg();
       m.type = NEWJOB_PID_NOK;
       send_msg(s, &m);
-      // close(s);
-      break; 
+      break;
     }
-    
+
     // start a new job in servers
-    client_cs[index].jobid = s_newjob(s, &m, ts_UID);
+    client_cs[index].jobid = s_newjob(s, &m, user);
     client_cs[index].hasjob = 1;
 
     if (client_cs[index].jobid == -1) {
@@ -598,8 +599,8 @@ static enum Break client_read(int index) {
       s_process_runjob_ok(client_cs[index].jobid, buffer, m.u.output.pid);
   } break;
   case KILL_ALL:
-      s_kill_all_jobs(s, ts_UID);
-      s_remove_all_queues(ts_UID);
+      s_kill_all_jobs(s, user);
+      s_remove_all_queues(user);
       /* TODO to remove the queued jobs
       for (int i = 0; i < nconnections; i++) {
         client_cs[].hasjob = 0;
@@ -608,7 +609,7 @@ static enum Break client_read(int index) {
       */
   case LIST:
     term_width = m.u.list.term_width;
-    s_list(s, ts_UID, m.u.list.list_format); // list ts_UID user
+    s_list(s, user, m.u.list.list_format);
 
     /* We must actively close, meaning End of Lines */
     close(s);
@@ -634,7 +635,7 @@ static enum Break client_read(int index) {
     s_get_label(s, m.jobid);
     break;
   case ADD_WTIME:
-    if (ts_UID == 0) {
+    if (user == USER(0)) {
       s_add_wtime(s, m.jobid, m.u.newjob.wall_time);
     }
     close(s);
@@ -658,7 +659,7 @@ static enum Break client_read(int index) {
     client_cs[index].hasjob = 0;
     break;
   case CLEAR_FINISHED:
-    s_clear_finished(ts_UID);
+    s_clear_finished(user);
     break;
   case ASK_OUTPUT:
     s_send_output(s, m.jobid);
@@ -666,7 +667,7 @@ static enum Break client_read(int index) {
   case REMOVEJOB: {
     int went_ok;
     /* Will update the jobid. If it's -1, will set the jobid found */
-    went_ok = s_remove_job(s, &m.jobid, ts_UID);
+    went_ok = s_remove_job(s, &m.jobid, user);
     if (went_ok) {
       int i;
       for (i = 0; i < nconnections; ++i) {
@@ -690,10 +691,11 @@ static enum Break client_read(int index) {
     s_wait_running_job(s, m.jobid);
     break;
   case COUNT_RUNNING:
-    s_count_running_jobs(s, ts_UID);
+    s_count_running_jobs(s, user);
     break;
-  case URGENT:
-    if (ts_UID == 0 || ts_UID == s_get_job_tsUID(m.jobid)) {
+  case URGENT: {
+    struct User *job_user = s_get_job_user(m.jobid);
+    if (user == USER(0) || user == job_user) {
       s_move_urgent(s, m.jobid);
     }
     if (jobsort_flag)
@@ -701,8 +703,9 @@ static enum Break client_read(int index) {
     close(s);
     remove_connection(index);
     break;
+  }
   case SET_MAX_SLOTS:
-    if (ts_UID == 0)
+    if (user == USER(0))
       s_set_max_slots(s, m.u.max_slots);
     close(s);
     remove_connection(index);
@@ -711,12 +714,12 @@ static enum Break client_read(int index) {
     s_get_max_slots(s);
     break;
   case SWAP_JOBS:
-    if (ts_UID == 0) {
+    if (user == USER(0)) {
       s_swap_jobs(s, m.u.swap.jobid1, m.u.swap.jobid2);
     } else {
-      int job1_uid = s_get_job_tsUID(m.u.swap.jobid1);
-      int job2_uid = s_get_job_tsUID(m.u.swap.jobid2);
-      if (ts_UID == job1_uid && ts_UID == job2_uid) {
+      struct User *job1_user = s_get_job_user(m.u.swap.jobid1);
+      struct User *job2_user = s_get_job_user(m.u.swap.jobid2);
+      if (user == job1_user && user == job2_user) {
         s_swap_jobs(s, m.u.swap.jobid1, m.u.swap.jobid2);
       }
     }

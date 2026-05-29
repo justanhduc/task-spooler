@@ -726,7 +726,7 @@ static void get_terminal_width() {
 int main(int argc, char **argv) {
   int errorlevel = 0;
   jobsort_flag = 0;
-  user_locker = -1;
+  user_locker = NULL;
   client_uid = getuid();
   // printf("client_uid = %u\n", client_uid);
   init_version();

@@ -35,7 +35,7 @@ extern char *logfile_path;
 
 const char *get_kill_sh_path(void);
 void read_user_file(const char *path);
-int get_tsUID(int uid);
+struct User *find_user_by_uid(uid_t uid);
 void c_refresh_user(void);
 const char *get_user_path(void);
 const char *set_server_logfile(void);

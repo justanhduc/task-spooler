@@ -12,6 +12,8 @@
 #include <time.h>
 #include "msg.h"
 
+struct User;
+
 enum Request {
   c_QUEUE,
   c_TAIL,
@@ -96,7 +98,7 @@ extern enum ProcessType process_type;
 extern int server_socket;
 extern char *logdir;
 extern int term_width;
-extern int user_locker;
+extern struct User *user_locker;
 extern time_t locker_time;
 extern int jobsort_flag;
 extern int client_uid;

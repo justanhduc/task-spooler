@@ -23,6 +23,7 @@
 #include "runtime_limit.h"
 #include "error.h"
 #include "server_user.h"
+#include "cgroups.h"
 #include "utils.h"
 
 static void send_state(int s, enum Jobstate state) {
@@ -89,7 +90,7 @@ static int add_job_to_json_array(struct Job *p, cJSON *jobs) {
   return 1;
 }
 
-void s_list(int s, int ts_UID, enum ListFormat listFormat) {
+void s_list(int s, struct User *user, enum ListFormat listFormat) {
   s_update_slots_usage();
 
   size_t an = vec_size(&active_jobs);
@@ -104,7 +105,7 @@ void s_list(int s, int ts_UID, enum ListFormat listFormat) {
     for (size_t i = 0; i < an; i++) {
       struct Job *p = (struct Job *)vec_get(&active_jobs, i);
       if (p->state != HOLDING_CLIENT) {
-        if (p->user == USER(ts_UID) || ts_UID == 0) {
+        if (p->user == user || user == USER(0)) {
           buffer = joblist_line(p);
           send_list_line(s, buffer);
           free(buffer);
@@ -117,16 +118,16 @@ void s_list(int s, int ts_UID, enum ListFormat listFormat) {
 
     for (size_t i = 0; i < fn; i++) {
       struct Job *p = (struct Job *)vec_get(&finished_jobs, i);
-      if (p->user == USER(ts_UID) || ts_UID == 0) {
+      if (p->user == user || user == USER(0)) {
         buffer = joblist_line(p);
         send_list_line(s, buffer);
         free(buffer);
       }
     }
-    if (ts_UID == 0)
+    if (user == USER(0))
       s_user_status_all(s);
     else
-      s_user_status(s, ts_UID);
+      s_user_status(s, user);
   } else if (listFormat == JSON) {
     cJSON *jobs = cJSON_CreateArray();
     if (jobs == NULL) { error("Error initializing JSON array."); goto end; }
@@ -397,8 +398,13 @@ void s_send_output(int s, int jobid) {
     }
   } else {
     p = get_job(jobid);
-    if (p != 0 && p->state != RUNNING && p->state != FINISHED && p->state != SKIPPED)
+    if (p != 0 && p->state != RUNNING && p->state != FINISHED && p->state != SKIPPED
+        && p->state != PAUSE)
       p = 0;
+    /* Thaw PAUSEd jobs so signals can be delivered */
+    if (p != 0 && p->state == PAUSE) {
+      cgroups_thaw_job(p);
+    }
   }
 
   if (p == 0) {

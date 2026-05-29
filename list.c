@@ -77,12 +77,12 @@ char *joblistdump_headers() {
 char *joblist_headers() {
   char *line;
   char extra[100] = "";
-  if (user_locker != -1) {
+  if (user_locker != NULL) {
     time_t dt = get_monotonic_sec() - locker_time;
     time_repr_t r = format_time(dt);
 
     snprintf(extra, 100, "Locked by `%s` for %3.2f%c.",
-             USER(user_locker)->name, r.value, r.unit);
+             user_locker->name, r.value, r.unit);
   }
 
   line = malloc(256);

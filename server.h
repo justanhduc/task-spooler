@@ -16,11 +16,13 @@ struct ucred {
   uint32_t gid;
 };
 
+struct User;
+
 struct Client_conn {
   int socket;
   int hasjob;
   int jobid;
-  int ts_UID;
+  struct User *user;
 };
 
 enum { MAXCONN = 1000 };

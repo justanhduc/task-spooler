@@ -564,12 +564,20 @@ static int cgroups_v1_cleanup_cpu(const char *group) {
         usleep(10000);
     }
 
-    if (rmdir(path) != 0) {
-        fprintf(stderr, "Error: rmdir %s failed: %s\n", path, strerror(errno));
-        return -1;
+    /* Remove directory with EBUSY retry */
+    for (int i = 0; i < 100; i++) {
+        if (rmdir(path) == 0 || errno == ENOENT) {
+            return 0;
+        }
+        if (errno != EBUSY) {
+            fprintf(stderr, "Error: rmdir %s failed: %s\n", path, strerror(errno));
+            return -1;
+        }
+        usleep(50000);
     }
 
-    return 0;
+    fprintf(stderr, "Failed to remove cgroup %s after 100 retries\n", path);
+    return -1;
 }
 
 typedef int (*cleanup_func_t)(const char *);
@@ -656,7 +664,9 @@ void cgroups_clean_job(const struct Job *p) {
         printf("cannot set cgroups for group: missing PID\n");
         return;
     }
-    if (s_check_running_pid(pid) == 1) {
+    /* Only refuse cleanup for actively RUNNING jobs.
+       PAUSE (frozen) jobs are safe — the cleanup functions thaw first. */
+    if (p->state == RUNNING) {
         printf("Cannot clear the cgroups for a RUNNING job[%d](PID: %d)\n",
                jobid, pid);
         return;
@@ -669,8 +679,8 @@ void cgroups_clean_job(const struct Job *p) {
     cgroups_v2_cleanup(group);
 #else
     printf("clear cgroups: %s\n", group);
-    cgroups_v1_cleanup_cpu(group);
     cgroups_v1_cleanup_freeze(group);
+    cgroups_v1_cleanup_cpu(group);
 #endif
 }
 
