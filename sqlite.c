@@ -480,8 +480,35 @@ struct Job *read_DB(int jobid, const char *table) {
 
     job->store_output = sqlite3_column_int(stmt, 4);
     job->pid = sqlite3_column_int(stmt, 5);
-    int saved_uid = sqlite3_column_int(stmt, 6);
-    job->user = find_user_by_uid((uid_t)saved_uid);
+
+    if (strcmp(table, "Jobs") == 0 && job->pid > 0) {
+        /* For active jobs, recover user from the running PID's /proc UID.
+           More reliable than the stored ts_UID column after migration. */
+        char status_path[64];
+        snprintf(status_path, sizeof(status_path), "/proc/%d/status", job->pid);
+        FILE *fp = fopen(status_path, "r");
+        uid_t proc_uid = (uid_t)-1;
+        if (fp) {
+            char line[256];
+            while (fgets(line, sizeof(line), fp)) {
+                if (strncmp(line, "Uid:", 4) == 0) {
+                    sscanf(line, "Uid:\t%d", (int *)&proc_uid);
+                    break;
+                }
+            }
+            fclose(fp);
+        }
+        if (proc_uid != (uid_t)-1)
+            job->user = find_user_by_uid(proc_uid);
+        if (job->user == NULL) {
+            /* Fallback to stored column value */
+            int saved_uid = sqlite3_column_int(stmt, 6);
+            job->user = find_user_by_uid((uid_t)saved_uid);
+        }
+    } else {
+        int saved_uid = sqlite3_column_int(stmt, 6);
+        job->user = find_user_by_uid((uid_t)saved_uid);
+    }
     job->should_keep_finished = sqlite3_column_int(stmt, 7);
 
     // job->depend_on_size = sqlite3_column_bytes(stmt, 9);
