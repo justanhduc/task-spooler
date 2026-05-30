@@ -77,7 +77,7 @@ static int get_order_id(int jobid, int* err) {
 }
 
 int close_sqlite() {
-  // free(jobDB_Jobs);
+  sqlite3_exec(db, "PRAGMA wal_checkpoint(TRUNCATE)", 0, 0, 0);
   return sqlite3_close(db);
 }
 
