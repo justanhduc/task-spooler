@@ -261,11 +261,10 @@ int ensure_server_up(int daemonFlag) {
 
   /* Try starting the server */
   if (getuid() == root_UID) {
-    /* Only root needs single-instance check; other users just connect */
-    if (ensure_single_instance() != 0) {
-      error("Error: another task-spooler server instance is already running.");
-    }
     if (daemonFlag) {
+      if (ensure_single_instance() != 0) {
+        error("Error: another task-spooler server instance is already running.");
+      }
       printf("Start task-spooler server as daemon\n");
       server_daemon();
     } else {
