@@ -202,6 +202,29 @@ struct User *find_user_by_uid(uid_t uid) {
   return NULL;
 }
 
+struct User *get_user_by_pid(pid_t pid) {
+  if (pid <= 0) return NULL;
+  char path[64];
+  snprintf(path, sizeof(path), "/proc/%d/status", pid);
+  FILE *fp = fopen(path, "r");
+  if (!fp) return NULL;
+
+  uid_t uid = (uid_t)-1;
+  char line[256];
+  while (fgets(line, sizeof(line), fp)) {
+    if (strncmp(line, "Uid:", 4) == 0) {
+      int real_uid;
+      sscanf(line, "Uid:\t%d", &real_uid);
+      uid = (uid_t)real_uid;
+      break;
+    }
+  }
+  fclose(fp);
+
+  if (uid == (uid_t)-1) return NULL;
+  return find_user_by_uid(uid);
+}
+
 void kill_pids(int parent_pid, int signal, const char* cmd) {
   char path[256];
   DIR *dir;
