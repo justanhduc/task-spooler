@@ -57,9 +57,51 @@ struct User *s_get_job_user(int jobid) {
 }
 
 void s_refresh_users(int s) {
+  /* Snapshot current users: refresh only allows adding, not removing or changing */
+  size_t old_n = vec_size(&users_vec);
+  uid_t *old_uid = (uid_t *)malloc(old_n * sizeof(uid_t));
+  int   *old_slots = (int *)malloc(old_n * sizeof(int));
+  if (old_uid == NULL || old_slots == NULL) {
+    free(old_uid); free(old_slots);
+    send_list_line(s, "Error: out of memory during refresh\n");
+    return;
+  }
+  for (size_t i = 0; i < old_n; i++) {
+    old_uid[i]   = USER(i)->uid;
+    old_slots[i] = USER(i)->max_slots;
+  }
+
   read_user_file(get_user_path());
-  send_list_line(s, "refresh the list success!\n");
-  s_update_slots_usage();
+
+  /* Verify: every existing user still present with same slots */
+  int ok = 1;
+  for (size_t i = 0; i < old_n; i++) {
+    struct User *u = find_user_by_uid(old_uid[i]);
+    if (u == NULL) {
+      snprintf(buff, 255, "Error: refresh would remove uid=%d, rejected\n", old_uid[i]);
+      ok = 0; break;
+    }
+    if (u->max_slots != old_slots[i]) {
+      snprintf(buff, 255, "Error: slots for uid=%d changed %d->%d, rejected\n",
+               old_uid[i], old_slots[i], u->max_slots);
+      ok = 0; break;
+    }
+  }
+
+  if (!ok) {
+    /* Rollback: remove newly added users, restore original slots */
+    while (vec_size(&users_vec) > old_n) {
+      struct User *u = (struct User *)vec_pop(&users_vec);
+      free(u);
+    }
+    for (size_t i = 0; i < old_n; i++)
+      USER(i)->max_slots = old_slots[i];
+    send_list_line(s, buff);
+  } else {
+    send_list_line(s, "refresh the list success!\n");
+    s_update_slots_usage();
+  }
+  free(old_uid); free(old_slots);
 }
 
 void s_suspend_user_all(int s) {
