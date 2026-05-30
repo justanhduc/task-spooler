@@ -15,6 +15,7 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <dirent.h>
 
 #include "main.h"
 #include "server_start.h"
@@ -173,6 +174,60 @@ void notify_parent(int fd) {
   close(fd);
 }
 
+/* Check no other instance of this binary is running as root.
+   Returns 0 if single, -1 if another instance found. */
+static int ensure_single_instance(void) {
+  char my_exe[512];
+  ssize_t len;
+
+  len = readlink("/proc/self/exe", my_exe, sizeof(my_exe) - 1);
+  if (len <= 0) return 0; /* can't check, allow */
+  my_exe[len] = '\0';
+
+  DIR *dir = opendir("/proc");
+  if (dir == NULL) return 0; /* can't check, allow */
+
+  struct dirent *ent;
+  while ((ent = readdir(dir)) != NULL) {
+    if (ent->d_name[0] < '0' || ent->d_name[0] > '9') continue;
+    pid_t pid = (pid_t)atoi(ent->d_name);
+    if (pid == getpid()) continue;
+
+    char path_buf[512], link_buf[512];
+    snprintf(path_buf, sizeof(path_buf), "/proc/%d/exe", pid);
+    len = readlink(path_buf, link_buf, sizeof(link_buf) - 1);
+    if (len <= 0) continue;
+    link_buf[len] = '\0';
+
+    if (strcmp(my_exe, link_buf) == 0) {
+      /* Check it's actually running as root */
+      char stat_path[256];
+      snprintf(stat_path, sizeof(stat_path), "/proc/%d/status", pid);
+      FILE *fp = fopen(stat_path, "r");
+      if (fp) {
+        char line[256];
+        int is_root = 0;
+        while (fgets(line, sizeof(line), fp)) {
+          if (strncmp(line, "Uid:", 4) == 0) {
+            int real_uid;
+            sscanf(line, "Uid:\t%d", &real_uid);
+            if (real_uid == 0) is_root = 1;
+            break;
+          }
+        }
+        fclose(fp);
+        if (is_root) {
+          printf("Error: another instance of task-spooler server is already running (PID %d)\n", pid);
+          closedir(dir);
+          return -1;
+        }
+      }
+    }
+  }
+  closedir(dir);
+  return 0;
+}
+
 int ensure_server_up(int daemonFlag) {
   int res;
   int notify_fd = -1;
@@ -203,6 +258,11 @@ int ensure_server_up(int daemonFlag) {
   if (setsockopt(server_socket, SOL_SOCKET, SO_PASSCRED, &optval,
                  sizeof(optval)) == -1)
     error("Error: cannot setup SO_PASSCRED");
+
+  /* Check no other instance of this binary is already running */
+  if (ensure_single_instance() != 0) {
+    error("Error: another task-spooler server instance is already running.");
+  }
 
   /* Try starting the server */
   if (getuid() == root_UID) {

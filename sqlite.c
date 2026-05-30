@@ -115,6 +115,19 @@ int open_sqlite() {
   /* Clean up WAL leftover from previous crash before doing anything else */
   sqlite3_exec(db, "PRAGMA wal_checkpoint(TRUNCATE)", 0, 0, 0);
 
+  /* Get exclusive lock — if another server holds the DB, fail fast */
+  {
+    char *err = 0;
+    int rc = sqlite3_exec(db, "BEGIN EXCLUSIVE; COMMIT;", 0, 0, &err);
+    if (rc != SQLITE_OK) {
+      printf("Cannot acquire SQLite exclusive lock: %s\n",
+             err ? err : sqlite3_errmsg(db));
+      sqlite3_free(err);
+      sqlite3_close(db);
+      return -1;
+    }
+  }
+
   char *zErrMsg = 0;
   char *sql =
       "CREATE TABLE IF NOT EXISTS Jobs("
