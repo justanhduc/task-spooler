@@ -81,29 +81,13 @@ int close_sqlite() {
   return sqlite3_close(db);
 }
 
-static void remove_wal_files(const char *db_path) {
-  char wal_path[512], shm_path[512];
-  snprintf(wal_path, sizeof(wal_path), "%s-wal", db_path);
-  snprintf(shm_path, sizeof(shm_path), "%s-shm", db_path);
-  unlink(wal_path);
-  unlink(shm_path);
-}
-
 int open_sqlite() {
   const char *path = get_sqlite_path();
   int rc;
   int error_flag = 0;
 
-  /* Try to open. If it fails and there are leftover WAL files from a
-     crashed server, remove them and retry. */
-  for (int attempt = 0; attempt < 3; attempt++) {
-    rc = sqlite3_open(path, &db);
-    if (rc == SQLITE_OK) break;
-
-    if (rc == SQLITE_CANTOPEN && attempt == 0) {
-      remove_wal_files(path);
-      continue;
-    }
+  rc = sqlite3_open(path, &db);
+  if (rc) {
     printf("Can't open database: %s\n", sqlite3_errmsg(db));
     sqlite3_close(db);
     return -1;
@@ -112,21 +96,6 @@ int open_sqlite() {
   /* WAL: writes don't block reads. busy_timeout: retry on SQLITE_BUSY */
   sqlite3_exec(db, "PRAGMA journal_mode=WAL", 0, 0, 0);
   sqlite3_exec(db, "PRAGMA busy_timeout=5000", 0, 0, 0);
-  /* Clean up WAL leftover from previous crash before doing anything else */
-  sqlite3_exec(db, "PRAGMA wal_checkpoint(TRUNCATE)", 0, 0, 0);
-
-  /* Get exclusive lock — if another server holds the DB, fail fast */
-  {
-    char *err = 0;
-    int rc = sqlite3_exec(db, "BEGIN EXCLUSIVE; COMMIT;", 0, 0, &err);
-    if (rc != SQLITE_OK) {
-      printf("Cannot acquire SQLite exclusive lock: %s\n",
-             err ? err : sqlite3_errmsg(db));
-      sqlite3_free(err);
-      sqlite3_close(db);
-      return -1;
-    }
-  }
 
   char *zErrMsg = 0;
   char *sql =
