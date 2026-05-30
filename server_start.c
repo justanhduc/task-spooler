@@ -259,13 +259,12 @@ int ensure_server_up(int daemonFlag) {
                  sizeof(optval)) == -1)
     error("Error: cannot setup SO_PASSCRED");
 
-  /* Check no other instance of this binary is already running */
-  if (ensure_single_instance() != 0) {
-    error("Error: another task-spooler server instance is already running.");
-  }
-
   /* Try starting the server */
   if (getuid() == root_UID) {
+    /* Only root needs single-instance check; other users just connect */
+    if (ensure_single_instance() != 0) {
+      error("Error: another task-spooler server instance is already running.");
+    }
     if (daemonFlag) {
       printf("Start task-spooler server as daemon\n");
       server_daemon();
