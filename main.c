@@ -665,11 +665,10 @@ static void print_help(const char *cmd) {
   printf("                                  {command} {realtime} {usertime} {systime}\n");
   printf("                                  {pausetime} {start_time} {enque_time} {end_time} {slots}\n");
   printf("  --add_wtime [add_time]          Increase job wall time by ADD_time in minutes (root only)\n");
-  printf("  --job [jobid] || -J [jobid]   specify the Job ID in relink, assignment or wall-time change\n");
+  printf("  --job [jobid] || -J [jobid]   specify the Job ID for wall-time change or assignment\n");
   printf("  --daemon                        Run as daemon (root only)\n");
 
-  // printf("  --stime [start_time]            Set the relinked task by starting
-  // time (Unix epoch).\n");
+  // printf("  --stime [start_time]            Set the task by starting time (Unix epoch).\n");
   printf("\nActions:\n");
   printf("  -A           List info for all users\n");
   printf("  -X           Update user config by UID (root only, max %d users)\n", USER_MAX);

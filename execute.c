@@ -413,7 +413,6 @@ static void run_child(int fd_send_filename, const char *tmpdir, int jobid) {
   while(cgroups_freeze_ok(jobid, pid) != 1) {
     usleep(30000);
   }
-  // only execute the command without the relink flag
   execvp(command_line.command.array[0], command_line.command.array);
 }
 
