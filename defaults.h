@@ -21,8 +21,4 @@
 #define DEFAULT_MAX_WALL_TIME 604800 /* 7 days in seconds */
 #define DEFAULT_HPC_NAME "intel_laptop"
 
-#define DEFAULT_NOTIFICATION_SOUND "/home/kylin/Public/task-spooler/notifications-sound.wav"
-#define DEFAULT_ERROR_SOUND "/home/kylin/Public/task-spooler/error.wav"
-#define DEFAULT_PULSE_SERVER "unix:/mnt/wslg/PulseServer"
-
 #endif /* DEFAULTS_H */

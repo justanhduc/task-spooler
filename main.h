@@ -82,6 +82,17 @@ struct CommandLine {
   char *email;
   char *logfile;
   char *outfile;
+  char *on_finish_cmd;
+  pid_t rt_pid;
+  char *rt_output;
+  time_t rt_real_sec;
+  time_t rt_user_sec;
+  time_t rt_system_sec;
+  time_t rt_pause_duration;
+  time_t rt_start_time;
+  time_t rt_enqueue_time;
+  time_t rt_end_time;
+  int rt_num_slots;
   int num_slots;
   int taskpid;
   int require_elevel;

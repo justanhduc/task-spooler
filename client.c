@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "main.h"
@@ -170,6 +171,39 @@ int c_wait_server_commands() {
         run_job(m.jobid, &result);
       }
       c_end_of_job(&result);
+
+      /* Receive ENDJOB_OK with final timing from server */
+      res = recv_msg(server_socket, &m);
+      if (res == sizeof(m) && m.type == ENDJOB_OK) {
+          command_line.rt_real_sec = m.u.finish_info.real_sec;
+          command_line.rt_user_sec = m.u.finish_info.user_sec;
+          command_line.rt_system_sec = m.u.finish_info.system_sec;
+          command_line.rt_pause_duration = m.u.finish_info.pause_duration;
+          command_line.rt_start_time = m.u.finish_info.start_time;
+          command_line.rt_enqueue_time = m.u.finish_info.enqueue_time;
+          command_line.rt_end_time = m.u.finish_info.end_time;
+          command_line.rt_num_slots = m.u.finish_info.num_slots;
+      }
+
+      /* Run per-job on-finish callback (user context) */
+      /* Run per-job on-finish callback (as user, not root) */
+      if (command_line.on_finish_cmd) {
+          run_on_finish(command_line.on_finish_cmd, command_line.jobid,
+                        command_line.rt_output, result.errorlevel,
+                        command_line.rt_pid,
+                        command_line.label, command_line.linux_cmd,
+                        command_line.rt_real_sec, command_line.rt_user_sec,
+                        command_line.rt_system_sec,
+                        command_line.rt_pause_duration,
+                        command_line.rt_start_time,
+                        command_line.rt_enqueue_time,
+                        command_line.rt_end_time,
+                        command_line.rt_num_slots);
+      }
+      if (command_line.rt_output) {
+          free(command_line.rt_output);
+          command_line.rt_output = NULL;
+      }
       return result.errorlevel;
     }
   }
@@ -255,6 +289,80 @@ void c_check_version() {
     error("Error calling the 2nd recv_msg in c_check_version");
 }
 
+static void print_job_resource_usage(pid_t pid) {
+    if (pid <= 0) return;
+    if (kill(pid, 0) != 0) return;
+
+    char path[64];
+    FILE *fp;
+    char buf[1024];
+    long ticks = sysconf(_SC_CLK_TCK);
+    if (ticks <= 0) return;
+
+    /* --- CPU usage: two samples ~50ms apart --- */
+    snprintf(path, sizeof(path), "/proc/%d/stat", pid);
+    fp = fopen(path, "r");
+    if (fp) {
+        long utime1 = 0, stime1 = 0, utime2 = 0, stime2 = 0;
+        if (fgets(buf, sizeof(buf), fp)) {
+            char *ptr = buf;
+            for (int i = 0; i < 13; i++) {
+                ptr = strchr(ptr, ' ');
+                if (!ptr) break;
+                ptr++;
+            }
+            if (ptr && sscanf(ptr, "%ld %ld", &utime1, &stime1) == 2) {
+                struct timespec ts1, ts2;
+                clock_gettime(CLOCK_MONOTONIC, &ts1);
+
+                struct timespec sleep_ts = { .tv_sec = 0, .tv_nsec = 50000000L };
+                nanosleep(&sleep_ts, NULL);
+
+                fclose(fp);
+                fp = fopen(path, "r");
+                if (fp && fgets(buf, sizeof(buf), fp)) {
+                    ptr = buf;
+                    for (int i = 0; i < 13; i++) {
+                        ptr = strchr(ptr, ' ');
+                        if (!ptr) break;
+                        ptr++;
+                    }
+                    if (ptr && sscanf(ptr, "%ld %ld", &utime2, &stime2) == 2) {
+                        clock_gettime(CLOCK_MONOTONIC, &ts2);
+                        double wall_sec = (ts2.tv_sec - ts1.tv_sec)
+                                        + (ts2.tv_nsec - ts1.tv_nsec) / 1e9;
+                        if (wall_sec > 0) {
+                            long delta = (utime2 + stime2) - (utime1 + stime1);
+                            double cpu_pct = ((double)delta / ticks) / wall_sec * 100.0;
+                            printf("CPU usage: %.1f%%\n", cpu_pct);
+                        }
+                    }
+                }
+            }
+        }
+        if (fp) fclose(fp);
+    }
+
+    /* --- Memory: RSS & VIRT from /proc/<pid>/status --- */
+    snprintf(path, sizeof(path), "/proc/%d/status", pid);
+    fp = fopen(path, "r");
+    if (fp) {
+        long rss = -1, vsz = -1;
+        while (fgets(buf, sizeof(buf), fp)) {
+            if (rss < 0 && strncmp(buf, "VmRSS:", 6) == 0)
+                sscanf(buf + 6, "%ld", &rss);
+            if (vsz < 0 && strncmp(buf, "VmSize:", 7) == 0)
+                sscanf(buf + 7, "%ld", &vsz);
+        }
+        fclose(fp);
+
+        if (rss >= 0 && vsz >= 0)
+            printf("Memory: %ld KB RSS / %ld KB VIRT\n", rss, vsz);
+        else if (rss >= 0)
+            printf("Memory: %ld KB RSS\n", rss);
+    }
+}
+
 void c_show_info() {
   struct Msg m = default_msg();
   int res;
@@ -284,16 +392,33 @@ void c_show_info() {
     if (m.type == INFO_DATA) {
       char *buffer;
       enum { DSIZE = 1000 };
+      pid_t job_pid = 0;
 
       /* We're going to output data using the stdout fd */
       fflush(stdout);
       buffer = (char *)malloc(DSIZE);
       do {
         res = recv(server_socket, buffer, DSIZE, 0);
-        if (res > 0)
+        if (res > 0) {
           write(1, buffer, res);
+          /* Extract PID from "PID: NNN" in the server output */
+          char *pid_pos = strstr(buffer, "PID: ");
+          if (pid_pos) {
+            pid_pos += 5;
+            char *end = pid_pos;
+            while (*end >= '0' && *end <= '9') end++;
+            char saved = *end;
+            *end = '\0';
+            job_pid = (pid_t)atoi(pid_pos);
+            *end = saved;
+          }
+        }
       } while (res > 0);
       free(buffer);
+
+      /* Read CPU & memory locally from /proc */
+      if (job_pid > 0)
+          print_job_resource_usage(job_pid);
     }
   }
 }

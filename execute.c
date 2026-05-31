@@ -93,10 +93,133 @@ static int ptrace_pid(int pid) {
   return status;
 }
 
-static void run_relink(int pid, struct Result *result) {
+/* Shell-quote a string: wrap in single quotes, escape internal ' as '\'' */
+static const char *quote_str(const char *s, char **buf, size_t *len) {
+    if (!s) return "";
+    size_t need = strlen(s) * 2 + 3;
+    if (need > *len) {
+        free(*buf);
+        *buf = malloc(need);
+        *len = need;
+    }
+    if (!*buf) return "";
+    char *q = *buf;
+    *q++ = '\'';
+    for (const char *p = s; *p; p++) {
+        if (*p == '\'') {
+            memcpy(q, "'\\''", 4);
+            q += 4;
+        } else {
+            *q++ = *p;
+        }
+    }
+    *q++ = '\'';
+    *q = '\0';
+    return *buf;
+}
+
+char *expand_template(const char *tmpl, int jobid, const char *output,
+                      int exitid, pid_t pid, const char *label,
+                      const char *command,
+                      time_t real_sec, time_t user_sec, time_t sys_sec,
+                      time_t pause_duration,
+                      time_t start_time, time_t enqueue_time, time_t end_time,
+                      int num_slots) {
+    if (!tmpl) return NULL;
+    size_t len = strlen(tmpl) * 2 + 256;
+    char *out = malloc(len);
+    if (!out) return NULL;
+
+    const char *p = tmpl;
+    char *q = out;
+    while (*p) {
+        if (*p == '{') {
+            const char *end = strchr(p + 1, '}');
+            if (end) {
+                size_t klen = end - (p + 1);
+                char key[32];
+                if (klen < sizeof(key)) {
+                    strncpy(key, p + 1, klen);
+                    key[klen] = '\0';
+
+                    char buf[64];
+                    const char *val = "";
+                    if (strcmp(key, "jobid") == 0)
+                        snprintf(buf, sizeof(buf), "%d", jobid), val = buf;
+                    else if (strcmp(key, "output") == 0) {
+                        static char *qout = NULL;
+                        static size_t qout_len = 0;
+                        val = quote_str(output, &qout, &qout_len);
+                    }
+                    else if (strcmp(key, "exitcode") == 0)
+                        snprintf(buf, sizeof(buf), "%d", exitid), val = buf;
+                    else if (strcmp(key, "pid") == 0)
+                        snprintf(buf, sizeof(buf), "%d", pid), val = buf;
+                    else if (strcmp(key, "label") == 0) {
+                        static char *qlbl = NULL;
+                        static size_t qlbl_len = 0;
+                        val = quote_str(label, &qlbl, &qlbl_len);
+                    }
+                    else if (strcmp(key, "command") == 0) {
+                        static char *qcmd = NULL;
+                        static size_t qcmd_len = 0;
+                        val = quote_str(command, &qcmd, &qcmd_len);
+                    } else if (strcmp(key, "realtime") == 0)
+                        snprintf(buf, sizeof(buf), "%ld", (long)real_sec), val = buf;
+                    else if (strcmp(key, "usertime") == 0)
+                        snprintf(buf, sizeof(buf), "%ld", (long)user_sec), val = buf;
+                    else if (strcmp(key, "systime") == 0)
+                        snprintf(buf, sizeof(buf), "%ld", (long)sys_sec), val = buf;
+                    else if (strcmp(key, "pausetime") == 0)
+                        snprintf(buf, sizeof(buf), "%ld", (long)pause_duration), val = buf;
+                    else if (strcmp(key, "start_time") == 0)
+                        snprintf(buf, sizeof(buf), "%ld", (long)start_time), val = buf;
+                    else if (strcmp(key, "enque_time") == 0)
+                        snprintf(buf, sizeof(buf), "%ld", (long)enqueue_time), val = buf;
+                    else if (strcmp(key, "end_time") == 0)
+                        snprintf(buf, sizeof(buf), "%ld", (long)end_time), val = buf;
+                    else if (strcmp(key, "slots") == 0)
+                        snprintf(buf, sizeof(buf), "%d", num_slots), val = buf;
+
+                    size_t vlen = strlen(val);
+                    memcpy(q, val, vlen);
+                    q += vlen;
+                    p = end + 1;
+                    continue;
+                }
+            }
+        }
+        *q++ = *p++;
+    }
+    *q = '\0';
+    return out;
+}
+
+void run_on_finish(const char *tmpl, int jobid, const char *output,
+                   int exitid, pid_t pid, const char *label,
+                   const char *command,
+                   time_t real_sec, time_t user_sec, time_t sys_sec,
+                   time_t pause_duration,
+                   time_t start_time, time_t enqueue_time, time_t end_time,
+                   int num_slots) {
+    char *expanded = expand_template(tmpl, jobid, output, exitid, pid, label, command,
+                                     real_sec, user_sec, sys_sec, pause_duration,
+                                     start_time, enqueue_time, end_time, num_slots);
+    if (!expanded) return;
+
+    int child = fork();
+    if (child == 0) {
+        restore_sigmask();
+        execl("/bin/sh", "sh", "-c", expanded, NULL);
+        _exit(127);
+    } else if (child > 0) {
+        waitpid(child, NULL, 0);
+    }
+    free(expanded);
+}
+    static void run_relink(int pid, struct Result *result) {
   int status = 0;
   char *ofname = command_line.outfile;
-  char *command;
   struct tms cpu_times;
 
   /* All went fine - prepare the SIGINT and send runjob_ok */
@@ -133,21 +256,22 @@ static void run_relink(int pid, struct Result *result) {
 
 
 
-  command = command_line.linux_cmd; // build_command_string();
   if (command_line.send_output_by_mail) {
-    send_mail(command_line.jobid, result->errorlevel, ofname, command);
+    send_mail(command_line.jobid, result->errorlevel, ofname, command_line.linux_cmd);
   }
-  hook_on_finish(command_line.jobid, result->errorlevel, ofname, command);
+  hook_on_finish(command_line.jobid, result->errorlevel, ofname, command_line.linux_cmd);
+
+  if (command_line.on_finish_cmd) {
+      command_line.rt_pid = pid;
+      if (ofname) command_line.rt_output = strdup(ofname);
+  }
 
   /* Calculate times */
   times(&cpu_times);
-  /* The times are given in clock ticks. The number of clock ticks per second
-   * is obtained in POSIX using sysconf(). */
   result->real_sec   = get_monotonic_sec() - command_line.start_time;
   result->user_sec   = (time_t)(cpu_times.tms_cutime) / sysconf(_SC_CLK_TCK);
   result->system_sec = (time_t)(cpu_times.tms_cstime) / sysconf(_SC_CLK_TCK);
 
-  free(command);
   free(ofname);
 }
 /* Returns errorlevel */
@@ -156,7 +280,6 @@ static void run_parent(int fd_read_filename, int pid, struct Result *result) {
   char *ofname = 0;
   int namesize;
   int res;
-  char *command;
   time_t starttv; //, endtv;
   struct tms cpu_times;
   /* Read the filename */
@@ -199,21 +322,22 @@ static void run_parent(int fd_read_filename, int pid, struct Result *result) {
     result->errorlevel = -1;
   }
 
-  command = command_line.linux_cmd; // build_command_string();
   if (command_line.send_output_by_mail) {
-    send_mail(command_line.jobid, result->errorlevel, ofname, command);
+    send_mail(command_line.jobid, result->errorlevel, ofname, command_line.linux_cmd);
   }
-  hook_on_finish(command_line.jobid, result->errorlevel, ofname, command);
+  hook_on_finish(command_line.jobid, result->errorlevel, ofname, command_line.linux_cmd);
+
+  if (command_line.on_finish_cmd) {
+      command_line.rt_pid = pid;
+      if (ofname) command_line.rt_output = strdup(ofname);
+  }
 
   /* Calculate times */
   times(&cpu_times);
-  /* The times are given in clock ticks. The number of clock ticks per second
-   * is obtained in POSIX using sysconf(). */
   result->real_sec   = get_monotonic_sec() - starttv;
   result->user_sec   = (time_t)cpu_times.tms_cutime / sysconf(_SC_CLK_TCK);
   result->system_sec = (time_t)cpu_times.tms_cstime / sysconf(_SC_CLK_TCK);
 
-  free(command);
   free(ofname);
 }
 

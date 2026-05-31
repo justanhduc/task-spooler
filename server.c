@@ -652,6 +652,26 @@ static enum Break client_read(int index) {
     // printf("check_notify_list\n");
 
     check_notify_list(client_cs[index].jobid);
+
+    /* Send timing info back to the client for --on-finish */
+    {
+        struct Job *jp = get_job(client_cs[index].jobid);
+        struct Msg resp = default_msg();
+        resp.type = ENDJOB_OK;
+        resp.jobid = client_cs[index].jobid;
+        if (jp) {
+            resp.u.finish_info.real_sec = jp->result.real_sec;
+            resp.u.finish_info.user_sec = jp->result.user_sec;
+            resp.u.finish_info.system_sec = jp->result.system_sec;
+            resp.u.finish_info.pause_duration = jp->info.pause_duration;
+            resp.u.finish_info.start_time = jp->info.start_time;
+            resp.u.finish_info.enqueue_time = jp->info.enqueue_time;
+            resp.u.finish_info.end_time = jp->info.end_time;
+            resp.u.finish_info.num_slots = jp->num_slots;
+        }
+        send_msg(s, &resp);
+    }
+
     // printf("check_notify_list0\n");
     /* We don't want this connection to do anything
      * more related to the jobid, secially on remove_connection

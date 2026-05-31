@@ -140,28 +140,7 @@ static void send_mail_via_ssmtp(struct Job *p) {
     fork_cmd(root_UID, NULL, cmd);
 }
 
-static void sound_notify(struct Job *p) {
-#ifdef SOUND
-    time_t real_sec = p->result.real_sec;
-    if (real_sec == 0.0) {
-        real_sec = p->info.end_time - p->info.start_time; // TODO ADD FUNC
-    }
-    // skip the short task
-    if (real_sec < 5) {
-        return;
-    }
-    char cmd[256];
-    if (p->result.errorlevel == 0) {
-        snprintf(cmd, 255, "paplay -p \"%s\" -s %s", DEFAULT_NOTIFICATION_SOUND,
-                 DEFAULT_PULSE_SERVER);
-    } else {
-        snprintf(cmd, 255, "paplay -p \"%s\" -s %s", DEFAULT_ERROR_SOUND,
-                 DEFAULT_PULSE_SERVER);
-    }
-    printf("%s\n", cmd);
-    fork_cmd(p->user->uid, NULL, cmd);
-#endif
-}
+
 
 void destroy_job(struct Job *p) {
     if (p != NULL) {
@@ -1132,7 +1111,6 @@ static void new_finished_job(struct Job *j) {
         delete_DB(j->jobid, "Jobs");
         cgroups_clean_job(j);
     }
-    sound_notify(j);
     send_mail_via_ssmtp(j);
 }
 

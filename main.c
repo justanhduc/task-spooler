@@ -70,6 +70,13 @@ static void default_command_line() {
   command_line.num_slots = 1;
   command_line.require_elevel = 0;
   command_line.logfile = NULL;
+  command_line.on_finish_cmd = NULL;
+  command_line.rt_pid = 0;
+  command_line.rt_output = NULL;
+  command_line.rt_real_sec = 0;
+  command_line.rt_user_sec = 0;
+  command_line.rt_system_sec = 0;
+  command_line.rt_pause_duration = 0;
   command_line.taskpid = 0;
   command_line.start_time = 0;
   command_line.wall_time = DEFAULT_MAX_WALL_TIME; // in hours
@@ -188,6 +195,7 @@ static struct option longOptions[] = {
     {"no-bind", no_argument, NULL, 0},
     {"wtime", required_argument, NULL, 0},
     {"find-by-pid", required_argument, NULL, 0},
+    {"on-finish", required_argument, NULL, 0},
     {NULL, 0, NULL, 0}};
 
 void parse_opts(int argc, char **argv) {
@@ -281,6 +289,8 @@ void parse_opts(int argc, char **argv) {
         if (parse_time(optarg, &command_line.wall_time) != 0) {
           error("Error: invalid duration '%s' for --wtime (examples, 30s, 3.4m, 1.5H, 2d).\n", optarg);
         }
+      } else if (strcmp(longOptions[optionIdx].name, "on-finish") == 0) {
+        command_line.on_finish_cmd = optarg;
       } else if (strcmp(longOptions[optionIdx].name, "no-bind") == 0) {
         error("no-bind is not implemented");
       } else {
@@ -658,6 +668,10 @@ static void print_help(const char *cmd) {
   printf("  --relink [pid]                  Reconnect tasks after unexpected failures\n");
   printf("  --wtime [walltime]              Wall time limit, examples: 30s, 3.4m, 1.5H, 2d. (will be clamped to system maximum if exceeded).\n");
   printf("  --find-by-pid [pid]             Find which running job a PID belongs to (incl. descendants), prints jobid or -1\n");
+  printf("  --on-finish <template>          Run command after job finishes.\n");
+  printf("                                  Placeholders: {jobid} {output} {exitcode} {pid} {label}\n");
+  printf("                                  {command} {realtime} {usertime} {systime}\n");
+  printf("                                  {pausetime} {start_time} {enque_time} {end_time} {slots}\n");
   printf("  --add_wtime [add_time]          Increase job wall time by ADD_time in minutes (root only)\n");
   printf("  --job [jobid] || -J [jobid]   specify the Job ID in relink, assignment or wall-time change\n");
   printf("  --daemon                        Run as daemon (root only)\n");

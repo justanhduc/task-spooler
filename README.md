@@ -24,6 +24,7 @@ See [CHANGELOG](CHANGELOG.md).
 - **Simple build** — just `make` (no autotools)
 - **Optional stderr separation** for better log management
 - **PID lookup** (`--find-by-pid`) to identify which job owns a process (including descendants)
+- **Post-job hook** (`--on-finish`) — run a command after a job finishes, with access to job info via placeholders
 
 ## Tools
 
@@ -161,6 +162,10 @@ Long option actions:
   --lock                  Lock server
   --unlock                Release server lock
   --relink [pid]          Reconnect after crash
+  --on-finish <template>  Run command after job finishes
+                          Placeholders: {jobid} {output} {exitcode} {pid} {label}
+                          {command} {realtime} {usertime} {systime}
+                          {pausetime} {start_time} {enque_time} {end_time} {slots}
   --wtime [dur]           Wall time limit (e.g. 30s, 3.4m, 1.5H, 2d)
   --add_wtime [dur]       Increase job wall time (root only)
   --job [id] || -J [id]  Specify job ID

@@ -66,6 +66,7 @@ enum MsgTypes {
   ERROR_INFO,
   FIND_PID,
   FIND_PID_RESULT,
+  ENDJOB_OK,
 };
 
 enum ListFormat { DEFAULT, JSON, TAB };
@@ -115,6 +116,16 @@ struct Msg {
       pid_t pid;
       int deep;
     } find_pid;
+    struct {
+      time_t real_sec;
+      time_t user_sec;
+      time_t system_sec;
+      time_t pause_duration;
+      time_t start_time;
+      time_t enqueue_time;
+      time_t end_time;
+      int num_slots;
+    } finish_info;
   } u;
 };
 
