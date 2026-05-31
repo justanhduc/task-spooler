@@ -1,0 +1,272 @@
+.TH TS 1 "2024" "Task Spooler PLUS" "User Commands"
+.SH NAME
+ts \- task spooler, a multi-user queue system for the unix user
+.SH SYNOPSIS
+.B ts
+[\fIactions\fR] [\fIoptions\fR] [\fIcommand\fR ...]
+.SH DESCRIPTION
+Task Spooler PLUS is a multi-user task queue system. A root-privileged
+server manages jobs from multiple users through a central queue, with
+CPU limiting via cgroups and crash-recovery via SQLite3.
+.SH ACTIONS
+.TP
+\fB\-l\fR
+List jobs for the current user (default action).
+.TP
+\fB\-A\fR
+List jobs for all users.
+.TP
+\fB\-K\fR
+Kill the task-spooler server (root only).
+.TP
+\fB\-C\fR
+Clear finished jobs for the current user.
+.TP
+\fB\-h\fR
+Display help.
+.TP
+\fB\-V\fR
+Display version.
+.TP
+\fB\-p\fR [\fIid\fR]
+Show PID of the given job (last job if unspecified).
+.TP
+\fB\-o\fR [\fIid\fR]
+Show output file path of the given job.
+.TP
+\fB\-i\fR [\fIid\fR]
+Display detailed info about the given job.
+.TP
+\fB\-s\fR [\fIid\fR]
+Show state of the given job.
+.TP
+\fB\-r\fR [\fIid\fR]
+Remove the given job from the queue.
+.TP
+\fB\-w\fR [\fIid\fR]
+Wait for the given job to finish and return its exit code.
+.TP
+\fB\-k\fR [\fIid\fR]
+Send SIGTERM to the job's process group.
+.TP
+\fB\-T\fR
+Send SIGTERM to all running jobs (root only).
+.TP
+\fB\-u\fR [\fIid\fR]
+Move the given job to the front of the queue.
+.TP
+\fB\-U\fR <\fIid\fR\-\fIid\fR>
+Swap the positions of two jobs in the queue.
+.TP
+\fB\-S\fR [\fInum\fR]
+Get or set the maximum number of concurrent jobs (root only).
+.TP
+\fB\-t\fR [\fIid\fR]
+Tail the last 10 lines of job output.
+.TP
+\fB\-c\fR [\fIid\fR]
+Cat the complete job output.
+.TP
+\fB\-X\fR
+Refresh the user configuration file (root only).
+.TP
+\fB\-q\fR
+Show the last enqueued job ID.
+.TP
+\fB\-R\fR
+Count running jobs.
+.SH LONG OPTIONS
+.TP
+\fB\-\-help\fR
+Display help.
+.TP
+\fB\-\-get_label\fR [\fIid\fR]
+Show job label.
+.TP
+\fB\-\-full_cmd\fR [\fIid\fR]
+Show full command string.
+.TP
+\fB\-\-find\-by\-pid\fR <\fIpid\fR>
+Find which running job a PID belongs to (including child processes).
+.TP
+\fB\-\-count_running\fR
+Count running jobs.
+.TP
+\fB\-\-last_queue_id\fR
+Show last enqueued job ID.
+.TP
+\fB\-\-daemon\fR
+Start the task-spooler server as a daemon (root only).
+.TP
+\fB\-\-check_daemon\fR
+Check if the task-spooler server is running.
+.TP
+\fB\-\-hold\fR [\fIid\fR]
+Pause the given job (freeze via cgroups).
+.TP
+\fB\-\-cont\fR [\fIid\fR]
+Resume a paused job (thaw via cgroups).
+.TP
+\fB\-\-suspend\fR [\fIuser\fR]
+Suspend all jobs for the given user.
+.TP
+\fB\-\-resume\fR [\fIuser\fR]
+Resume all jobs for the given user.
+.TP
+\fB\-\-lock\-ts\fR
+Lock the task-spooler server.
+.TP
+\fB\-\-unlock\-ts\fR
+Unlock the task-spooler server.
+.TP
+\fB\-\-relink\fR [\fIpid\fR]
+Reconnect to a running process after server crash.
+.TP
+\fB\-\-wtime\fR <\fIdur\fR>
+Set wall-time limit for this job (e.g. 30s, 3.4m, 1.5H, 2d).
+.TP
+\fB\-\-add_wtime\fR <\fIdur\fR>
+Increase wall-time limit of an existing job (root only).
+.TP
+\fB\-\-job\fR | \fB\-J\fR <\fIid\fR>
+Specify a job ID for use with other options.
+.TP
+\fB\-\-serialize\fR | \fB\-M\fR <\fIfmt\fR>
+Export job list in default, json, or tab format.
+.TP
+\fB\-\-get_logdir\fR
+Show the server's log directory path.
+.TP
+\fB\-\-set_logdir\fR <\fIpath\fR>
+Set the server's log directory.
+.TP
+\fB\-\-getenv\fR <\fIvar\fR>
+Get a server environment variable.
+.TP
+\fB\-\-setenv\fR <\fIvar\fR>
+Set a server environment variable.
+.TP
+\fB\-\-unsetenv\fR <\fIvar\fR>
+Remove a server environment variable.
+.SH OPTIONS WHEN ADDING JOBS
+.TP
+\fB\-n\fR
+Do not store output.
+.TP
+\fB\-E\fR
+Separate stderr into a .e file.
+.TP
+\fB\-z\fR
+Gzip the output file (unless \-n).
+.TP
+\fB\-f\fR
+Run the job in the foreground (don't daemonize).
+.TP
+\fB\-m\fR <\fIemail\fR>
+Send job results by email via ssmtp.
+.TP
+\fB\-d\fR
+Run this job after the last enqueued job completes.
+.TP
+\fB\-D\fR <\fIid,...\fR>
+Run this job after the specified job IDs complete.
+.TP
+\fB\-W\fR <\fIid,...\fR>
+Run this job only if the specified jobs exit with status 0.
+.TP
+\fB\-L\fR <\fIlabel\fR>
+Assign a label to the job.
+.TP
+\fB\-N\fR <\fInum\fR>
+Number of slots required by this job (default: 1).
+.TP
+\fB\-B\fR
+Return immediately if the queue is full (don't wait).
+.TP
+\fB\-O\fR <\fIfilename\fR>
+Set the log filename for this job.
+.SH ENVIRONMENT
+.TP
+\fBTS_SOCKET\fR
+Path to the Unix socket (default: $TMPDIR/socket\-ts.root).
+.TP
+\fBTS_SLOTS\fR
+Maximum number of concurrent jobs (default: 1).
+.TP
+\fBTS_USER_PATH\fR
+Path to the user configuration file.
+.TP
+\fBTS_LOGFILE_PATH\fR
+Path to the job log file.
+.TP
+\fBTS_SQLITE_PATH\fR
+Path to the SQLite database file.
+.TP
+\fBTS_MAXFINISHED\fR
+Maximum number of finished jobs kept in the queue (default: 1000).
+.TP
+\fBTS_MAX_WALL_TIME\fR
+Maximum wall-time limit for jobs (default: 10080 minutes).
+.TP
+\fBTS_SORTJOBS\fR
+Enable job queue sorting.
+.TP
+\fBTS_SAVELIST\fR
+File path for crash recovery job list dump.
+.TP
+\fBTS_ONFINISH\fR
+Command to run after each job finishes.
+.TP
+\fBTS_ENV\fR
+Command to gather environment info for jobs.
+.TP
+\fBTS_MAIL_FROM\fR
+Sender email address for job result notifications.
+.TP
+\fBTS_MAIL_TIME\fR
+Minimum job duration (seconds) before email notification is sent.
+.TP
+\fBTMPDIR\fR
+Directory for temporary output files.
+.TP
+\fBTS_MAXCONN\fR
+Maximum number of concurrent client connections (default: 1000).
+.TP
+\fBTS_FIRST_JOBID\fR
+Starting job ID (default: 1000).
+.SH USER CONFIGURATION
+The user configuration file (path set by TS_USER_PATH) maps usernames to
+maximum slot counts. Format:
+.PP
+.RS 4
+\fB# <username> <max_slots>\fP
+.br
+\fBTS_SLOTS = 16\fP
+.br
+\fBjohn    4\fP
+.br
+\fBmary    2\fP
+.RE
+.PP
+Usernames are resolved to UIDs via getpwnam(3). Root (uid=0) is always
+available with full control. The config can be refreshed at runtime with
+\fBts -X\fP (root only); refresh only allows adding users, not removing or
+changing existing ones.
+.SH FILES
+.TP
+\fB/tmp/socket\-ts.root\fR
+Default Unix domain socket.
+.TP
+\fBtask\-spooler.db\fR
+SQLite3 database (WAL mode).
+.TP
+\fBuser.txt\fR
+User configuration file.
+.TP
+\fBlog.txt\fR
+Job log file.
+.SH SEE ALSO
+.BR ts (1),
+.BR getpwnam (3)
+.SH AUTHOR
+Kylin JIANG, Duc Nguyen, Lluis Batlle i Rossell

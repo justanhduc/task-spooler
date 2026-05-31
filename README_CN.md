@@ -25,6 +25,11 @@
 - **stdout/stderr 分离**：方便日志管理
 - **PID 查询**（`--find-by-pid`）：查找某个 PID 属于哪个任务（含子进程）
 
+## 工具
+
+- `tools/migrate_uid.py` — 将旧的 `ts_UID` 列（向量索引）迁移为 Linux UID
+- `tools/clear_finished.py` — 清空或 `--drop` + 重建 Finished 表
+
 ## 快速开始
 
 ```bash
@@ -60,7 +65,7 @@ make clean                # 清理编译产物
 | `TS_MAX_WALL_TIME` | `10080`（分钟） | 最大 wall-time 限制 |
 | `TS_FIRST_JOBID` | `1000` | 起始任务 ID |
 
-可编辑 `default.inc` 修改内置默认值。
+可编辑 `defaults.h` 修改内置默认值。
 
 ## 用户配置
 

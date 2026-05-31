@@ -25,6 +25,11 @@ See [CHANGELOG](CHANGELOG.md).
 - **Optional stderr separation** for better log management
 - **PID lookup** (`--find-by-pid`) to identify which job owns a process (including descendants)
 
+## Tools
+
+- `tools/migrate_uid.py` — Migrate old `ts_UID` column (vec index) to Linux UIDs
+- `tools/clear_finished.py` — Clear or `--drop` + recreate the Finished table
+
 ## Quick Start
 
 ```bash
@@ -60,7 +65,7 @@ make clean                # Remove objects and binary
 | `TS_MAX_WALL_TIME` | `10080` (minutes) | Max wall-time limit |
 | `TS_FIRST_JOBID` | `1000` | Starting job ID |
 
-Edit `default.inc` to change the built-in defaults.
+Edit `defaults.h` to change the built-in defaults.
 
 ## User Configuration
 

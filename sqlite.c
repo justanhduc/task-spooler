@@ -44,7 +44,7 @@ static int callback(void *max, int argc, char **argv, char **azColName) {
 
 static int check_order_id(const char *op, int* err) {
   char *err_msg = NULL;
-  sprintf(sql, "SELECT %s(order_id) FROM Jobs", op);
+  snprintf(sql, sizeof(sql), "SELECT %s(order_id) FROM Jobs", op);
   int value = 0;
   int rc = sqlite3_exec(db, sql, callback, &value, &err_msg);
   if (rc != SQLITE_OK) {
@@ -64,7 +64,7 @@ static int min_order_id(int* err) { return check_order_id("MIN", err); }
 static int get_order_id(int jobid, int* err) {
   char *err_msg = 0;
   int value = 0;
-  sprintf(sql, "SELECT order_id FROM Jobs WHERE jobid=%d", jobid);
+  snprintf(sql, sizeof(sql), "SELECT order_id FROM Jobs WHERE jobid=%d", jobid);
   int rc = sqlite3_exec(db, sql, callback, &value, &err_msg);
   if (rc != SQLITE_OK) {
     fprintf(stderr, "[get_order_id] SQL error: %s\n", err_msg);
@@ -240,7 +240,7 @@ int get_jobids_DB() {
 // return error code
 int set_jobids_DB(int value) {
   char *err_msg = 0;
-  sprintf(sql, "INSERT OR REPLACE INTO Global (id, JOBIDs) VALUES (1, %d);",
+  snprintf(sql, sizeof(sql), "INSERT OR REPLACE INTO Global (id, JOBIDs) VALUES (1, %d);",
           value);
   int rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
   if (rc != SQLITE_OK) {
@@ -253,7 +253,7 @@ int set_jobids_DB(int value) {
 
 // return error code
 int delete_DB(int jobid, const char *table) {
-  sprintf(sql, "DELETE FROM %s WHERE jobid=%d;", table, jobid);
+  snprintf(sql, sizeof(sql), "DELETE FROM %s WHERE jobid=%d;", table, jobid);
   char *errmsg = NULL;
 
   if (sqlite3_exec(db, sql, NULL, NULL, &errmsg) != SQLITE_OK) {
@@ -349,7 +349,7 @@ int insert_or_replace_DB(struct Job *job, const char *table) {
 //return error code
 static int set_order_id_DB(int jobid, int order_id) {
   char *err_msg = 0;
-  sprintf(sql, "UPDATE Jobs SET order_id=%d WHERE jobid=%d", order_id, jobid);
+  snprintf(sql, sizeof(sql), "UPDATE Jobs SET order_id=%d WHERE jobid=%d", order_id, jobid);
   int rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
   if (rc != SQLITE_OK) {
     fprintf(stderr, "[movetop_DB] SQL error: %s\n", err_msg);
@@ -362,7 +362,7 @@ static int set_order_id_DB(int jobid, int order_id) {
 //return error code
 int set_state_DB(int jobid, int state) {
   char *err_msg = 0;
-  sprintf(sql, "UPDATE Jobs SET state=%d WHERE jobid=%d", state, jobid);
+  snprintf(sql, sizeof(sql), "UPDATE Jobs SET state=%d WHERE jobid=%d", state, jobid);
   int rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
   if (rc != SQLITE_OK) {
     fprintf(stderr, "[movetop_DB] SQL error: %s\n", err_msg);
@@ -400,7 +400,7 @@ int movetop_DB(int jobid) {
 /*
 static void clear_DB(const char* table) {
     char* err_msg;
-    sprintf(sql, "DELETE FROM %s", table);
+    snprintf(sql, sizeof(sql), "DELETE FROM %s", table);
     int rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
     if (rc != SQLITE_OK ) {
         fprintf(stderr, "[clear_DB] SQL error: %s\n", err_msg);
@@ -412,7 +412,7 @@ static void clear_DB(const char* table) {
 // return error code
 int read_jobid_DB(int **jobids, const char *table) {
   int n = 0;
-  sprintf(sql, "SELECT COUNT(*) FROM %s;", table);
+  snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s;", table);
 
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
@@ -431,7 +431,7 @@ int read_jobid_DB(int **jobids, const char *table) {
     return 0;
   *jobids = (int *)malloc((size_t)n * sizeof(int));
 
-  sprintf(sql, "SELECT jobid FROM %s ORDER BY order_id;", table);
+  snprintf(sql, sizeof(sql), "SELECT jobid FROM %s ORDER BY order_id;", table);
   rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
   if (rc != SQLITE_OK) {
     fprintf(stderr, "[read_jobid_DB] SQL error: %s from %s\n",
@@ -455,7 +455,7 @@ struct Job *read_DB(int jobid, const char *table) {
   struct Result *result = &(job->result);
   struct Procinfo *info = &(job->info);
 
-  sprintf(sql, "SELECT * FROM %s WHERE jobid=%d;", table, jobid);
+  snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE jobid=%d;", table, jobid);
 
   sqlite3_stmt *stmt;
   int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
