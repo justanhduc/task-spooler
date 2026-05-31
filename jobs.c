@@ -297,16 +297,6 @@ int s_update_slots_usage() {
     return slots_usage;
 }
 
-static struct Job *job_by_pid(pid_t pid) {
-    if (pid == 0) return NULL;
-    size_t n = vec_size(&active_jobs);
-    for (size_t i = 0; i < n; i++) {
-        struct Job *p = (struct Job *)vec_get(&active_jobs, i);
-        if (p->pid == pid) return p;
-    }
-    return NULL;
-}
-
 /* Check if target_pid is a descendant (child, grandchild, etc.) of parent_pid.
    Reads /proc/<pid>/children recursively. Returns 1 if yes, 0 if no. */
 static int is_descendant_pid(pid_t parent_pid, pid_t target_pid) {
@@ -394,80 +384,7 @@ int s_check_running_pid(pid_t pid) {
 }
 
 
-// if any error return non-0;
-struct User *s_check_relink(int s, int jobid, pid_t pid, struct User *user) {
-    struct Job *p  = job_by_pid(pid);     // 按 PID 查，看这个进程是否已在 job 中
-    struct Job *p2 = get_job(jobid);      // 按 jobid 查，看 jobid 是否已被占用
-
-    // 情况1：jobid 已被占用
-    if (p2 != NULL) {
-        // 如果按 pid 查到的和按 jobid 查到的是同一个，说明是同一个 job，允许
-        if (p != p2) {
-            // jobid 被另一个不同的 job 占用了，报错
-            sprintf(buff, "  Error: Duplicate Jobid [%d] already exists with state [%s], cannot reuse with pid: %i\n",
-                    jobid, jstate2string(p2->state), pid);
-            send_list_line(s, buff);
-            return NULL;
-        }
-        // p == p2，是同一个 job，走到下面按状态判断
-    }
-
-    // 情况2：PID 已存在于某个 job 中
-    if (p != NULL) {
-        // 此时 p 就是 p2（或者 p2 为 NULL 但 p 存在，即 pid 冲突但 jobid 不冲突）
-        if (p2 == NULL) {
-            // pid 已被另一个 jobid 占用
-            sprintf(buff, "  Error: PID [%i] is already in jobs as Jobid: %i [%s]\n",
-                    pid, p->jobid, jstate2string(p->state));
-            send_list_line(s, buff);
-            return NULL;
-        }
-
-        // p == p2，同一个 job，检查状态是否允许操作
-        if (p->state == FINISHED) {
-            sprintf(buff, "  Error: Jobid [%d] is FINISHED, cannot reuse with pid: %i\n",
-                    jobid, pid);
-            send_list_line(s, buff);
-            return NULL;
-        }
-
-        if (p->state != DELINK && p->state != WAIT) {
-            sprintf(buff, "  Error: PID [%i] is already in jobs as Jobid: %i [%s]\n",
-                    pid, p->jobid, jstate2string(p->state));
-            send_list_line(s, buff);
-            return NULL;
-        }
-
-        check_timeout(p);
-    }  
-    
-    char filename[256];
-    struct stat t_stat;
-
-    snprintf(filename, 256, "/proc/%d/stat", pid);
-    if (stat(filename, &t_stat) == -1) {
-        sprintf(buff, "  Error: PID [%i] is not running\n", pid);
-        send_list_line(s, buff);
-        return NULL;
-    }
-
-    struct User *job_user = find_user_by_uid(t_stat.st_uid);
-    if (user->uid == 0) {
-        ;
-    } else if (user == job_user) {
-        ;
-    } else {
-        snprintf(buff, 255,
-                 "  Error: PID [%i] is owned by [%d] `%150s` not the user [%d] "
-                 "`%s`\n",
-                 pid, job_user->uid, job_user->name,
-                 user->uid, user->name);
-        send_list_line(s, buff);
-        return NULL;
-    }
-
-    return job_user;
-}
+/* s_check_relink removed — auto-reconnect branch handles this via RECONNECT protocol */
 
 static struct Job *findjob_holding_client() {
     size_t n = vec_size(&active_jobs);
@@ -586,16 +503,13 @@ void s_mark_job_running(int jobid) {
     if (!p) {
         error("Cannot mark the jobid %i RUNNING.", jobid);
     }
-    if (p->state == RELINK) {
-        if (p->output_filename == NULL) {
-            p->output_filename = get_ofile_from_FD(p->pid);
-        }
-        if (is_sleep(p) == 1) {
-            p->state = PAUSE;
-            return;
-        } else {
-            p->state = QUEUED;
-        }
+    /* RELINK removed in auto-reconnect branch */
+    if (p->output_filename == NULL) {
+        p->output_filename = get_ofile_from_FD(p->pid);
+    }
+    if (is_sleep(p) == 1) {
+        p->state = PAUSE;
+        return;
     }
     if (config_running(p)) {
         error("Err. in s_mark_job_running(): Cannot mark Job %d as RUNNING "
@@ -623,7 +537,7 @@ char const *jstate2string(enum Jobstate s) {
     case FINISHED:       jobstate = "finished"; break;
     case SKIPPED:
     case HOLDING_CLIENT: jobstate = "skipped "; break;
-    case RELINK:         jobstate = "relink  "; break;
+
     case WAIT:           jobstate = "wait    "; break;
     case DELINK:         jobstate = "delink  "; break;
     case LOCKED:         jobstate = "locked  "; break;
@@ -730,11 +644,7 @@ int s_newjob(int s, struct Msg *m, struct User *user) {
             p->state = HOLDING_CLIENT;
         }
 
-        // manually relink
-        if (m->u.newjob.taskpid != 0) {
-            p->state = RELINK;
-            printf("relink to pid: %d\n", m->u.newjob.taskpid);
-        }
+        /* RELINK removed in auto-reconnect branch */
     }
     // save the user and record the number of waiting jobs
     p->user = user;
@@ -944,17 +854,9 @@ int s_newjob(int s, struct Msg *m, struct User *user) {
         free(ptr);
     }
 
-    if (p->state == DELINK) {
-        p->state = RELINK;
-        // manually insert
-    } else if (p->state == WAIT) {
+    if (p->state == WAIT) {
         p->state = QUEUED;
         p->user->queue++;
-    } else if (p->state == RELINK) {
-        /* for manually relink running task */
-        p->pid = m->u.newjob.taskpid;
-        p->info.start_time = m->u.newjob.start_time;
-        insert_or_replace_DB(p, "Jobs");
     } else if (p->state == QUEUED) {
         insert_DB(p, "Jobs");
         p->user->queue++;
@@ -1001,23 +903,6 @@ int next_run_job(void) {
     while (1) {
         size_t n = vec_size(&active_jobs);
         if (n == 0) break;
-
-        /* RELINK jobs get priority — dispatch one, then re-check */
-        int got_relink = 0;
-        for (size_t i = 0; i < n; i++) {
-            struct Job *p = (struct Job *)vec_get(&active_jobs, i);
-            if (p->state == RELINK) {
-                s_mark_job_running(p->jobid);
-                s_send_runjob(p->client_socket, p->jobid);
-                got_relink = 1;
-                dispatched++;
-                break;
-            }
-        }
-        if (got_relink) {
-            wake_all_held_clients();
-            continue;
-        }
 
         /* ---- Round-robin: one job per user per round (QUEUED or PAUSE-timeout) ---- */
         int found = 0;
@@ -1216,12 +1101,7 @@ static void s_add_job(struct Job *j) {
             j->state = DELINK;
             vec_push(&active_jobs, j);
 
-            char c[64];
-            sprintf(c, " --relink %d -J %d ", j->pid, j->jobid);
-            char *str = insert_chars_check(j->command_strip, j->command, c);
-
-            fork_cmd(j->user->uid, j->work_dir, str);
-            free(str);
+            /* auto-reconnect: don't fork relink client, wait for original client */
             jobids = jobids > j->jobid ? jobids : j->jobid + 1;
             return;
         } else {

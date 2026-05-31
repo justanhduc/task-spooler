@@ -12,7 +12,6 @@
 #include <sys/time.h>
 #include <sys/times.h>
 #include <sys/types.h>
-#include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/inotify.h>
@@ -69,30 +68,6 @@ static int wait_for_pid(int pid)
     return res;
 }
 */
-static int wait_for_pid(int pid) {
-  while(kill(pid, 0) == 0) {
-    sleep(1);
-  }
-  return -1;
-}
-
-static int ptrace_pid(int pid) {
-  int status;
-  if (ptrace(PTRACE_ATTACH , pid, NULL) == -1) {
-    error("cannot attach to pid %d", pid);
-  }
-  waitpid(pid, &status, WUNTRACED);
-  printf("status = %d \n", status);
-
-  if (ptrace(PTRACE_CONT , pid, NULL) == -1) {
-    error("cannot continue to pid %d", pid);
-  }
-  waitpid(pid, &status, 0);
-  printf("status = %d \n", status);
-  ptrace(PTRACE_DETACH, pid, NULL, NULL);
-  return status;
-}
-
 /* Shell-quote a string: wrap in single quotes, escape internal ' as '\'' */
 static const char *quote_str(const char *s, char **buf, size_t *len) {
     if (!s) return "";
@@ -217,63 +192,9 @@ void run_on_finish(const char *tmpl, int jobid, const char *output,
     }
     free(expanded);
 }
-    static void run_relink(int pid, struct Result *result) {
-  int status = 0;
-  char *ofname = command_line.outfile;
-  struct tms cpu_times;
 
-  /* All went fine - prepare the SIGINT and send runjob_ok */
-  signals_child_pid = pid;
-  unblock_sigint_and_install_handler();
-  // printf("runjob_ok %s\n", ofname);
-  c_send_runjob_ok(ofname, pid);
-  if (client_uid == 0) {
-    status = ptrace_pid(pid);
-    /*
-    char buff[];
-    sprintf(buff, "strace -e none -e exit_group -p %d", pid);
-    status = system(buff);
-    // sprintf(buff, "%d", pid);
-    // status = execl("/usr/bin/strace", "strace", "-e", "none", "-e", "exit_group", "-p", buff, NULL);
+/* run_relink and c_run_job_fork removed in auto-reconnect branch */
 
-    */
-  } else {
-    status = wait_for_pid(pid);
-  }
-
-  if (WIFEXITED(status)) {
-    /* We force the proper cast */
-    result->errorlevel = WEXITSTATUS(status);
-    result->died_by_signal = 0;
-  } else if (WIFSIGNALED(status)) {
-    result->signal = WTERMSIG(status);
-    result->errorlevel = -1;
-    result->died_by_signal = 1;
-  } else {
-    result->died_by_signal = 0;
-    result->errorlevel = -1;
-  }
-
-
-
-  if (command_line.send_output_by_mail) {
-    send_mail(command_line.jobid, result->errorlevel, ofname, command_line.linux_cmd);
-  }
-  hook_on_finish(command_line.jobid, result->errorlevel, ofname, command_line.linux_cmd);
-
-  if (command_line.on_finish_cmd) {
-      command_line.rt_pid = pid;
-      if (ofname) command_line.rt_output = strdup(ofname);
-  }
-
-  /* Calculate times */
-  times(&cpu_times);
-  result->real_sec   = get_monotonic_sec() - command_line.start_time;
-  result->user_sec   = (time_t)(cpu_times.tms_cutime) / sysconf(_SC_CLK_TCK);
-  result->system_sec = (time_t)(cpu_times.tms_cstime) / sysconf(_SC_CLK_TCK);
-
-  free(ofname);
-}
 /* Returns errorlevel */
 static void run_parent(int fd_read_filename, int pid, struct Result *result) {
   int status = 0;
@@ -327,10 +248,9 @@ static void run_parent(int fd_read_filename, int pid, struct Result *result) {
   }
   hook_on_finish(command_line.jobid, result->errorlevel, ofname, command_line.linux_cmd);
 
-  if (command_line.on_finish_cmd) {
-      command_line.rt_pid = pid;
-      if (ofname) command_line.rt_output = strdup(ofname);
-  }
+  command_line.rt_pid = pid;
+  if (command_line.on_finish_cmd && ofname)
+      command_line.rt_output = strdup(ofname);
 
   /* Calculate times */
   times(&cpu_times);
@@ -509,10 +429,6 @@ int run_job(int jobid, struct Result *res) {
   /*program_signal(); Still not needed*/
 
   block_sigint();
-  if (command_line.taskpid != 0) {
-    run_relink(command_line.taskpid, res);
-    return errorlevel;
-  }
   /* Prepare the output filename sending */
   pipe(p);
   
@@ -546,21 +462,4 @@ int run_job(int jobid, struct Result *res) {
   return errorlevel;
 }
 
-#if 0
-Not needed
-static void sigchld_handler(int val)
-{
-}
 
-static void program_signal()
-{
-  struct sigaction act;
-
-  act.sa_handler = sigchld_handler;
-  /* Reset the mask */
-  memset(&act.sa_mask,0,sizeof(act.sa_mask));
-  act.sa_flags = SA_NOCLDSTOP;
-
-  sigaction(SIGCHLD, &act, NULL);
-}
-#endif

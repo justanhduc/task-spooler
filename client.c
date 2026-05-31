@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
@@ -142,17 +143,51 @@ int c_wait_newjob_ok() {
   return m.jobid;
 }
 
+/* Try to reconnect to server. Returns 1 on success, 0 on failure. */
+static int reconnect_to_server(void) {
+    if (server_socket > 0) {
+        close(server_socket);
+        server_socket = -1;
+    }
+    for (int attempt = 0;; attempt++) {
+        if (attempt > 0) sleep(60);
+
+        int new_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+        if (new_fd < 0) continue;
+
+        char *sp = NULL;
+        create_socket_path(&sp);
+        struct sockaddr_un addr;
+        addr.sun_family = AF_UNIX;
+        strncpy(addr.sun_path, sp, sizeof(addr.sun_path) - 1);
+        free(sp);
+
+        if (connect(new_fd, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
+            close(new_fd);
+            continue;
+        }
+        server_socket = new_fd;
+        return 1;
+    }
+}
+
 int c_wait_server_commands() {
   struct Msg m = default_msg();
   int res;
 
   while (1) {
     res = recv_msg(server_socket, &m);
-    if (res == -1)
-      error("Error in wait_server_commands");
+    if (res == -1) {
+      /* Socket error — reconnect and keep waiting */
+      reconnect_to_server();
+      continue;
+    }
 
-    if (res == 0)
-      break;
+    if (res == 0) {
+      /* EOF — server went down, reconnect and keep waiting */
+      reconnect_to_server();
+      continue;
+    }
     if (res != sizeof(m))
       error("Error in wait_server_commands");
     if (m.type == RUNJOB) {
@@ -172,9 +207,29 @@ int c_wait_server_commands() {
       }
       c_end_of_job(&result);
 
-      /* Receive ENDJOB_OK with final timing from server */
+      /* Try to receive ENDJOB_OK — if server crashed, reconnect */
       res = recv_msg(server_socket, &m);
-      if (res == sizeof(m) && m.type == ENDJOB_OK) {
+      if (res != sizeof(m) || m.type != ENDJOB_OK) {
+          while (1) {
+              reconnect_to_server();
+
+              struct Msg r = default_msg();
+              r.type = RECONNECT;
+              r.jobid = command_line.jobid;
+              r.u.reconnect.pid = command_line.rt_pid;
+              send_msg(server_socket, &r);
+
+              res = recv_msg(server_socket, &m);
+              if (res != sizeof(m) || m.type != RECONNECT_OK) continue;
+
+              c_end_of_job(&result);
+              res = recv_msg(server_socket, &m);
+              if (res == sizeof(m) && m.type == ENDJOB_OK) break;
+          }
+      }
+
+      /* Store timing info from ENDJOB_OK */
+      if (res == sizeof(m)) {
           command_line.rt_real_sec = m.u.finish_info.real_sec;
           command_line.rt_user_sec = m.u.finish_info.user_sec;
           command_line.rt_system_sec = m.u.finish_info.system_sec;

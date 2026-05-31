@@ -22,7 +22,6 @@ enum Jobstate {
   FINISHED,
   SKIPPED,
   HOLDING_CLIENT,
-  RELINK,
   WAIT,
   DELINK,
   LOCKED,
@@ -80,7 +79,6 @@ enum ExitCodes {
   EXITCODE_OK = 0,
   EXITCODE_UNKNOWN_ERROR = -1,
   EXITCODE_QUEUE_FULL = 2,
-  EXITCODE_RELINK_FAILED = 3
 };
 
 enum { DEFAULT_MAXFINISHED = 1000 };
@@ -124,7 +122,6 @@ void s_kill_all_jobs(int s, struct User *user);
 void s_count_running_jobs(int s, struct User *user);
 void s_check_holdon(void);
 
-struct User *s_check_relink(int s, int jobid, pid_t pid, struct User *user);
 int s_check_running_pid(pid_t pid);
 void s_read_sqlite(void);
 int s_find_pid(pid_t target_pid, int deep_search);

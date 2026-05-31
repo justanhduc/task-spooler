@@ -188,7 +188,6 @@ static struct option longOptions[] = {
     {"unlock-ts", no_argument, NULL, 0},
     {"daemon", no_argument, NULL, 0},
     {"tmp", no_argument, NULL, 0},
-    {"relink", required_argument, NULL, 0},
     {"jobid", required_argument, NULL, 'J'},
     {"stime", required_argument, NULL, 0},
     {"check_daemon", no_argument, NULL, 0},
@@ -269,13 +268,6 @@ void parse_opts(int argc, char **argv) {
           command_line.jobid = str2int64(optarg);
         } else {
           command_line.jobid = -1;
-        }
-      } else if (strcmp(longOptions[optionIdx].name, "relink") == 0) {
-        command_line.taskpid = str2int64(optarg);
-        if (command_line.taskpid <= 0)
-          command_line.taskpid = 0;
-        else {
-          check_relink(command_line.taskpid);
         }
       } else if (strcmp(longOptions[optionIdx].name, "stime") == 0) {
         command_line.start_time = str2int64(optarg);
@@ -665,7 +657,7 @@ static void print_help(const char *cmd) {
 
   printf("  --lock                          Lock server (%d sec. timeout; root has no timeout)\n", DEFAULT_USER_LOCK_TIME);
   printf("  --unlock                        Release server lock\n");
-  printf("  --relink [pid]                  Reconnect tasks after unexpected failures\n");
+  /*  --relink removed in auto-reconnect branch  */
   printf("  --wtime [walltime]              Wall time limit, examples: 30s, 3.4m, 1.5H, 2d. (will be clamped to system maximum if exceeded).\n");
   printf("  --find-by-pid [pid]             Find which running job a PID belongs to (incl. descendants), prints jobid or -1\n");
   printf("  --on-finish <template>          Run command after job finishes.\n");

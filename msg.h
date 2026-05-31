@@ -66,6 +66,8 @@ enum MsgTypes {
   ERROR_INFO,
   FIND_PID,
   FIND_PID_RESULT,
+  RECONNECT,
+  RECONNECT_OK,
   ENDJOB_OK,
 };
 
@@ -126,6 +128,9 @@ struct Msg {
       time_t end_time;
       int num_slots;
     } finish_info;
+    struct {
+      pid_t pid;
+    } reconnect;
   } u;
 };
 

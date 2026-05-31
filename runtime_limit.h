@@ -17,7 +17,6 @@ typedef struct {
 } time_repr_t;
 
 time_repr_t format_time(time_t t);
-void check_relink(int pid);
 time_t get_cpu_time_by_pid(int pid);
 time_t get_max_wall_time(void);
 int parse_time(const char *s, time_t *out);

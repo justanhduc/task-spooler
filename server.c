@@ -411,23 +411,39 @@ static void clean_after_client_disappeared(int socket, int index) {
   /* Act as if the job ended. */
   int jobid = client_cs[index].jobid;
   if (client_cs[index].hasjob) {
-    struct Result r = default_result();
+    struct Job *p = findjob(jobid);
 
-    r.errorlevel = -1;
-    r.died_by_signal = 1;
-    r.signal = SIGKILL;
-    r.user_sec = 0;
-    r.system_sec = 0;
-    r.real_sec = 0;
-    r.skipped = 0;
+    if (p && (p->state == RUNNING || p->state == PAUSE)) {
+        /* Running job — kill orphaned child, mark finished */
+        if (p->pid > 0) {
+            kill(-(p->pid), SIGTERM);
+            struct timespec ts = { .tv_sec = 0, .tv_nsec = 50000000L };
+            for (int i = 0; i < 10; i++) {
+                if (kill(p->pid, 0) != 0) break;
+                nanosleep(&ts, NULL);
+            }
+            if (kill(p->pid, 0) == 0)
+                kill(-(p->pid), SIGKILL);
+        }
 
-    warning("JobID %i quit while running.", jobid);
-    job_finished(&r, jobid);
-    /* For the dependencies */
-    check_notify_list(jobid);
-    /* We don't want this connection to do anything
-     * more related to the jobid, secially on remove_connection
-     * when we receive the EOC. */
+        struct Result r = default_result();
+        r.errorlevel = -1;
+        r.died_by_signal = 1;
+        r.signal = SIGKILL;
+        r.user_sec = 0;
+        r.system_sec = 0;
+        r.real_sec = 0;
+        r.skipped = 0;
+
+        warning("JobID %i quit while running.", jobid);
+        job_finished(&r, jobid);
+        check_notify_list(jobid);
+    } else if (p) {
+        /* Queued/delink job — just remove from queue */
+        warning("JobID %i removed (client disconnected before running).", jobid);
+        s_delete_job(jobid);
+    }
+
     client_cs[index].hasjob = 0;
   } else
     /* If it doesn't have a running job,
@@ -555,12 +571,7 @@ static enum Break client_read(int index) {
       return BREAK; /* break in the parent*/
     break;
   case NEWJOB:
-    if (m.u.newjob.taskpid != 0) {
-      // check if taskpid isnot in queue and from a valid user.
-      user = s_check_relink(s, m.jobid, m.u.newjob.taskpid, user);
-    } else {
-      if (s_check_locker(user) == 1) { break; }
-    }
+    if (s_check_locker(user) == 1) { break; }
 
     if (user == NULL) {
       struct Msg m = default_msg();
@@ -643,6 +654,28 @@ static enum Break client_read(int index) {
     break;
   case GET_CMD:
     s_send_cmd(s, m.jobid);
+    break;
+  case RECONNECT:
+    {
+        struct Job *jp = get_job(m.jobid);
+        struct Msg resp = default_msg();
+        resp.type = RECONNECT_OK;
+        resp.jobid = m.jobid;
+
+        if (jp && (jp->state == DELINK || jp->state == RUNNING || jp->state == FINISHED)
+            && jp->pid == m.u.reconnect.pid
+            && jp->user == user) {
+            jp->state = RUNNING;
+            jp->client_socket = s;
+            /* Replace the old connection entry */
+            client_cs[index].hasjob = 1;
+            client_cs[index].jobid = m.jobid;
+            send_msg(s, &resp);
+        } else {
+            resp.type = ERROR_INFO;
+            send_msg(s, &resp);
+        }
+    }
     break;
   case ENDJOB:
     // printf("job_finished = %x, jobid = %d\n", &m.u.result, client_cs[index].jobid);

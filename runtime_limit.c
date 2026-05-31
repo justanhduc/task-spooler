@@ -15,21 +15,6 @@
 #include "error.h"
 #include "utils.h"
 
-void check_relink(int pid) {
-  char buff[256];
-  struct stat t_stat;
-  snprintf(buff, 255, "/proc/%d/stat", pid);
-  if (stat(buff, &t_stat) != -1) {
-    time_t g_boot_wallclock = time(NULL) - get_monotonic_sec();
-    command_line.start_time = t_stat.st_ctime - g_boot_wallclock;
-  } else {
-    if (kill(pid, 0) != 0) {
-      error("Client: PID[%d] is dead\n", pid);
-    }
-  }
-  command_line.outfile = NULL;
-}
-
 time_repr_t format_time(time_t t)
 {
     time_repr_t out;

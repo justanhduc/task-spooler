@@ -2,6 +2,28 @@
 
 All notable changes to task-spooler-PLUS.
 
+## [v2.3] — 2025-Q1
+
+### Added
+- **`--on-finish` per-job callback**: run a command after job finishes with full job info via placeholders
+  - Placeholders: `{jobid}`, `{output}`, `{exitcode}`, `{pid}`, `{label}`, `{command}`, `{realtime}`, `{usertime}`, `{systime}`, `{pausetime}`, `{start_time}`, `{enque_time}`, `{end_time}`, `{slots}`
+  - `{output}`, `{label}`, `{command}` auto-quoted for shell safety
+  - `ENDJOB_OK` protocol: server sends final timing data (pause duration, start/enqueue/end time) after job finishes
+  - Client-side execution (user context, not root)
+- **Client auto-reconnect**: on server crash, client retries connection automatically
+  - `RECONNECT`/`RECONNECT_OK` protocol for seamless re-attachment
+  - First retry immediately, then every 60s
+  - Works for both running and finished jobs
+- **Orphan child cleanup**: server kills orphaned subprocesses when client disconnects during RUNNING/PAUSE state
+
+### Removed
+- **Server-side `--relink` mechanism**: replaced by client auto-reconnect
+  - Removed `RELINK` state, `s_check_relink()`, `run_relink()`, `ptrace_pid()`, `wait_for_pid()`
+- **Sound notification**: removed `SOUND` ifdef, `paplay`/PulseAudio defaults
+
+### Changed
+- Time calculation moved before job callbacks to provide timing data to `--on-finish`
+
 ## [v2.2] — 2024-Q2 (cpu-only branch)
 
 ### Added
