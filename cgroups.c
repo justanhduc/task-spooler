@@ -680,10 +680,12 @@ void cgroups_create_job(const struct Job *p) {
         printf("cannot set cgroups for group: missing PID\n");
         return;
     }
+    int cpus = p->num_slots;
+    if (cpus < 1) cpus = 1;
 #ifdef CGROUP_V2
-    cgroups_v2_cpu(p->jobid, p->pid, p->num_allocated);
+    cgroups_v2_cpu(p->jobid, p->pid, cpus);
 #else
-    cgroups_v1_cpu(p->jobid, p->pid, p->num_allocated);
+    cgroups_v1_cpu(p->jobid, p->pid, cpus);
     cgroups_v1_mkdir_freeze(p->jobid, p->pid);
 #endif
 }
@@ -873,7 +875,7 @@ static void cgroup_remove_orphan(const char *scan_dir, const char *group)
  */
 void cgroups_restore_all_cpu_bind(void)
 {
-    if (!cpu_bind_enabled()) return;
+    /* 重启恢复不受 --no-bind 影响：已有 cgroup 中的 binding 需要重建 */
 
     const char *scan_dir;
 #ifdef CGROUP_V2
