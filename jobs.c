@@ -1201,8 +1201,8 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
     }
 
     p->pid = pid;
-    cgroups_create_job(p);
 #ifdef TS_CPU_BIND
+    /* 先分配 CPU 并创建 cpuset cgroup（保证在 freezer 之前就绪） */
     if (cpu_bind_enabled() && p->num_allocated > 0) {
         p->cpu_alloc = cpu_bind_alloc_init(p->jobid, p->num_allocated);
         if (p->cpu_alloc) {
@@ -1211,6 +1211,8 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
         }
     }
 #endif
+    /* 再创建 cpu + freezer cgroup（freezer 是最后创建的） */
+    cgroups_create_job(p);
     if (oname != NULL && strlen(oname) != 0) {
         p->output_filename = oname;
     }

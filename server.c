@@ -287,6 +287,17 @@ void server_main(int notify_fd, char *_path) {
 #endif
 #ifdef TS_CPU_BIND
   cpu_bind_init();
+  /* 若 max_slots 超过可绑核总数，降低到可用值 */
+  if (cpu_bind_enabled()) {
+      int total_cpus = 0;
+      for (int i = 0; i < sys_topology.num_nodes; i++)
+          total_cpus += sys_topology.nodes[i].num_cores;
+      if (max_slots > total_cpus) {
+          printf("max_slots %d > total_cpus %d, capping to %d\n",
+                 max_slots, total_cpus, total_cpus);
+          s_set_max_slots(0, total_cpus);
+      }
+  }
 #endif
 
   if (notify_fd != 0)

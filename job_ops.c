@@ -253,16 +253,20 @@ void s_job_info(int s, int jobid) {
   fd_nprintf(s, 100, "User: %s [%d]\n", p->user->name, p->user->uid);
   fd_nprintf(s, 100, "State: %9s PID: %-6d%s\n", jstate2string(p->state), p->pid, status);
 #ifdef TS_CPU_BIND
-  if (cpu_bind_enabled() && p->cpu_alloc) {
-      struct CpuAlloc *ca = (struct CpuAlloc *)p->cpu_alloc;
-      char *cpus = cpu_bind_format_cpus(ca);
-      char *mems = cpu_bind_format_mems(ca);
-      fd_nprintf(s, 200, "Slots: %-3d  CPU: %s  NUMA: %s\n",
-                 p->num_slots,
-                 cpus ? cpus : "(none)",
-                 mems ? mems : "(none)");
-      free(cpus);
-      free(mems);
+  if (cpu_bind_enabled()) {
+      if (p->cpu_alloc) {
+          struct CpuAlloc *ca = (struct CpuAlloc *)p->cpu_alloc;
+          char *cpus = cpu_bind_format_cpus(ca);
+          char *mems = cpu_bind_format_mems(ca);
+          fd_nprintf(s, 200, "Slots: %-3d  CPU: %s  NUMA: %s\n",
+                     p->num_slots,
+                     cpus ? cpus : "(none)",
+                     mems ? mems : "(none)");
+          free(cpus);
+          free(mems);
+      } else {
+          fd_nprintf(s, 100, "Slots: %-3d  CPU: free\n", p->num_slots);
+      }
   } else
 #endif
   fd_nprintf(s, 100, "Slots: %-3d\n", p->num_slots);

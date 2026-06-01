@@ -4,9 +4,11 @@
  * 编译: gcc -std=c11 -Wall -Wextra -c cpu_bind.c -o cpu_bind.o
  */
 
-#define TOPOLOGY_IMPLEMENTATION
 #include "cpu_bind.h"
 #include "vec.h"
+
+/* 拓扑实例 — 由 gen_topology.py 生成 */
+struct Topology sys_topology = TOPOLOGY_INIT;
 
 #include <limits.h>
 #include <stdio.h>

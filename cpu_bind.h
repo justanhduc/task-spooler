@@ -6,6 +6,30 @@
 #include "topology.h"
 #include "vec.h"
 
+/* ---- CPU topology types (merged from topology_types.h) ---- */
+struct CoreGroup {
+    int group_id;
+    int node_id;
+    int num_cores;
+    int free_count;
+    int os_cpus[MAX_CORES_PER_GROUP];
+};
+
+struct NodeInfo {
+    int node_id;
+    int num_groups;
+    int num_cores;
+    int free_count;
+    int group_ids[16];
+};
+
+struct Topology {
+    int num_nodes;
+    int num_groups;
+    struct CoreGroup groups[NUM_GROUPS];
+    struct NodeInfo nodes[NUM_NODES];
+};
+
 /* ---- 全局 CPU→jobid 映射 ---- */
 /* 0 = 空闲, >0 = 被该 jobid 占用 */
 extern int cpu_owner[MAX_OS_CPU];

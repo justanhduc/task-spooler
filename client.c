@@ -353,59 +353,26 @@ void c_check_version() {
     error("Error calling the 2nd recv_msg in c_check_version");
 }
 
+/* Format KB to human-readable string (e.g. 1024 → "1.0 MB") */
+static void fmt_size(long kb, char *buf, size_t size) {
+    if (kb < 0) { snprintf(buf, size, "?"); return; }
+    const char *units[] = {"KB", "MB", "GB", "TB"};
+    double val = (double)kb;
+    int u = 0;
+    while (val >= 1024.0 && u < 3) { val /= 1024.0; u++; }
+    if (val < 10)
+        snprintf(buf, size, "%.1f %s", val, units[u]);
+    else
+        snprintf(buf, size, "%.0f %s", val, units[u]);
+}
+
 static void print_job_resource_usage(pid_t pid) {
     if (pid <= 0) return;
     if (kill(pid, 0) != 0) return;
 
     char path[64];
-    FILE *fp;
     char buf[1024];
-    long ticks = sysconf(_SC_CLK_TCK);
-    if (ticks <= 0) return;
-
-    /* --- CPU usage: two samples ~50ms apart --- */
-    snprintf(path, sizeof(path), "/proc/%d/stat", pid);
-    fp = fopen(path, "r");
-    if (fp) {
-        long utime1 = 0, stime1 = 0, utime2 = 0, stime2 = 0;
-        if (fgets(buf, sizeof(buf), fp)) {
-            char *ptr = buf;
-            for (int i = 0; i < 13; i++) {
-                ptr = strchr(ptr, ' ');
-                if (!ptr) break;
-                ptr++;
-            }
-            if (ptr && sscanf(ptr, "%ld %ld", &utime1, &stime1) == 2) {
-                struct timespec ts1, ts2;
-                clock_gettime(CLOCK_MONOTONIC, &ts1);
-
-                struct timespec sleep_ts = { .tv_sec = 0, .tv_nsec = 50000000L };
-                nanosleep(&sleep_ts, NULL);
-
-                fclose(fp);
-                fp = fopen(path, "r");
-                if (fp && fgets(buf, sizeof(buf), fp)) {
-                    ptr = buf;
-                    for (int i = 0; i < 13; i++) {
-                        ptr = strchr(ptr, ' ');
-                        if (!ptr) break;
-                        ptr++;
-                    }
-                    if (ptr && sscanf(ptr, "%ld %ld", &utime2, &stime2) == 2) {
-                        clock_gettime(CLOCK_MONOTONIC, &ts2);
-                        double wall_sec = (ts2.tv_sec - ts1.tv_sec)
-                                        + (ts2.tv_nsec - ts1.tv_nsec) / 1e9;
-                        if (wall_sec > 0) {
-                            long delta = (utime2 + stime2) - (utime1 + stime1);
-                            double cpu_pct = ((double)delta / ticks) / wall_sec * 100.0;
-                            printf("CPU usage: %.1f%%\n", cpu_pct);
-                        }
-                    }
-                }
-            }
-        }
-        if (fp) fclose(fp);
-    }
+    FILE *fp;
 
     /* --- Memory: RSS & VIRT from /proc/<pid>/status --- */
     snprintf(path, sizeof(path), "/proc/%d/status", pid);
@@ -420,10 +387,16 @@ static void print_job_resource_usage(pid_t pid) {
         }
         fclose(fp);
 
-        if (rss >= 0 && vsz >= 0)
-            printf("Memory: %ld KB RSS / %ld KB VIRT\n", rss, vsz);
-        else if (rss >= 0)
-            printf("Memory: %ld KB RSS\n", rss);
+        if (rss >= 0 && vsz >= 0) {
+            char rss_s[32], vsz_s[32];
+            fmt_size(rss, rss_s, sizeof(rss_s));
+            fmt_size(vsz, vsz_s, sizeof(vsz_s));
+            printf("Memory: %s RSS / %s VIRT\n", rss_s, vsz_s);
+        } else if (rss >= 0) {
+            char rss_s[32];
+            fmt_size(rss, rss_s, sizeof(rss_s));
+            printf("Memory: %s RSS\n", rss_s);
+        }
     }
 }
 
