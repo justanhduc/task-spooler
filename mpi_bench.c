@@ -1,18 +1,19 @@
 /*
- * mpi_bench.c — MPI + CPU 绑定测试程序
+ * mpi_bench.c — MPI CPU binding benchmark
  *
- * 数值积分计算 π = ∫₀¹ 4/(1+x²) dx，细粒度分片做密集浮点负载。
- * 每秒 rank 0 显示绑核范围 + 所有进程当前运行的 CPU。
+ * Numerical integration of π = ∫₀¹ 4/(1+x²) dx with fine-grained
+ * steps for dense FP workload. Every second rank 0 reports the
+ * cgroup CPU affinity and the actual CPUs each process runs on.
  *
- * 配合 ts + cpu_bind 测试绑核效果。
+ * Use with ts --cpu-bind to verify binding effectiveness.
  *
- * 编译:
+ * Compile:
  *   mpicc -O2 -o mpi_bench mpi_bench.c
  *
- * 运行:
- *   mpirun -np 4 ./mpi_bench 10              # 4进程跑10秒
- *   mpirun -np 4 ./mpi_bench 10 2000000000   # 每秒20亿步/进程
- *   ts -N 4 mpirun -np 4 ./mpi_bench 10      # 绑4核跑
+ * Run:
+ *   mpirun -np 4 ./mpi_bench 10              # 4 procs, 10 seconds
+ *   mpirun -np 4 ./mpi_bench 10 4000000000   # custom steps/sec/proc
+ *   ts -N 4 mpirun -np 4 ./mpi_bench 10      # bind 4 CPUs
  */
 
 #define _GNU_SOURCE
@@ -81,7 +82,7 @@ int main(int argc, char **argv)
 
     if (argc < 2) {
         if (rank == 0)
-            fprintf(stderr, "用法: mpirun -np N %s <运行秒数> [每进程每秒步数]\n",
+            fprintf(stderr, "Usage: mpirun -np N %s <seconds> [steps/sec/proc]\n",
                     argv[0]);
         MPI_Finalize();
         return 1;
@@ -99,13 +100,13 @@ int main(int argc, char **argv)
     /* ---- rank 0 显示启动信息 ---- */
     if (rank == 0) {
         printf("========================================\n");
-        printf(" 命令:");
+        printf(" Cmd:");
         for (int i = 0; i < argc; i++) printf(" %s", argv[i]);
         printf("\n");
-        printf(" MPI:  %d 进程\n", nprocs);
-        printf(" 步长: %lld 步/秒/进程\n", steps_per_sec);
-        printf(" 运行: %d 秒\n", runtime_sec);
-        printf(" 绑核: %s\n", get_affinity_range());
+        printf(" MPI procs: %d\n", nprocs);
+        printf(" Steps:     %lld /sec/proc\n", steps_per_sec);
+        printf(" Duration:  %d sec\n", runtime_sec);
+        printf(" Affinity:  %s\n", get_affinity_range());
         printf("========================================\n");
         fflush(stdout);
     }
@@ -180,7 +181,7 @@ int main(int argc, char **argv)
                     double pi_now = total_steps > 0
                         ? pi_sum * (double)steps_per_sec / (double)total_steps
                         : 0.0;
-                    printf(" [%d/%ds] 绑核[%s]  cpu[%s]  π=%.10f  %.2e FLOPS  (%lld步)\n",
+                    printf(" [%d/%ds] affinity[%s]  cpu[%s]  π=%.10f  %.2e FLOPS  (%lld steps)\n",
                            step, runtime_sec,
                            get_affinity_range(), cpu_buf,
                            pi_now, delta,
@@ -204,10 +205,10 @@ int main(int argc, char **argv)
             : 0.0;
         double err = pi_final - 3.14159265358979323846;
         printf("========================================\n");
-        printf(" π ≈ %.10f  (误差 %+.2e)\n", pi_final, err);
-        printf(" 每进程: %lld 步\n", (long long)total_steps);
-        printf(" 总计:   %.2e 次浮点运算\n", total_flops_sum);
-        printf(" 均值:   %.2e FLOPS\n", total_flops_sum / (double)runtime_sec);
+        printf(" π ≈ %.10f  (error %+.2e)\n", pi_final, err);
+        printf(" Steps/proc: %lld\n", (long long)total_steps);
+        printf(" Total FP:   %.2e ops\n", total_flops_sum);
+        printf(" Avg:        %.2e FLOPS\n", total_flops_sum / (double)runtime_sec);
         printf("========================================\n");
     }
 
