@@ -161,8 +161,8 @@ int main(int argc, char **argv)
                                         "%s%d", i ? "," : "", cpus[i]);
 
                     double pi_val = pi_acc * (double)SLICE / (double)step_acc;
-                    printf(" [%d/%d] affinity[%s]  cpu[%s]  π=%.10f  %.2e FLOPS\n",
-                           step, secs, get_affinity(), cpubuf, pi_val, delta);
+                    printf(" [%d/%d] affinity[%s]  cpu[%s]  π=%.10f  %.2f GLOPS\n",
+                           step, secs, get_affinity(), cpubuf, pi_val, delta / 1e9);
                     fflush(stdout);
                     free(cpus);
                 }
@@ -180,9 +180,9 @@ int main(int argc, char **argv)
         double err = pi_final - 3.14159265358979323846;
         printf("========================================\n");
         printf(" π ≈ %.10f  (error %+.2e)\n", pi_final, err);
-        printf(" Steps/proc: %lld\n", (long long)step_acc);
-        printf(" Total FP:   %.2e ops\n", total_flop);
-        printf(" Avg:        %.2e FLOPS\n", total_flop / secs);
+        printf(" Steps/proc: %.2f B\n", (double)step_acc / 1e9);
+        printf(" Total FP:   %.2f G ops\n", total_flop / 1e9);
+        printf(" Avg:        %.2f GLOPS\n", total_flop / secs / 1e9);
         printf("========================================\n");
     }
 
