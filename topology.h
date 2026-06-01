@@ -9,7 +9,26 @@
 #define MAX_CORES_PER_GROUP  1
 #define MAX_OS_CPU           19
 
-#define TOPOLOGY_INIT  {.num_nodes=1, .num_groups=10, .groups={[0] = {.group_id=0, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={0}}, [1] = {.group_id=1, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={2}}, [2] = {.group_id=2, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={4}}, [3] = {.group_id=3, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={6}}, [4] = {.group_id=4, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={8}}, [5] = {.group_id=5, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={10}}, [6] = {.group_id=6, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={12}}, [7] = {.group_id=7, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={14}}, [8] = {.group_id=8, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={16}}, [9] = {.group_id=9, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={18}}}, .nodes={[0] = {.node_id=0, .num_groups=10, .num_cores=10, .free_count=10, .group_ids={0, 1, 2, 3, 4, 5, 6, 7, 8, 9}}}}
+#define TOPOLOGY_INIT \
+{ \
+.num_nodes = 1, \
+.num_groups = 10, \
+.groups = { \
+                [0] = {.group_id=0, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={0}}, \
+                [1] = {.group_id=1, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={2}}, \
+                [2] = {.group_id=2, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={4}}, \
+                [3] = {.group_id=3, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={6}}, \
+                [4] = {.group_id=4, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={8}}, \
+                [5] = {.group_id=5, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={10}}, \
+                [6] = {.group_id=6, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={12}}, \
+                [7] = {.group_id=7, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={14}}, \
+                [8] = {.group_id=8, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={16}}, \
+                [9] = {.group_id=9, .node_id=0, .num_cores=1, .free_count=1, .os_cpus={18}} \
+}, \
+.nodes = { \
+                [0] = {.node_id=0, .num_groups=10, .num_cores=10, .free_count=10, .group_ids={0, 1, 2, 3, 4, 5, 6, 7, 8, 9}} \
+} \
+    }
 
 #endif /* TOPOLOGY_H */
 
