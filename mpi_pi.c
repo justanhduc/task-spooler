@@ -1,15 +1,16 @@
 /*
- * mpi_pi.c — MPI CPU binding benchmark
+ * mpi_pi.c — Hybrid MPI + OpenMP π benchmark
  *
  * Numerical integration of π = ∫₀¹ 4/(1+x²) dx.
- * Every second rank 0 shows affinity range + per-process CPU placement.
+ * Each MPI rank uses OpenMP threads to parallelize its interval.
  *
  * Compile:
- *   mpicc -O2 -o mpi_pi mpi_pi.c
+ *   mpicc -O2 -fopenmp -o mpi_pi mpi_pi.c
  *
  * Run:
- *   mpirun -np 4 ./mpi_pi 10
- *   ts -N 4 mpirun -np 4 ./mpi_pi 10
+ *   mpirun -np 4 ./mpi_pi 10                # 4 MPI, 1 thread each
+ *   mpirun -np 4 ./mpi_pi 10 -nt 4          # 4 MPI, 4 OMP threads each
+ *   ts -N 4 mpirun -np 4 ./mpi_pi 10 -nt 4  # with ts cpu_bind
  */
 
 #define _GNU_SOURCE
@@ -20,6 +21,7 @@
 #include <mpi.h>
 #include <pthread.h>
 #include <sched.h>
+#include <omp.h>
 
 /* ---- qsort helper ---- */
 static int int_cmp(const void *a, const void *b)
@@ -63,7 +65,7 @@ int main(int argc, char **argv)
 
     if (argc < 2) {
         if (rank == 0)
-            fprintf(stderr, "Usage: mpirun -np N %s <seconds>\n", argv[0]);
+            fprintf(stderr, "Usage: mpirun -np N %s <seconds> [-nt <threads>]\n", argv[0]);
         MPI_Finalize();
         return 1;
     }
@@ -71,13 +73,26 @@ int main(int argc, char **argv)
     int secs = atoi(argv[1]);
     if (secs <= 0) secs = 10;
 
+    /* Parse -nt nthread (default 1) */
+    int omp_threads = 1;
+    for (int i = 2; i < argc - 1; i++) {
+        if (strcmp(argv[i], "-nt") == 0) {
+            omp_threads = atoi(argv[i + 1]);
+            if (omp_threads < 1) omp_threads = 1;
+            break;
+        }
+    }
+    omp_set_num_threads(omp_threads);
+
     /* header */
     if (rank == 0) {
         printf("========================================\n");
         printf(" Cmd:");
         for (int i = 0; i < argc; i++) printf(" %s", argv[i]);
         printf("\n");
-        printf(" Procs: %d\n", nprocs);
+        printf(" MPI procs: %d\n", nprocs);
+        printf(" OMP threads: %d\n", omp_threads);
+        printf(" Total workers: %d\n", nprocs * omp_threads);
         printf(" Time:  %d sec\n", secs);
         printf(" Affinity: %s\n", get_affinity());
         printf("========================================\n");
@@ -88,7 +103,6 @@ int main(int argc, char **argv)
     double h = 1.0 / nprocs;
     double x0 = rank * h;
 
-    /* heavy computation: Simpson's rule, ~6 flops per step */
     double start = MPI_Wtime();
     double next_out = start + 1.0;
     int step = 0;
@@ -97,13 +111,14 @@ int main(int argc, char **argv)
     double prev_flop = 0.0;
     long long step_acc = 0;
 
-    /* Each slice: 200M intervals, Simpson = 2 evals per interval */
     const long long SLICE = 200000000;
 
     while (MPI_Wtime() < start + secs + 1.0) {
-        /* --- Simpson's rule on this rank's interval --- */
+        /* --- Simpson's rule on this rank's interval, parallel with OpenMP --- */
         double local = 0.0;
         double dx = h / SLICE;
+
+        #pragma omp parallel for reduction(+:local, flop_acc) if(omp_threads > 1)
         for (long long i = 0; i <= SLICE; i++) {
             double x = x0 + i * dx;
             double f = 4.0 / (1.0 + x * x);
@@ -113,7 +128,7 @@ int main(int argc, char **argv)
                 local += 4.0 * f;
             else
                 local += 2.0 * f;
-            flop_acc += 6.0;   /* approx: divide, add, multiply, add, 2x FP in f */
+            flop_acc += 6.0;
         }
         local *= dx / 3.0;
 
