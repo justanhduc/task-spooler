@@ -176,20 +176,19 @@ int main(int argc, char **argv)
                     double delta = total_flops - prev_flops;
                     prev_flops = total_flops;
 
-                    /* 去重显示 CPU 列表 */
+                    /* 显示每个 rank 的 CPU（含重复） */
                     char cpu_buf[256] = "";
-                    int pos = 0, first = 1;
+                    int pos = 0;
                     for (int i = 0; i < nprocs; i++) {
-                        if (i > 0 && all_cpus[i] == all_cpus[i - 1]) continue;
                         int written = snprintf(cpu_buf + pos,
                                     sizeof(cpu_buf) - (size_t)pos,
-                                    "%s%d", first ? "" : ",", all_cpus[i]);
+                                    "%s%d", i > 0 ? "," : "", all_cpus[i]);
                         if (written > 0) pos += written;
-                        first = 0;
                     }
 
-                    printf(" [%d/%ds] CPU[%s]  %.2e FLOPS  (%lld iter)\n",
-                           step, runtime_sec, cpu_buf, delta,
+                    printf(" [%d/%ds] 绑核[%s]  cpu[%s]  %.2e FLOPS  (%lld iter)\n",
+                           step, runtime_sec,
+                           get_affinity_range(), cpu_buf, delta,
                            (long long)nprocs * iter_count);
                     fflush(stdout);
                     free(all_cpus);
