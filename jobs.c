@@ -934,6 +934,7 @@ int next_run_job(void) {
                     }
 
                     if (p->schedule_time > 0 && get_monotonic_sec() < p->schedule_time) continue;
+                    if (p->client_socket <= 0) continue;  /* no client connected */
 
                     if (free_slots < p->num_slots) continue;
                     if (USER(uid)->max_slots - USER(uid)->busy < p->num_slots) continue;
@@ -1102,41 +1103,21 @@ static int fork_cmd(int const UID, char const *path, char const *cmd) {
 static void s_add_job(struct Job *j) {
     if (j->state == RUNNING) {
         if (j->pid > 0 && s_check_running_pid(j->pid) == 1) {
-            j->state = DELINK;
+            /* Keep RUNNING — original client will reconnect via RECONNECT */
+            j->client_socket = 0;
             vec_push(&active_jobs, j);
-
-            /* auto-reconnect: don't fork relink client, wait for original client */
             jobids = jobids > j->jobid ? jobids : j->jobid + 1;
             return;
         } else {
             delete_DB(j->jobid, "Jobs");
         }
     } else if (j->state == QUEUED || j->state == LOCKED) {
-        if (j->schedule_time > get_monotonic_sec()) {
-            /* Scheduled job whose time hasn't arrived — can't fork client
-               (unknown environment), mark as finished/failed */
-            printf("Scheduled job %d lost on crash (time not yet reached)\n", j->jobid);
-            j->state = FINISHED;
-            j->result.errorlevel = -1;
-            j->result.died_by_signal = 0;
-            j->result.skipped = 0;
-            insert_DB(j, "Finished");
-            delete_DB(j->jobid, "Jobs");
-            destroy_job(j);
-            return;
-        }
-        printf("add the queue job %d\n", j->jobid);
-        if (j->state == QUEUED) j->state = WAIT;
-
+        /* Don't fork — original client will reconnect via RECONNECT protocol */
+        printf("queue job %d (waiting for client reconnect)\n", j->jobid);
+        j->client_socket = 0;
+        if (j->user) j->user->queue++;
         vec_push(&active_jobs, j);
-
-        char c[32];
-        sprintf(c, " -J %d ", j->jobid);
-        char *str = insert_chars_check(j->command_strip, j->command, c);
-
-        fork_cmd(j->user->uid, j->work_dir, str);
         jobids = jobids > j->jobid ? jobids : j->jobid + 1;
-        free(str);
         return;
     }
 

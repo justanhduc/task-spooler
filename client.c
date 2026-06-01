@@ -153,7 +153,7 @@ static int reconnect_to_server(void) {
         server_socket = -1;
     }
     for (int attempt = 0;; attempt++) {
-        if (attempt > 0) sleep(60);
+        if (attempt > 0) sleep(5);
 
         int new_fd = socket(AF_UNIX, SOCK_STREAM, 0);
         if (new_fd < 0) continue;
@@ -184,15 +184,17 @@ int c_wait_server_commands() {
         if (left > 0) sleep((unsigned int)left);
     }
     res = recv_msg(server_socket, &m);
-    if (res == -1) {
-      /* Socket error — reconnect and keep waiting */
+    if (res <= 0) {
+      /* Socket error — reconnect and claim job */
       reconnect_to_server();
-      continue;
-    }
-
-    if (res == 0) {
-      /* EOF — server went down, reconnect and keep waiting */
-      reconnect_to_server();
+      struct Msg r = default_msg();
+      r.type = RECONNECT;
+      r.jobid = command_line.jobid;
+      r.u.reconnect.pid = 0;
+      send_msg(server_socket, &r);
+      res = recv_msg(server_socket, &m);
+      if (res == sizeof(m) && m.type == RECONNECT_OK) continue;
+      /* Reconnect failed, try again */
       continue;
     }
     if (res != sizeof(m))

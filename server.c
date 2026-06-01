@@ -665,12 +665,13 @@ static enum Break client_read(int index) {
         resp.type = RECONNECT_OK;
         resp.jobid = m.jobid;
 
-        if (jp && (jp->state == DELINK || jp->state == RUNNING || jp->state == FINISHED)
-            && jp->pid == m.u.reconnect.pid
+        if (jp && (jp->state == QUEUED || jp->state == DELINK
+                   || jp->state == RUNNING || jp->state == FINISHED)
+            && (jp->pid == m.u.reconnect.pid || m.u.reconnect.pid == 0)
             && jp->user == user) {
-            jp->state = RUNNING;
+            /* Only transition to RUNNING if the job was already running */
+            if (jp->state == DELINK) jp->state = RUNNING;
             jp->client_socket = s;
-            /* Replace the old connection entry */
             client_cs[index].hasjob = 1;
             client_cs[index].jobid = m.jobid;
             send_msg(s, &resp);

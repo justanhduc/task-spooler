@@ -121,7 +121,6 @@ int open_sqlite() {
       "user_sec INT NOT NULL, system_sec INT NOT NULL, real_sec INT NOT "
       "NULL, skipped INT NOT NULL, "
       "ptr TEXT NOT NULL, nchars INT NOT NULL, allocchars INT NOT NULL, wall_time INT NOT NULL,"
-      "schedule_time INT NOT NULL,"
       "enqueue_time INT NOT NULL, start_time INT NOT NULL, end_time INT NOT "
       "NULL, "
       "pause_time INT NOT NULL, pause_duration INT NOT NULL, end_time_ms "
@@ -129,10 +128,9 @@ int open_sqlite() {
       "order_id INT NOT NULL, command_strip INT NOT NULL, work_dir TEXT    NOT "
       "NULL);";
 
-  /* Migrate existing databases */
-  sqlite3_exec(db, "ALTER TABLE Jobs ADD COLUMN schedule_time INT NOT NULL DEFAULT 0", 0, 0, 0);
-
   rc = sqlite3_exec(db, sql, 0, 0, &zErrMsg);
+  if (rc == SQLITE_OK)
+      sqlite3_exec(db, "ALTER TABLE Jobs ADD COLUMN schedule_time INT NOT NULL DEFAULT 0", 0, 0, 0);
 
   if (rc != SQLITE_OK) {
     sqlite3_free(zErrMsg);
@@ -164,7 +162,6 @@ int open_sqlite() {
       "user_sec INT NOT NULL, system_sec INT NOT NULL, real_sec INT NOT "
       "NULL, skipped INT NOT NULL, "
       "ptr TEXT NOT NULL, nchars INT NOT NULL, allocchars INT NOT NULL, wall_time INT NOT NULL,"
-      "schedule_time INT NOT NULL,"
       "enqueue_time INT NOT NULL, start_time INT NOT NULL, end_time INT NOT "
       "NULL, "
       "pause_time INT NOT NULL, pause_duration INT NOT NULL, end_time_ms "
@@ -172,10 +169,9 @@ int open_sqlite() {
       "order_id INT NOT NULL, command_strip INT NOT NULL, work_dir TEXT NOT "
       "NULL);";
 
-  /* Migrate existing databases */
-  sqlite3_exec(db, "ALTER TABLE Finished ADD COLUMN schedule_time INT NOT NULL DEFAULT 0", 0, 0, 0);
-
   rc = sqlite3_exec(db, sql2, 0, 0, &zErrMsg);
+  if (rc == SQLITE_OK)
+      sqlite3_exec(db, "ALTER TABLE Finished ADD COLUMN schedule_time INT NOT NULL DEFAULT 0", 0, 0, 0);
 
   if (rc != SQLITE_OK) {
     printf("[open_sqlite1] SQL error: %s\n", zErrMsg);
