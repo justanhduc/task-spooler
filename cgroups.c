@@ -96,16 +96,27 @@ void cgroups_v2_init(void) {
 
     char line[256];
     int has_cpu = 0;
+    int has_cpuset = 0;
     if (fgets(line, sizeof(line), fp)) {
         if (strstr(line, "cpu")) {
             has_cpu = 1;
         }
+#ifdef TS_CPU_BIND
+        if (strstr(line, "cpuset")) {
+            has_cpuset = 1;
+        }
+#endif
     }
     fclose(fp);
 
     if (has_cpu) {
         cg_write(CGROUP_SUBTREE_CONTROL, "+cpu");
     }
+#ifdef TS_CPU_BIND
+    if (has_cpuset) {
+        cg_write(CGROUP_SUBTREE_CONTROL, "+cpuset");
+    }
+#endif
 }
 
 static int cgroups_v2_cpu(int jobid, pid_t pid, int cpus) {
@@ -606,6 +617,26 @@ static void cgroups_v1_clean_dir(const char *spool_dir, cleanup_func_t cleanup_f
     closedir(dir);
 }
 
+#ifdef TS_CPU_BIND
+static int cgroups_v1_cleanup_cpuset(const char *group) {
+    char path[512];
+    snprintf(path, sizeof(path), "/sys/fs/cgroup/cpuset/%s", group);
+
+    for (int i = 0; i < 100; i++) {
+        if (rmdir(path) == 0 || errno == ENOENT) {
+            return 0;
+        }
+        if (errno != EBUSY) {
+            fprintf(stderr, "Error: rmdir %s failed: %s\n", path, strerror(errno));
+            return -1;
+        }
+        usleep(50000);
+    }
+    fprintf(stderr, "Failed to remove cpuset cgroup %s after 100 retries\n", path);
+    return -1;
+}
+#endif /* TS_CPU_BIND */
+
 #endif /* CGROUP_V2 */
 
 /* ================================================================
@@ -681,6 +712,9 @@ void cgroups_clean_job(const struct Job *p) {
     printf("clear cgroups: %s\n", group);
     cgroups_v1_cleanup_freeze(group);
     cgroups_v1_cleanup_cpu(group);
+#ifdef TS_CPU_BIND
+    cgroups_v1_cleanup_cpuset(group);
+#endif
 #endif
 }
 
@@ -700,3 +734,231 @@ int cgroups_freeze_ok(int jobid, pid_t pid) {
     return cgroups_v1_freeze_ok(jobid, pid);
 #endif
 }
+
+/* ================================================================
+ *  cgroups_set_cpuset — 将 cpu_bind 分配结果写入 cgroup cpuset
+ *  v1: /sys/fs/cgroup/cpuset/TASK_SPOOLER_<jobid>_<pid>/cpuset.cpus
+ *  v2: /sys/fs/cgroup/TASK_SPOOLER_<jobid>_<pid>/cpuset.cpus (统一层级)
+ * ================================================================ */
+#ifdef TS_CPU_BIND
+#include "cpu_bind.h"
+
+void cgroups_set_cpuset(int jobid, pid_t pid, const void *valloc)
+{
+    const struct CpuAlloc *alloc = (const struct CpuAlloc *)valloc;
+    char *cpus_str = cpu_bind_format_cpus(alloc);
+    char *mems_str = cpu_bind_format_mems(alloc);
+    char path[512];
+    char group[64];
+
+    if (!cpus_str) return;
+
+    cg_group_name(jobid, pid, group, sizeof(group));
+
+#ifdef CGROUP_V2
+    /* v2: 统一层级，目录已由 cgroups_v2_cpu 创建 */
+    snprintf(path, sizeof(path), CGROUP_DIR "/%s/cpuset.cpus", group);
+    cg_write(path, "%s", cpus_str);
+
+    if (mems_str) {
+        snprintf(path, sizeof(path), CGROUP_DIR "/%s/cpuset.mems", group);
+        cg_write(path, "%s", mems_str);
+    }
+#else
+    /* v1: 独立的 cpuset 层级，需要创建目录 */
+    snprintf(path, sizeof(path), "/sys/fs/cgroup/cpuset/%s", group);
+    cg_mkdir(path);
+
+    snprintf(path, sizeof(path), "/sys/fs/cgroup/cpuset/%s/cpuset.cpus", group);
+    cg_write(path, "%s", cpus_str);
+
+    if (mems_str) {
+        snprintf(path, sizeof(path), "/sys/fs/cgroup/cpuset/%s/cpuset.mems", group);
+        cg_write(path, "%s", mems_str);
+    }
+
+    /* 将 PID 写入 cgroup.procs */
+    snprintf(path, sizeof(path), "/sys/fs/cgroup/cpuset/%s/cgroup.procs", group);
+    cg_write(path, "%d", (int)pid);
+#endif
+
+    free(cpus_str);
+    free(mems_str);
+}
+
+/* 读取 cgroup 文件内容到静态缓冲区，返回指针或 NULL */
+static const char *cg_read_file(const char *path)
+{
+    static char buf[4096];
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) return NULL;
+    ssize_t n = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    if (n <= 0) return NULL;
+    buf[n] = '\0';
+    /* 去掉尾部换行 */
+    while (n > 0 && (buf[n - 1] == '\n' || buf[n - 1] == ' '))
+        buf[--n] = '\0';
+    return buf;
+}
+
+/* 解析 "0,1" 格式的 mems 字符串 → primary_node + mem_nodes 位图 */
+static void parse_mems(const char *str, int *primary_node, int *mem_nodes)
+{
+    *primary_node = -1;
+    *mem_nodes = 0;
+    if (!str || !*str) return;
+
+    char copy[128];
+    strncpy(copy, str, sizeof(copy) - 1);
+    copy[sizeof(copy) - 1] = '\0';
+
+    char *tok = strtok(copy, ",");
+    while (tok) {
+        int n = atoi(tok);
+        if (n >= 0 && n < NUM_NODES) {
+            *mem_nodes |= (1 << n);
+            if (*primary_node < 0) *primary_node = n;
+        }
+        tok = strtok(NULL, ",");
+    }
+}
+
+/* 清除孤儿 cgroup：将进程移回根 cgroup 后删除目录 */
+static void cgroup_remove_orphan(const char *scan_dir, const char *group)
+{
+    char path[512];
+    char procs_path[512];
+
+    /* 读取所有 PID 并写回根 cgroup.procs（释放约束） */
+    snprintf(procs_path, sizeof(procs_path), "%s/%s/cgroup.procs", scan_dir, group);
+    snprintf(path, sizeof(path), "%s/cgroup.procs", scan_dir);
+
+    FILE *fp = fopen(procs_path, "r");
+    if (fp) {
+        /* 把还在里面的进程全部移到父级 */
+        char lprocs[512];
+        snprintf(lprocs, sizeof(lprocs), "%s/cgroup.procs", scan_dir);
+        char line[64];
+        while (fgets(line, sizeof(line), fp)) {
+            pid_t p = (pid_t)atoi(line);
+            if (p > 0)
+                cg_write(lprocs, "%d", (int)p);
+        }
+        fclose(fp);
+    }
+
+    /* 删目录 */
+    snprintf(path, sizeof(path), "%s/%s", scan_dir, group);
+    for (int i = 0; i < 100; i++) {
+        if (rmdir(path) == 0 || errno == ENOENT) return;
+        if (errno != EBUSY) {
+            fprintf(stderr, "Error: rmdir %s: %s\n", path, strerror(errno));
+            return;
+        }
+        usleep(50000);
+    }
+    fprintf(stderr, "Failed to remove cgroup %s after 100 retries\n", path);
+}
+
+/* 重启恢复：扫描 cgroup 目录重建 cpu_bind 状态
+ *
+ * 流程：
+ *   1. 扫描 cgroups 下的 TASK_SPOOLER_<jobid>_<pid> 目录
+ *   2. 对每个目录：
+ *      a. pid 不存活 → 清理残留 cgroup
+ *      b. pid 存活但 ts 无此 job → 孤儿，删 cgroup，让系统自由调度
+ *      c. pid 存活且 ts 有此 job → 恢复 alloc
+ *   3. 遍历 active_jobs，对有 alloc 的 job 统一写 cpuset.cpus（确保一致）
+ */
+void cgroups_restore_all_cpu_bind(void)
+{
+    if (!cpu_bind_enabled()) return;
+
+    const char *scan_dir;
+#ifdef CGROUP_V2
+    scan_dir = CGROUP_DIR;           /* /sys/fs/cgroup/ — 统一层级 */
+#else
+    scan_dir = "/sys/fs/cgroup/cpuset";  /* v1 独立 cpuset 层级 */
+#endif
+
+    DIR *dir = opendir(scan_dir);
+    if (!dir) {
+        fprintf(stderr, "Warning: cannot open %s for cpu_bind restore\n", scan_dir);
+        return;
+    }
+
+    struct dirent *ent;
+    while ((ent = readdir(dir)) != NULL) {
+        int jobid;
+        pid_t pid;
+
+        if (sscanf(ent->d_name, "TASK_SPOOLER_%d_%d", &jobid, &pid) != 2)
+            continue;
+        if (pid <= 0) continue;
+
+        /* 检查 pid 是否存活 */
+        int pid_alive = (kill(pid, 0) == 0 || errno == EPERM);
+
+        /* 查找 ts 中是否有该 job */
+        struct Job *p = findjob(jobid);
+
+        if (!pid_alive) {
+            /* 进程已死 → 清理残留 cgroup */
+            printf("[RESTORE] cleanup stale cgroup %s (PID %d dead)\n",
+                   ent->d_name, pid);
+            cgroup_remove_orphan(scan_dir, ent->d_name);
+
+        } else if (!p) {
+            /* pid 存活但 ts 不管理此 job → 孤儿，删 cgroup 让系统接管 */
+            printf("[RESTORE] orphan cgroup %s (no ts job %d), releasing PID %d\n",
+                   ent->d_name, jobid, pid);
+            cgroup_remove_orphan(scan_dir, ent->d_name);
+
+        } else if (p->state == RUNNING || p->state == PAUSE) {
+            /* ts 管理的活跃 job → 恢复 alloc */
+            char path[512];
+            const char *content;
+
+            snprintf(path, sizeof(path), "%s/%s/cpuset.cpus", scan_dir, ent->d_name);
+            content = cg_read_file(path);
+            if (!content) {
+                printf("[RESTORE] %s: no cpuset.cpus, skip\n", ent->d_name);
+                continue;
+            }
+
+            int cpus[MAX_OS_CPU];
+            int count = cpu_bind_parse_cpuset(content, cpus, MAX_OS_CPU);
+            if (count <= 0) continue;
+
+            /* 读取 mems */
+            int mem_nodes = 0, primary_node = -1;
+            snprintf(path, sizeof(path), "%s/%s/cpuset.mems", scan_dir, ent->d_name);
+            content = cg_read_file(path);
+            if (content)
+                parse_mems(content, &primary_node, &mem_nodes);
+
+            p->cpu_alloc = cpu_bind_claim(p->jobid, cpus, count,
+                                           mem_nodes, primary_node);
+            if (p->cpu_alloc) {
+                printf("[RESTORE] job %d: restored %d CPUs, mem=0x%x\n",
+                       p->jobid, count, mem_nodes);
+            }
+        }
+        /* 其他状态（QUEUED/FINISHED 等）— cgroup 不应该存在，忽略 */
+    }
+    closedir(dir);
+
+    /* 统一写回 cpuset.cpus：遍历所有 active_jobs，确保 cgroup 一致 */
+    size_t n = vec_size(&active_jobs);
+    for (size_t i = 0; i < n; i++) {
+        struct Job *p = (struct Job *)vec_get(&active_jobs, i);
+        if ((p->state != RUNNING && p->state != PAUSE) || !p->cpu_alloc)
+            continue;
+        if (p->pid <= 0) continue;
+
+        printf("[RESTORE] set cpu for job %d (PID %d)\n", p->jobid, p->pid);
+        cgroups_set_cpuset(p->jobid, p->pid, p->cpu_alloc);
+    }
+}
+#endif /* TS_CPU_BIND */

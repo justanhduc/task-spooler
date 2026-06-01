@@ -34,6 +34,9 @@
 #include "mail.h"
 #include "execute.h"
 #include "error.h"
+#ifdef TS_CPU_BIND
+#include "cpu_bind.h"
+#endif
 
 /* The list will access them */
 int busy_slots = 0;
@@ -1000,6 +1003,12 @@ static void new_finished_job(struct Job *j) {
     if (err == 0) {
         delete_DB(j->jobid, "Jobs");
         cgroups_clean_job(j);
+#ifdef TS_CPU_BIND
+        if (j->cpu_alloc) {
+            cpu_bind_free((struct CpuAlloc *)j->cpu_alloc);
+            j->cpu_alloc = NULL;
+        }
+#endif
     }
     send_mail_via_ssmtp(j);
 }
@@ -1193,6 +1202,15 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
 
     p->pid = pid;
     cgroups_create_job(p);
+#ifdef TS_CPU_BIND
+    if (cpu_bind_enabled() && p->num_allocated > 0) {
+        p->cpu_alloc = cpu_bind_alloc_init(p->jobid, p->num_allocated);
+        if (p->cpu_alloc) {
+            cpu_bind_alloc((struct CpuAlloc *)p->cpu_alloc, p->num_allocated);
+            cgroups_set_cpuset(p->jobid, p->pid, p->cpu_alloc);
+        }
+    }
+#endif
     if (oname != NULL && strlen(oname) != 0) {
         p->output_filename = oname;
     }
@@ -1344,6 +1362,12 @@ int s_remove_job(int s, int *jobid, struct User *client) {
             pinfo_set_end_time(&p->info);
             free_cores(p);
             cgroups_clean_job(p);
+#ifdef TS_CPU_BIND
+            if (p->cpu_alloc) {
+                cpu_bind_free((struct CpuAlloc *)p->cpu_alloc);
+                p->cpu_alloc = NULL;
+            }
+#endif
             new_finished_job(p);
         } else {
             destroy_job(p);

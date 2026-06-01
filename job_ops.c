@@ -24,6 +24,9 @@
 #include "error.h"
 #include "server_user.h"
 #include "cgroups.h"
+#ifdef TS_CPU_BIND
+#include "cpu_bind.h"
+#endif
 #include "utils.h"
 
 static void send_state(int s, enum Jobstate state) {
@@ -249,6 +252,19 @@ void s_job_info(int s, int jobid) {
   fd_nprintf(s, 100, "\n");
   fd_nprintf(s, 100, "User: %s [%d]\n", p->user->name, p->user->uid);
   fd_nprintf(s, 100, "State: %9s PID: %-6d%s\n", jstate2string(p->state), p->pid, status);
+#ifdef TS_CPU_BIND
+  if (cpu_bind_enabled() && p->cpu_alloc) {
+      struct CpuAlloc *ca = (struct CpuAlloc *)p->cpu_alloc;
+      char *cpus = cpu_bind_format_cpus(ca);
+      char *mems = cpu_bind_format_mems(ca);
+      fd_nprintf(s, 200, "Slots: %-3d  CPU: %s  NUMA: %s\n",
+                 p->num_slots,
+                 cpus ? cpus : "(none)",
+                 mems ? mems : "(none)");
+      free(cpus);
+      free(mems);
+  } else
+#endif
   fd_nprintf(s, 100, "Slots: %-3d\n", p->num_slots);
   if (p->output_filename != NULL) {
     fd_nprintf(s, strlen(p->output_filename) + 30, "Ouput: %s\n", p->output_filename);

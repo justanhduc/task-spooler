@@ -23,4 +23,9 @@ int cgroups_freeze_ok(int jobid, pid_t pid);
 void cgroups_v2_init(void);
 #endif
 
+#ifdef TS_CPU_BIND
+void cgroups_set_cpuset(int jobid, pid_t pid, const void *alloc);
+void cgroups_restore_all_cpu_bind(void);
+#endif
+
 #endif /* CGROUPS_H */

@@ -74,6 +74,9 @@ struct Job {
   int num_slots;
   int num_allocated;
   int client_socket;
+#ifdef TS_CPU_BIND
+  void *cpu_alloc;              /* struct CpuAlloc * 由 cpu_bind 管理 */
+#endif
 };
 
 enum ExitCodes {

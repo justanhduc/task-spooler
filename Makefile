@@ -7,6 +7,37 @@ CFLAGS?=-pedantic -ansi -Wall -g -std=gnu11 -fcommon -Wno-format-truncation # -D
 ifdef CGROUP_V2
 CFLAGS += -DCGROUP_V2
 endif
+ifdef TS_CPU_BIND
+CFLAGS += -DTS_CPU_BIND
+OBJECTS=main.o \
+	server.o \
+	server_start.o \
+	client.o \
+	msgdump.o \
+	jobs.o \
+	notify.o \
+	job_ops.o \
+	server_user.o \
+	server_env.o \
+	execute.o \
+	msg.o \
+	mail.o \
+	error.o \
+	signals.o \
+	list.o \
+	print.o \
+	info.o \
+	env.o \
+	tail.o \
+	user.o \
+	cJSON.o \
+	sqlite.o \
+	runtime_limit.o \
+	cgroups.o \
+	vec.o \
+	utils.o \
+	cpu_bind.o
+else
 OBJECTS=main.o \
 	server.o \
 	server_start.o \
@@ -34,6 +65,7 @@ OBJECTS=main.o \
 	cgroups.o \
 	vec.o \
 	utils.o
+endif
 
 TARGET=ts
 INSTALL=install -c
@@ -78,6 +110,7 @@ cJSON.o : cjson/cJSON.c cjson/cJSON.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 sqlite.o: sqlite.c sqlite.h defaults.h main.h msg.h jobs.h utils.h error.h
 runtime_limit.o: runtime_limit.c runtime_limit.h main.h msg.h jobs.h defaults.h error.h utils.h
+cpu_bind.o: cpu_bind.c cpu_bind.h topology.h vec.h
 cgroups.o: cgroups.c cgroups.h main.h msg.h jobs.h error.h list.h user.h
 vec.o: vec.c vec.h
 utils.o: utils.c utils.h error.h

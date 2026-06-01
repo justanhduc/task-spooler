@@ -50,6 +50,9 @@
 #include "server_start.h"
 #include "sqlite.h"
 #include "cgroups.h"
+#ifdef TS_CPU_BIND
+#include "cpu_bind.h"
+#endif
 #include "signals.h"
 #include "runtime_limit.h"
 #include "info.h"
@@ -282,6 +285,9 @@ void server_main(int notify_fd, char *_path) {
 #ifdef CGROUP_V2
   cgroups_v2_init();
 #endif
+#ifdef TS_CPU_BIND
+  cpu_bind_init();
+#endif
 
   if (notify_fd != 0)
     notify_parent(notify_fd);
@@ -293,6 +299,9 @@ void server_main(int notify_fd, char *_path) {
   jobsort_flag = get_env("TS_SORTJOBS", 0);
   s_set_jobids(get_env("TS_FIRST_JOBID", get_jobids_DB()));
   s_read_sqlite();
+#ifdef TS_CPU_BIND
+  cgroups_restore_all_cpu_bind();
+#endif
   printf("Start main server loops...\n");
   server_loop(ls);
 }
