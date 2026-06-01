@@ -90,57 +90,65 @@ int main(int argc, char **argv)
     }
 
     /* π = ∫₀¹ 4/(1+x²) dx   — 每个进程算自己的分片 */
-    double h = 1.0 / (double)nprocs;      /* 每个进程的区间宽度 */
-    int steps_per_sec = 20000000;         /* 每秒每进程的步数 */
+    double h = 1.0 / (double)nprocs;
+    double x0 = (double)rank * h;
 
-    double global_pi = 0.0;
-    double flop_count = 0.0;             /* 每进程浮点运算计数 */
-    double prev_flops = 0.0;             /* 上一秒的 flop_count 快照 */
+    /* 动态调步长：目标每轮 ≈1 秒，CHUNK 为基准块大小 */
+    const int CHUNK = 5000000;            /* 每块 5M 步 */
+    const double FLOPS_PER_STEP = 4.0;    /* 每步约 4 次浮点运算 */
+
     int    step = 0;
+    double flop_count = 0.0;             /* 每进程累计浮点运算 */
+    double prev_flops = 0.0;             /* 上一秒 flop_count 快照 */
+    double pi_current = 0.0;             /* 最新 π 估值 */
+    double next_report = MPI_Wtime() + 1.0;
     double start_wall = MPI_Wtime();
+    /* 多跑一个 REPORT_INTERVAL 确保最后一秒的输出能出来 */
+    double end_wall = start_wall + (double)runtime_sec + 1.0;
 
-    while (1) {
-        /* 当前区间: [rank*h, (rank+1)*h) */
+    while (MPI_Wtime() < end_wall) {
+        /* 算一个 CHUNK */
         double local = 0.0;
-        double x0 = (double)rank * h;
-
-        for (int i = 0; i < steps_per_sec; i++) {
-            double x = x0 + h * ((double)i + 0.5) / (double)steps_per_sec;
+        for (int i = 0; i < CHUNK; i++) {
+            double x = x0 + h * ((double)i + 0.5) / (double)CHUNK;
             local += 4.0 / (1.0 + x * x);
-            flop_count += 4.0;            /* +, *, /, + 约4次浮点 */
+            flop_count += FLOPS_PER_STEP;
         }
-        local *= h / (double)steps_per_sec;
+        local *= h / (double)CHUNK;
 
-        step++;
-        double elapsed = MPI_Wtime() - start_wall;
-
-        /* 规约 π 和 flop 总数 */
-        double total_pi, total_flops;
+        /* 规约 π — 所有进程同步 */
+        double total_pi;
         MPI_Allreduce(&local, &total_pi, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-        MPI_Allreduce(&flop_count, &total_flops, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-        global_pi += total_pi;
+        pi_current = total_pi;
 
-        if (rank == 0) {
+        /* 每秒输出一次 — 用本地 flop_count * nprocs 估算总 FLOPS */
+        double now = MPI_Wtime();
+        if (now >= next_report && rank == 0) {
+            double total_flops = (double)nprocs * flop_count;
             double delta = total_flops - prev_flops;
             prev_flops = total_flops;
-            printf(" [%d/%ds] π=%.10f  %.2e FLOPS  (累计 %.2e)\n",
-                   step, runtime_sec, global_pi, delta, total_flops);
-            fflush(stdout);
+            step++;
+            /* 超出 runtime 的不显示 */
+            if (step <= runtime_sec) {
+                printf(" [%d/%ds] π=%.10f  %.2e FLOPS\n",
+                       step, runtime_sec, pi_current, delta);
+                fflush(stdout);
+            }
+            next_report = now + 1.0;
         }
-
-        if (step >= runtime_sec) break;
     }
 
-    double elapsed = MPI_Wtime() - start_wall;
+    double real_elapsed = (double)runtime_sec;
     double total_flops_sum;
     MPI_Reduce(&flop_count, &total_flops_sum, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (rank == 0) {
+        double diff = pi_current - 3.14159265358979323846;
         printf("========================================\n");
-        printf(" π ≈ %.10f  (误差 %.2e)\n", global_pi, global_pi - 3.14159265358979323846);
-        printf(" 耗时: %.2f 秒\n", elapsed);
+        printf(" π ≈ %.10f  (误差 %+.2e)\n", pi_current, diff);
+        printf(" 耗时: %d 秒\n", runtime_sec);
         printf(" 总计: %.2e 次浮点运算\n", total_flops_sum);
-        printf(" 均值: %.2e FLOPS\n", total_flops_sum / elapsed);
+        printf(" 均值: %.2e FLOPS\n", total_flops_sum / real_elapsed);
         printf("========================================\n");
     }
 
