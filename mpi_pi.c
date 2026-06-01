@@ -12,50 +12,11 @@
  *   ts -N 4 mpirun -np 4 ./mpi_pi 10   # 绑4核跑
  */
 
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <mpi.h>
-#include <sched.h>
-
-/* ---- 获取绑定的 CPU 个数 ---- */
-static int get_cpu_count(void)
-{
-    cpu_set_t mask;
-    CPU_ZERO(&mask);
-    if (sched_getaffinity(0, sizeof(mask), &mask) == 0) {
-        int count = 0;
-        for (int i = 0; i < CPU_SETSIZE; i++)
-            if (CPU_ISSET(i, &mask)) count++;
-        return count;
-    }
-    return 1;
-}
-
-/* ---- 获取绑定的 CPU 列表字符串（仅 rank 0 使用） ---- */
-static const char *get_cpu_list(void)
-{
-    static char buf[256];
-    cpu_set_t mask;
-    CPU_ZERO(&mask);
-    if (sched_getaffinity(0, sizeof(mask), &mask) != 0) {
-        snprintf(buf, sizeof(buf), "(unknown)");
-        return buf;
-    }
-    int pos = 0, first = 1;
-    for (int i = 0; i < CPU_SETSIZE; i++) {
-        if (CPU_ISSET(i, &mask)) {
-            int n = snprintf(buf + pos, sizeof(buf) - (size_t)pos,
-                             "%s%d", first ? "" : ",", i);
-            if (n > 0) pos += n;
-            first = 0;
-        }
-    }
-    if (first) snprintf(buf, sizeof(buf), "(none)");
-    return buf;
-}
 
 int main(int argc, char **argv)
 {
@@ -82,9 +43,8 @@ int main(int argc, char **argv)
         for (int i = 0; i < argc; i++)
             printf(" %s", argv[i]);
         printf("\n");
-        printf(" 进程: %d\n", nprocs);
+        printf(" MPI:  %d 进程\n", nprocs);
         printf(" 运行: %d 秒\n", runtime_sec);
-        printf(" CPU:  %s (%d 核)\n", get_cpu_list(), get_cpu_count());
         printf("========================================\n");
         fflush(stdout);
     }
