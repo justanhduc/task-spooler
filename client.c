@@ -78,7 +78,8 @@ void c_new_job() {
   m.u.newjob.num_slots = command_line.num_slots;
   m.u.newjob.taskpid = command_line.taskpid;
   m.u.newjob.start_time = command_line.start_time;
-  m.u.newjob.wall_time = command_line.wall_time; // in hrs  
+  m.u.newjob.wall_time = command_line.wall_time;
+  m.u.newjob.schedule_time = command_line.schedule_time;
   
   /* Send the message */
   send_msg(server_socket, &m);
@@ -135,7 +136,7 @@ int c_wait_newjob_ok() {
 
   if (m.type == NEWJOB_PID_NOK) {
     fprintf(stderr, "Error: cannot create job\n");
-    exit(EXITCODE_RELINK_FAILED);
+    exit(1);
   }
   if (m.type != NEWJOB_OK)
     error("Error: the return type is not NEWJOB_OK");

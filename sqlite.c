@@ -126,12 +126,15 @@ int open_sqlite() {
       "pause_time INT NOT NULL, pause_duration INT NOT NULL, end_time_ms "
       "INT NOT NULL, "
       "order_id INT NOT NULL, command_strip INT NOT NULL, work_dir TEXT    NOT "
-      "NULL);";
+      "NULL,"
+      "schedule_time INT NOT NULL);";
+
+  /* Migrate existing databases */
+  sqlite3_exec(db, "ALTER TABLE Jobs ADD COLUMN schedule_time INT NOT NULL DEFAULT 0", 0, 0, 0);
 
   rc = sqlite3_exec(db, sql, 0, 0, &zErrMsg);
 
   if (rc != SQLITE_OK) {
-    printf("[open_sqlite0] SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
     error_flag--;
   } else {
@@ -166,7 +169,11 @@ int open_sqlite() {
       "pause_time INT NOT NULL, pause_duration INT NOT NULL, end_time_ms "
       "INT NOT NULL, "
       "order_id INT NOT NULL, command_strip INT NOT NULL, work_dir TEXT NOT "
-      "NULL);";
+      "NULL,"
+      "schedule_time INT NOT NULL);";
+
+  /* Migrate existing databases */
+  sqlite3_exec(db, "ALTER TABLE Finished ADD COLUMN schedule_time INT NOT NULL DEFAULT 0", 0, 0, 0);
 
   rc = sqlite3_exec(db, sql2, 0, 0, &zErrMsg);
 
@@ -300,11 +307,11 @@ static int edit_DB(struct Job *job, const char *table, const char *action) {
       "ptr,nchars,allocchars,wall_time,"
       "enqueue_time,start_time,end_time,"
       "pause_time,pause_duration,end_time_ms, "
-      "order_id, command_strip, work_dir)"
+      "order_id, command_strip, work_dir, schedule_time)"
       "VALUES (%d,'%s',%d,'%s',%d,%d,%d,%d,'%s',%d,'%s',%d,%d,'%s','%s',%d,"
       "%d,%d,%d,%ld,%ld,%ld,%d,"
       "'%s',%d,%d,%ld,'%ld','%ld','%ld','%ld','%ld','%ld', "
-      "%d, %d,'%s');",
+      "%d, %d,'%s',%ld);",
       action, table, job->jobid, esc_command, job->state, esc_output,
       job->store_output, job->pid, ts_uid, job->should_keep_finished,
       esc_depend, // job->depend_on,
@@ -315,7 +322,7 @@ static int edit_DB(struct Job *job, const char *table, const char *action) {
       esc_ptr, info->nchars, info->allocchars, job->wall_time, info->enqueue_time,
       info->start_time, info->end_time,
       info->pause_time, info->pause_duration, info->boot_time,
-      order_id, job->command_strip, esc_work_dir);
+      order_id, job->command_strip, esc_work_dir, job->schedule_time);
   char *errmsg = NULL;
   int rs = sqlite3_exec(db, sql, NULL, NULL, &errmsg);
   free(depend_on);
@@ -545,6 +552,8 @@ struct Job *read_DB(int jobid, const char *table) {
 
     strcpy(sql, (const char *)sqlite3_column_text(stmt, 35));
     copy_with_nullcheck(&(job->work_dir), sql);
+
+    job->schedule_time = sqlite3_column_int64(stmt, 36);
 
   } else {
     fprintf(stderr, "[read_DB] no row found for job %d in %s\n", jobid, table);

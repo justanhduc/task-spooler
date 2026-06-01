@@ -92,6 +92,7 @@ struct Msg {
       int taskpid;
       time_t start_time;
       int64_t wall_time;
+      int64_t schedule_time;
     } newjob;
     struct {
       int ofilename_size;

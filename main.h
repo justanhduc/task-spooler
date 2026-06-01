@@ -98,6 +98,7 @@ struct CommandLine {
   int require_elevel;
   time_t start_time;
   int64_t wall_time;
+  int64_t schedule_time;
   enum ListFormat list_format;
 };
 

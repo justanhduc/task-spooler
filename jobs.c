@@ -664,6 +664,7 @@ int s_newjob(int s, struct Msg *m, struct User *user) {
             p->wall_time = m->u.newjob.wall_time;
         }
     }
+    p->schedule_time = m->u.newjob.schedule_time;
     /* this error level here is used internally to decide whether a job should
      * be run or not so it only matters whether the error level is 0 or not.
      * thus, summing the absolute error levels of all dependencies is
@@ -930,6 +931,9 @@ int next_run_job(void) {
                         }
                         if (!ready) continue;
                     }
+
+                    if (p->schedule_time > 0 && get_monotonic_sec() < p->schedule_time)
+                        continue;
 
                     if (free_slots < p->num_slots) continue;
                     if (USER(uid)->max_slots - USER(uid)->busy < p->num_slots) continue;

@@ -61,6 +61,7 @@ struct Job {
   pid_t pid;
   struct User *user;
   int64_t wall_time;
+  int64_t schedule_time;
   int should_keep_finished;
   int *depend_on;
   int depend_on_size;

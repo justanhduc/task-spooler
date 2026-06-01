@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -173,6 +174,67 @@ time_t get_pause_time_by_job(const struct Job* p) { // return in seconds
         t_pause += get_monotonic_sec() - p->info.pause_time;
     }
     return t_pause;
+}
+
+int parse_schedule(const char *s, time_t *out_mono) {
+    if (!s || !out_mono) return -1;
+
+    while (*s == ' ' || *s == '\t') s++;
+    if (*s == '\0') return -1;
+
+    time_t boot_offset = time(NULL) - get_monotonic_sec();
+
+    if (*s == '+') {
+        /* Relative: +5m, +1h30m */
+        time_t sec;
+        if (parse_time(s + 1, &sec) != 0) return -1;
+        *out_mono = get_monotonic_sec() + sec;
+        return 0;
+    }
+
+    /* Try absolute wall-clock formats */
+    struct tm tm;
+    memset(&tm, 0, sizeof(tm));
+
+    /* "2025-06-01 14:00" */
+    if (strptime(s, "%Y-%m-%d %H:%M", &tm) != NULL) {
+        time_t wall = mktime(&tm);
+        if (wall == (time_t)-1) return -1;
+        *out_mono = wall - boot_offset;
+        return 0;
+    }
+
+    /* "14:00" — today at that time */
+    memset(&tm, 0, sizeof(tm));
+    if (strptime(s, "%H:%M", &tm) != NULL) {
+        time_t now = time(NULL);
+        struct tm *local = localtime(&now);
+        tm.tm_year = local->tm_year;
+        tm.tm_mon  = local->tm_mon;
+        tm.tm_mday = local->tm_mday;
+        time_t wall = mktime(&tm);
+        if (wall == (time_t)-1) return -1;
+        if (wall <= now) wall += 86400; /* tomorrow if already past */
+        *out_mono = wall - boot_offset;
+        return 0;
+    }
+
+    return -1;
+}
+
+const char *format_schedule_delta(time_t mono_target) {
+    static char buf[64];
+    time_t now = get_monotonic_sec();
+    time_t diff = mono_target - now;
+    if (diff <= 0) return "now";
+    if (diff < 60) {
+        snprintf(buf, sizeof(buf), "%lds", (long)diff);
+    } else if (diff < 3600) {
+        snprintf(buf, sizeof(buf), "%ldm%lds", (long)(diff / 60), (long)(diff % 60));
+    } else {
+        snprintf(buf, sizeof(buf), "%ldh%ldm", (long)(diff / 3600), (long)((diff % 3600) / 60));
+    }
+    return buf;
 }
 
 time_t get_cpu_time_by_pid(int pid) {

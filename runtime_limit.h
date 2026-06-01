@@ -20,6 +20,8 @@ time_repr_t format_time(time_t t);
 time_t get_cpu_time_by_pid(int pid);
 time_t get_max_wall_time(void);
 int parse_time(const char *s, time_t *out);
+int parse_schedule(const char *s, time_t *out_mono);
+const char *format_schedule_delta(time_t mono_target);
 time_t get_work_time_by_job(const struct Job *p);
 time_t get_pause_time_by_job(const struct Job *p);
 time_t get_monotonic_sec(void);

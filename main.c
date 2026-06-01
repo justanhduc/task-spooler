@@ -80,6 +80,7 @@ static void default_command_line() {
   command_line.taskpid = 0;
   command_line.start_time = 0;
   command_line.wall_time = DEFAULT_MAX_WALL_TIME; // in hours
+  command_line.schedule_time = 0;
   command_line.jobid = 0;
   command_line.list_format = DEFAULT;
 }
@@ -194,6 +195,7 @@ static struct option longOptions[] = {
     {"no-bind", no_argument, NULL, 0},
     {"wtime", required_argument, NULL, 0},
     {"find-by-pid", required_argument, NULL, 0},
+    {"at", required_argument, NULL, 0},
     {"on-finish", required_argument, NULL, 0},
     {NULL, 0, NULL, 0}};
 
@@ -281,6 +283,9 @@ void parse_opts(int argc, char **argv) {
         if (parse_time(optarg, &command_line.wall_time) != 0) {
           error("Error: invalid duration '%s' for --wtime (examples, 30s, 3.4m, 1.5H, 2d).\n", optarg);
         }
+      } else if (strcmp(longOptions[optionIdx].name, "at") == 0) {
+        if (parse_schedule(optarg, &command_line.schedule_time) != 0)
+            error("Error: invalid schedule '%s' for --at (e.g. +5m, 14:00, 2025-06-01 14:00)\n", optarg);
       } else if (strcmp(longOptions[optionIdx].name, "on-finish") == 0) {
         command_line.on_finish_cmd = optarg;
       } else if (strcmp(longOptions[optionIdx].name, "no-bind") == 0) {
@@ -664,8 +669,9 @@ static void print_help(const char *cmd) {
   printf("                                  Placeholders: {jobid} {output} {exitcode} {pid} {label}\n");
   printf("                                  {command} {realtime} {usertime} {systime}\n");
   printf("                                  {pausetime} {start_time} {enque_time} {end_time} {slots}\n");
+  printf("  --at <time>                     Schedule: +5m (relative), 14:00, or 2025-06-01 14:00\n");
   printf("  --add_wtime [add_time]          Increase job wall time by ADD_time in minutes (root only)\n");
-  printf("  --job [jobid] || -J [jobid]   specify the Job ID for wall-time change or assignment\n");
+  printf("  --job [jobid] || -J [jobid]   specify the Job ID for assignment or wall-time change\n");
   printf("  --daemon                        Run as daemon (root only)\n");
 
   // printf("  --stime [start_time]            Set the task by starting time (Unix epoch).\n");
@@ -847,6 +853,13 @@ int main(int argc, char **argv) {
       error("The command %i needs the server", command_line.request);
     c_new_job();
     command_line.jobid = c_wait_newjob_ok();
+    if (command_line.schedule_time > 0) {
+        time_t now = get_monotonic_sec();
+        if (command_line.schedule_time > now + 5) {
+            printf("Job %d: scheduled in %s\n", command_line.jobid,
+                   format_schedule_delta(command_line.schedule_time));
+        }
+    }
     if (command_line.store_output) {
       printf("New JobID: %i\n", command_line.jobid);
       fflush(stdout);
