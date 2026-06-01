@@ -113,7 +113,7 @@ int main(int argc, char **argv)
 
     const long long SLICE = 200000000;
 
-    while (MPI_Wtime() < start + secs + 1.0) {
+    while (MPI_Wtime() < start + secs) {
         /* --- Simpson's rule on this rank's interval, parallel with OpenMP --- */
         double local = 0.0;
         double dx = h / SLICE;
@@ -168,6 +168,30 @@ int main(int argc, char **argv)
                 }
             }
             next_out = now + 1.0;
+        }
+    }
+
+    /* force last report if not yet printed */
+    if (step < secs) {
+        step++;
+        int mycpu = sched_getcpu();
+        int *cpus = NULL;
+        if (rank == 0) cpus = malloc(nprocs * sizeof(int));
+        MPI_Gather(&mycpu, 1, MPI_INT, cpus, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        if (rank == 0 && cpus) {
+            double total_flop_now = nprocs * flop_acc;
+            double delta = total_flop_now - prev_flop;
+            qsort(cpus, nprocs, sizeof(int), int_cmp);
+            char cpubuf[256] = "";
+            int pos = 0;
+            for (int i = 0; i < nprocs; i++)
+                pos += snprintf(cpubuf + pos, sizeof(cpubuf) - pos,
+                                "%s%d", i ? "," : "", cpus[i]);
+            double pi_val = pi_acc * (double)SLICE / (double)step_acc;
+            printf(" [%d/%d] affinity[%s]  cpu[%s]  π=%.10f  %.2f GLOPS\n",
+                   step, secs, get_affinity(), cpubuf, pi_val, delta / 1e9);
+            fflush(stdout);
+            free(cpus);
         }
     }
 
