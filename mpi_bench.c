@@ -1,7 +1,7 @@
 /*
  * mpi_bench.c — MPI + CPU 绑定测试程序
  *
- * 每个进程做矩阵乘法（GEMM 风格）负载，
+ * 数值积分计算 π = ∫₀¹ 4/(1+x²) dx，细粒度分片做密集浮点负载。
  * 每秒 rank 0 显示绑核范围 + 所有进程当前运行的 CPU。
  *
  * 配合 ts + cpu_bind 测试绑核效果。
@@ -10,8 +10,9 @@
  *   mpicc -O2 -o mpi_bench mpi_bench.c
  *
  * 运行:
- *   mpirun -np 4 ./mpi_bench 10        # 4进程跑10秒
- *   ts -N 4 mpirun -np 4 ./mpi_bench 10   # 绑4核
+ *   mpirun -np 4 ./mpi_bench 10              # 4进程跑10秒
+ *   mpirun -np 4 ./mpi_bench 10 2000000000   # 每秒20亿步/进程
+ *   ts -N 4 mpirun -np 4 ./mpi_bench 10      # 绑4核跑
  */
 
 #define _GNU_SOURCE
@@ -23,20 +24,8 @@
 #include <pthread.h>
 #include <sched.h>
 
-/* ---- 矩阵大小 ---- */
-#define MAT_SIZE  512
-
-/* ---- 矩阵乘法 C = A * B (方阵, 全尺寸) ---- */
-static void mat_mul(double *C, const double *A, const double *B, int n)
-{
-    for (int i = 0; i < n; i++) {
-        for (int k = 0; k < n; k++) {
-            double aik = A[i * n + k];
-            for (int j = 0; j < n; j++)
-                C[i * n + j] += aik * B[k * n + j];
-        }
-    }
-}
+/* ---- 默认每进程每秒步数 ---- */
+#define STEPS_PER_SEC_DEFAULT  2000000000  /* 20亿步/秒/进程 */
 
 /* ---- int 比较器给 qsort 用 ---- */
 static int int_cmp(const void *a, const void *b)
@@ -56,14 +45,12 @@ static const char *get_affinity_range(void)
         return buf;
     }
 
-    /* 收集所有允许的 CPU */
     int cpus[CPU_SETSIZE], n = 0;
     for (int i = 0; i < CPU_SETSIZE; i++)
         if (CPU_ISSET(i, &mask)) cpus[n++] = i;
 
     if (n == 0) { snprintf(buf, sizeof(buf), "(none)"); return buf; }
 
-    /* 合并连续段为范围, e.g. "0-3,6,8-11" */
     int pos = 0, first = 1, start = cpus[0], end = cpus[0];
     for (int i = 1; i <= n; i++) {
         if (i < n && cpus[i] == end + 1) {
@@ -94,13 +81,20 @@ int main(int argc, char **argv)
 
     if (argc < 2) {
         if (rank == 0)
-            fprintf(stderr, "用法: mpirun -np N %s <运行秒数>\n", argv[0]);
+            fprintf(stderr, "用法: mpirun -np N %s <运行秒数> [每进程每秒步数]\n",
+                    argv[0]);
         MPI_Finalize();
         return 1;
     }
 
     int runtime_sec = atoi(argv[1]);
     if (runtime_sec <= 0) runtime_sec = 10;
+
+    long long steps_per_sec = STEPS_PER_SEC_DEFAULT;
+    if (argc >= 3) {
+        steps_per_sec = atoll(argv[2]);
+        if (steps_per_sec < 1000000) steps_per_sec = 1000000;
+    }
 
     /* ---- rank 0 显示启动信息 ---- */
     if (rank == 0) {
@@ -109,58 +103,55 @@ int main(int argc, char **argv)
         for (int i = 0; i < argc; i++) printf(" %s", argv[i]);
         printf("\n");
         printf(" MPI:  %d 进程\n", nprocs);
+        printf(" 步长: %lld 步/秒/进程\n", steps_per_sec);
         printf(" 运行: %d 秒\n", runtime_sec);
         printf(" 绑核: %s\n", get_affinity_range());
         printf("========================================\n");
         fflush(stdout);
     }
 
-    /* ---- 每个进程分配自己的矩阵 ---- */
-    int n = MAT_SIZE;
-    double *A = malloc((size_t)n * n * sizeof(double));
-    double *B = malloc((size_t)n * n * sizeof(double));
-    double *C = calloc((size_t)n * n, sizeof(double));
-    if (!A || !B || !C) {
-        fprintf(stderr, "[%d] malloc failed\n", rank);
-        MPI_Abort(MPI_COMM_WORLD, 1);
-    }
-
-    /* 初始化 A, B */
-    for (int i = 0; i < n * n; i++) {
-        A[i] = 1.0 / (double)(i + 1);
-        B[i] = (double)(i % 100) + 0.5;
-    }
+    /* ---- π 积分参数 ---- */
+    double h = 1.0 / (double)nprocs;          /* 每进程区间宽度 */
+    double x_start = (double)rank * h;        /* 本进程起始 x */
 
     /* ---- 主循环 ---- */
-    const double FLOPS_PER_MUL = (double)n * n * (double)n * 2.0; /* 2n³ */
+    const double FLOPS_PER_STEP = 4.0;        /* +, *, /, + */
     double flop_count = 0.0, prev_flops = 0.0;
+    double pi_sum = 0.0;
+    long long total_steps = 0;
+
+    /* 小块大小：约 1/10 秒的计算量 */
+    long long chunk = steps_per_sec / 10;
+    if (chunk < 1) chunk = 1;
+
     double start_wall = MPI_Wtime();
     double end_wall = start_wall + (double)runtime_sec + 1.0;
     double next_report = start_wall + 1.0;
     int step = 0;
 
-    long long iter_count = 0;
-    double checksum = 0.0;
-
     while (MPI_Wtime() < end_wall) {
-        /* 矩阵乘法 */
-        memset(C, 0, (size_t)n * n * sizeof(double));
-        mat_mul(C, A, B, n);
-        flop_count += FLOPS_PER_MUL;
-        iter_count++;
+        /* 用矩形法算一个 CHUNK */
+        double local_pi = 0.0;
+        for (long long i = 0; i < chunk; i++) {
+            long long idx = total_steps + i;
+            double x = x_start + h * ((double)idx + 0.5) / (double)steps_per_sec;
+            local_pi += 4.0 / (1.0 + x * x);
+            flop_count += FLOPS_PER_STEP;
+        }
+        local_pi *= h / (double)steps_per_sec;
 
-        /* 结果校验：累计 C 矩阵元素和 */
-        double row_sum = 0.0;
-        for (int i = 0; i < n; i++)
-            row_sum += C[i * n + i];   /* 对角线求和 */
-        checksum += row_sum;
+        /* 规约 π */
+        double total_pi;
+        MPI_Allreduce(&local_pi, &total_pi, 1, MPI_DOUBLE, MPI_SUM,
+                       MPI_COMM_WORLD);
+        pi_sum += total_pi;
+        total_steps += chunk;
 
         /* 每秒报告 */
         double now = MPI_Wtime();
         if (now >= next_report) {
             step++;
             if (step <= runtime_sec) {
-                /* 当前运行 CPU */
                 int my_cpu = sched_getcpu();
                 int *all_cpus = NULL;
                 if (rank == 0)
@@ -176,7 +167,6 @@ int main(int argc, char **argv)
                     double delta = total_flops - prev_flops;
                     prev_flops = total_flops;
 
-                    /* 显示每个 rank 的 CPU（含重复） */
                     char cpu_buf[256] = "";
                     int pos = 0;
                     for (int i = 0; i < nprocs; i++) {
@@ -186,10 +176,15 @@ int main(int argc, char **argv)
                         if (written > 0) pos += written;
                     }
 
-                    printf(" [%d/%ds] 绑核[%s]  cpu[%s]  %.2e FLOPS  (%lld iter)\n",
+                    /* π 归一化：已完成 steps_per_sec 步才算一轮完整积分 */
+                    double pi_now = total_steps > 0
+                        ? pi_sum * (double)steps_per_sec / (double)total_steps
+                        : 0.0;
+                    printf(" [%d/%ds] 绑核[%s]  cpu[%s]  π=%.10f  %.2e FLOPS  (%lld步)\n",
                            step, runtime_sec,
-                           get_affinity_range(), cpu_buf, delta,
-                           (long long)nprocs * iter_count);
+                           get_affinity_range(), cpu_buf,
+                           pi_now, delta,
+                           (long long)nprocs * total_steps);
                     fflush(stdout);
                     free(all_cpus);
                 }
@@ -199,22 +194,23 @@ int main(int argc, char **argv)
     }
 
     /* ---- 最终汇总 ---- */
-    double total_flops_sum, total_checksum;
+    double total_flops_sum;
     MPI_Reduce(&flop_count, &total_flops_sum, 1, MPI_DOUBLE, MPI_SUM, 0,
-               MPI_COMM_WORLD);
-    MPI_Reduce(&checksum, &total_checksum, 1, MPI_DOUBLE, MPI_SUM, 0,
                MPI_COMM_WORLD);
 
     if (rank == 0) {
+        double pi_final = total_steps > 0
+            ? pi_sum * (double)steps_per_sec / (double)total_steps
+            : 0.0;
+        double err = pi_final - 3.14159265358979323846;
         printf("========================================\n");
-        printf(" 每进程: %lld 次矩阵乘法 (512×512)\n", (long long)iter_count);
+        printf(" π ≈ %.10f  (误差 %+.2e)\n", pi_final, err);
+        printf(" 每进程: %lld 步\n", (long long)total_steps);
         printf(" 总计:   %.2e 次浮点运算\n", total_flops_sum);
         printf(" 均值:   %.2e FLOPS\n", total_flops_sum / (double)runtime_sec);
-        printf(" 校验:   checksum=%.10e\n", total_checksum);
         printf("========================================\n");
     }
 
-    free(A); free(B); free(C);
     MPI_Finalize();
     return 0;
 }
