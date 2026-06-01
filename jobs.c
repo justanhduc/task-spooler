@@ -653,6 +653,7 @@ int s_newjob(int s, struct Msg *m, struct User *user) {
     p->user = user;
     p->client_socket = s;
     p->num_slots = m->u.newjob.num_slots;
+    p->no_cpu_binding = m->u.newjob.no_cpu_binding;
     p->store_output = m->u.newjob.store_output;
     p->should_keep_finished = m->u.newjob.should_keep_finished;
     p->notify_errorlevel_to = 0;
@@ -1203,7 +1204,7 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
     p->pid = pid;
 #ifdef TS_CPU_BIND
     /* 先分配 CPU 并创建 cpuset cgroup（保证在 freezer 之前就绪） */
-    if (cpu_bind_enabled() && p->num_allocated > 0) {
+    if (cpu_bind_enabled() && !p->no_cpu_binding && p->num_allocated > 0) {
         p->cpu_alloc = cpu_bind_alloc_init(p->jobid, p->num_allocated);
         if (p->cpu_alloc) {
             cpu_bind_alloc((struct CpuAlloc *)p->cpu_alloc, p->num_allocated);

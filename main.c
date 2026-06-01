@@ -290,7 +290,6 @@ void parse_opts(int argc, char **argv) {
         command_line.on_finish_cmd = optarg;
       } else if (strcmp(longOptions[optionIdx].name, "no-bind") == 0) {
         command_line.no_cpu_binding = 1;
-        setenv("TS_NO_CPU_BIND", "1", 1);
       } else {
         error("Error: invalid option %s", longOptions[optionIdx].name);
       }

@@ -9,7 +9,7 @@
 
 #include "jobs.h"
 
-enum { CMD_LEN = 500, PROTOCOL_VERSION = 731 };
+enum { CMD_LEN = 500, PROTOCOL_VERSION = 732 };
 
 enum MsgTypes {
   KILL_SERVER,
@@ -69,6 +69,8 @@ enum MsgTypes {
   RECONNECT,
   RECONNECT_OK,
   ENDJOB_OK,
+  BIND_ON,
+  BIND_OFF,
 };
 
 enum ListFormat { DEFAULT, JSON, TAB };
@@ -89,6 +91,7 @@ struct Msg {
       int depend_on_size;
       int wait_enqueuing;
       int num_slots;
+      int no_cpu_binding;
       int taskpid;
       time_t start_time;
       int64_t wall_time;

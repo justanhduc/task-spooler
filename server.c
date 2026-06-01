@@ -287,6 +287,9 @@ void server_main(int notify_fd, char *_path) {
 #endif
 #ifdef TS_CPU_BIND
   cpu_bind_init();
+  /* --no-bind 服务器级关闭 */
+  if (command_line.no_cpu_binding)
+      cpu_bind_set_disabled(1);
   /* 若 max_slots 超过可绑核总数，降低到可用值 */
   if (cpu_bind_enabled()) {
       int total_cpus = 0;
@@ -824,6 +827,26 @@ static enum Break client_read(int index) {
     send_msg(s, &reply);
     break;
   }
+  case BIND_OFF:
+    if (user == USER(0)) {
+#ifdef TS_CPU_BIND
+        cpu_bind_set_disabled(1);
+        printf("[BIND] CPU binding disabled by root\n");
+#endif
+    }
+    close(s);
+    remove_connection(index);
+    break;
+  case BIND_ON:
+    if (user == USER(0)) {
+#ifdef TS_CPU_BIND
+        cpu_bind_set_disabled(0);
+        printf("[BIND] CPU binding enabled by root\n");
+#endif
+    }
+    close(s);
+    remove_connection(index);
+    break;
   case GET_VERSION:
     s_send_version(s);
     break;

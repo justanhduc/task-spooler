@@ -51,6 +51,7 @@ extern vec_t      cpu_allocs;
 
 void              cpu_bind_init(void);
 int               cpu_bind_enabled(void);
+void              cpu_bind_set_disabled(int disabled);
 
 struct CpuAlloc *cpu_bind_alloc_init(int jobid, int max_cpus);
 void              cpu_bind_alloc(struct CpuAlloc *alloc, int N);

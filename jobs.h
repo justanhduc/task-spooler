@@ -73,6 +73,7 @@ struct Job {
   struct Procinfo info;
   int num_slots;
   int num_allocated;
+  int no_cpu_binding;
   int client_socket;
 #ifdef TS_CPU_BIND
   void *cpu_alloc;              /* struct CpuAlloc * 由 cpu_bind 管理 */

@@ -77,6 +77,7 @@ void c_new_job() {
   m.u.newjob.command_size = strlen(new_command) + 1; /* add null */
   m.u.newjob.wait_enqueuing = command_line.wait_enqueuing;
   m.u.newjob.num_slots = command_line.num_slots;
+  m.u.newjob.no_cpu_binding = command_line.no_cpu_binding;
   m.u.newjob.taskpid = command_line.taskpid;
   m.u.newjob.start_time = command_line.start_time;
   m.u.newjob.wall_time = command_line.wall_time;
