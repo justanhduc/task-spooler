@@ -196,17 +196,42 @@ int parse_schedule(const char *s, time_t *out_mono) {
     struct tm tm;
     memset(&tm, 0, sizeof(tm));
 
-    /* "2025-06-01 14:00" */
-    if (strptime(s, "%Y-%m-%d %H:%M", &tm) != NULL) {
+    /* "2025-06-01T14:00", "2025-06-01_14:00", or "2025-06-01 14:00" */
+    if (strptime(s, "%Y-%m-%dT%H:%M:%S", &tm) != NULL ||
+        strptime(s, "%Y-%m-%dT%H:%M", &tm) != NULL ||
+        strptime(s, "%Y-%m-%d_%H:%M:%S", &tm) != NULL ||
+        strptime(s, "%Y-%m-%d_%H:%M", &tm) != NULL ||
+        strptime(s, "%Y-%m-%d %H:%M:%S", &tm) != NULL ||
+        strptime(s, "%Y-%m-%d %H:%M", &tm) != NULL) {
         time_t wall = mktime(&tm);
         if (wall == (time_t)-1) return -1;
         *out_mono = wall - boot_offset;
         return 0;
     }
 
-    /* "14:00" — today at that time */
+    /* "06-01T14:00", "06-01_14:00", or "06-01 14:00" — assume current year */
     memset(&tm, 0, sizeof(tm));
-    if (strptime(s, "%H:%M", &tm) != NULL) {
+    if (strptime(s, "%m-%dT%H:%M:%S", &tm) != NULL ||
+        strptime(s, "%m-%dT%H:%M", &tm) != NULL ||
+        strptime(s, "%m-%d_%H:%M:%S", &tm) != NULL ||
+        strptime(s, "%m-%d_%H:%M", &tm) != NULL ||
+        strptime(s, "%m-%d %H:%M:%S", &tm) != NULL ||
+        strptime(s, "%m-%d %H:%M", &tm) != NULL) {
+        time_t now = time(NULL);
+        struct tm *local = localtime(&now);
+        tm.tm_year = local->tm_year;
+        time_t wall = mktime(&tm);
+        if (wall == (time_t)-1) return -1;
+        if (wall + 86400 < now) tm.tm_year++; /* next year if past */
+        wall = mktime(&tm);
+        *out_mono = wall - boot_offset;
+        return 0;
+    }
+
+    /* "14:00" or "14:00:00" — today at that time */
+    memset(&tm, 0, sizeof(tm));
+    if (strptime(s, "%H:%M:%S", &tm) != NULL ||
+        strptime(s, "%H:%M", &tm) != NULL) {
         time_t now = time(NULL);
         struct tm *local = localtime(&now);
         tm.tm_year = local->tm_year;

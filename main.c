@@ -669,7 +669,7 @@ static void print_help(const char *cmd) {
   printf("                                  Placeholders: {jobid} {output} {exitcode} {pid} {label}\n");
   printf("                                  {command} {realtime} {usertime} {systime}\n");
   printf("                                  {pausetime} {start_time} {enque_time} {end_time} {slots}\n");
-  printf("  --at <time>                     Schedule: +5m (relative), 14:00, or 2025-06-01 14:00\n");
+  printf("  --at <time>                     Schedule: +5m, 14:00, 06-01_14:00, 2025-06-01T14:00\n");
   printf("  --add_wtime [add_time]          Increase job wall time by ADD_time in minutes (root only)\n");
   printf("  --job [jobid] || -J [jobid]   specify the Job ID for assignment or wall-time change\n");
   printf("  --daemon                        Run as daemon (root only)\n");
@@ -851,15 +851,17 @@ int main(int argc, char **argv) {
             command_line.command.num);
     if (!command_line.need_server)
       error("The command %i needs the server", command_line.request);
+    if (command_line.schedule_time > get_monotonic_sec()) {
+        time_t wall = command_line.schedule_time + (time(NULL) - get_monotonic_sec());
+        struct tm *tm = localtime(&wall);
+        char buf[64];
+        strftime(buf, sizeof(buf), "%c", tm);
+        printf("scheduled in %s after, at %s\n",
+               format_schedule_delta(command_line.schedule_time), buf);
+        fflush(stdout);
+    }
     c_new_job();
     command_line.jobid = c_wait_newjob_ok();
-    if (command_line.schedule_time > 0) {
-        time_t now = get_monotonic_sec();
-        if (command_line.schedule_time > now + 5) {
-            printf("Job %d: scheduled in %s\n", command_line.jobid,
-                   format_schedule_delta(command_line.schedule_time));
-        }
-    }
     if (command_line.store_output) {
       printf("New JobID: %i\n", command_line.jobid);
       fflush(stdout);

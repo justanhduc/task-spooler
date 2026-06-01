@@ -23,6 +23,7 @@
 #include "env.h"
 #include "execute.h"
 #include "tail.h"
+#include "runtime_limit.h"
 
 static void c_end_of_job(const struct Result *res);
 
@@ -80,6 +81,7 @@ void c_new_job() {
   m.u.newjob.start_time = command_line.start_time;
   m.u.newjob.wall_time = command_line.wall_time;
   m.u.newjob.schedule_time = command_line.schedule_time;
+
   
   /* Send the message */
   send_msg(server_socket, &m);
@@ -177,6 +179,10 @@ int c_wait_server_commands() {
   int res;
 
   while (1) {
+    if (command_line.schedule_time > 0) {
+        time_t left = command_line.schedule_time - 1 - get_monotonic_sec();
+        if (left > 0) sleep((unsigned int)left);
+    }
     res = recv_msg(server_socket, &m);
     if (res == -1) {
       /* Socket error — reconnect and keep waiting */

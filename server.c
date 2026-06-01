@@ -319,7 +319,10 @@ static void server_loop(int ls) {
         maxfd = client_cs[i].socket;
     }
 
-    select(maxfd + 1, &readset, NULL, NULL, NULL);
+    {
+        struct timeval tv = { .tv_sec = 1, .tv_usec = 0 };
+        select(maxfd + 1, &readset, NULL, NULL, &tv);
+    }
     if (FD_ISSET(ls, &readset)) {
       int cs;
       // wait the connection

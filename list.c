@@ -106,6 +106,26 @@ static const char* jstate2string_result(const struct Job* p) {
 static const char *ofilename_shown(const struct Job *p) {
   const char *output_filename;
 
+  /* Scheduled/delayed job: show start time + remaining */
+  if (p->schedule_time > 0 && p->state == QUEUED) {
+      static char timebuf[96];
+      time_t now = get_monotonic_sec();
+      time_t boot = time(NULL) - now;
+      time_t wall = p->schedule_time + boot;
+      struct tm *tm = localtime(&wall);
+      char datebuf[64];
+      strftime(datebuf, sizeof(datebuf), "%c", tm);
+      time_t left = p->schedule_time - now;
+      if (left > 0) {
+          time_repr_t r = format_time(left);
+          snprintf(timebuf, sizeof(timebuf), "Run at %s, after %.2f%c",
+                   datebuf, r.value, r.unit);
+      } else {
+          snprintf(timebuf, sizeof(timebuf), "Run at %s", datebuf);
+      }
+      return timebuf;
+  }
+
   if (p->state == SKIPPED) {
     output_filename = "(no output)";
   } else if (p->store_output) {
@@ -153,6 +173,9 @@ static char *print_noresult(const struct Job *p) {
       jobstate = "pause  "; // TODO delete this
     }
   }
+
+  if (p->schedule_time > 0 && p->state == QUEUED)
+      jobstate = "Wait   ";
 
   output_filename = ofilename_shown(p);
 
@@ -303,6 +326,8 @@ static char *plainprint_noresult(const struct Job *p) {
   char dependstr[256] = "[]&&";
 
   jobstate = jstate2string(p->state);
+  if (p->schedule_time > 0 && p->state == QUEUED)
+      jobstate = "Wait   ";
   output_filename = ofilename_shown(p);
   char *uname = (p->user != NULL)
                     ? p->user->name : "???";

@@ -9,7 +9,7 @@
 
 #include "jobs.h"
 
-enum { CMD_LEN = 500, PROTOCOL_VERSION = 730 };
+enum { CMD_LEN = 500, PROTOCOL_VERSION = 731 };
 
 enum MsgTypes {
   KILL_SERVER,

@@ -664,11 +664,12 @@ int s_newjob(int s, struct Msg *m, struct User *user) {
             p->wall_time = m->u.newjob.wall_time;
         }
     }
-    p->schedule_time = m->u.newjob.schedule_time;
     /* this error level here is used internally to decide whether a job should
      * be run or not so it only matters whether the error level is 0 or not.
      * thus, summing the absolute error levels of all dependencies is
      * sufficient.*/
+    if (p->state != WAIT && p->state != DELINK)
+        p->schedule_time = m->u.newjob.schedule_time;
     p->dependency_errorlevel = 0;
     if (m->u.newjob.depend_on_size) {
         int *depend_on;
@@ -932,8 +933,7 @@ int next_run_job(void) {
                         if (!ready) continue;
                     }
 
-                    if (p->schedule_time > 0 && get_monotonic_sec() < p->schedule_time)
-                        continue;
+                    if (p->schedule_time > 0 && get_monotonic_sec() < p->schedule_time) continue;
 
                     if (free_slots < p->num_slots) continue;
                     if (USER(uid)->max_slots - USER(uid)->busy < p->num_slots) continue;
@@ -1112,6 +1112,19 @@ static void s_add_job(struct Job *j) {
             delete_DB(j->jobid, "Jobs");
         }
     } else if (j->state == QUEUED || j->state == LOCKED) {
+        if (j->schedule_time > get_monotonic_sec()) {
+            /* Scheduled job whose time hasn't arrived — can't fork client
+               (unknown environment), mark as finished/failed */
+            printf("Scheduled job %d lost on crash (time not yet reached)\n", j->jobid);
+            j->state = FINISHED;
+            j->result.errorlevel = -1;
+            j->result.died_by_signal = 0;
+            j->result.skipped = 0;
+            insert_DB(j, "Finished");
+            delete_DB(j->jobid, "Jobs");
+            destroy_job(j);
+            return;
+        }
         printf("add the queue job %d\n", j->jobid);
         if (j->state == QUEUED) j->state = WAIT;
 

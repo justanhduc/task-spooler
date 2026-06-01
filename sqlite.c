@@ -121,13 +121,13 @@ int open_sqlite() {
       "user_sec INT NOT NULL, system_sec INT NOT NULL, real_sec INT NOT "
       "NULL, skipped INT NOT NULL, "
       "ptr TEXT NOT NULL, nchars INT NOT NULL, allocchars INT NOT NULL, wall_time INT NOT NULL,"
+      "schedule_time INT NOT NULL,"
       "enqueue_time INT NOT NULL, start_time INT NOT NULL, end_time INT NOT "
       "NULL, "
       "pause_time INT NOT NULL, pause_duration INT NOT NULL, end_time_ms "
       "INT NOT NULL, "
       "order_id INT NOT NULL, command_strip INT NOT NULL, work_dir TEXT    NOT "
-      "NULL,"
-      "schedule_time INT NOT NULL);";
+      "NULL);";
 
   /* Migrate existing databases */
   sqlite3_exec(db, "ALTER TABLE Jobs ADD COLUMN schedule_time INT NOT NULL DEFAULT 0", 0, 0, 0);
@@ -164,13 +164,13 @@ int open_sqlite() {
       "user_sec INT NOT NULL, system_sec INT NOT NULL, real_sec INT NOT "
       "NULL, skipped INT NOT NULL, "
       "ptr TEXT NOT NULL, nchars INT NOT NULL, allocchars INT NOT NULL, wall_time INT NOT NULL,"
+      "schedule_time INT NOT NULL,"
       "enqueue_time INT NOT NULL, start_time INT NOT NULL, end_time INT NOT "
       "NULL, "
       "pause_time INT NOT NULL, pause_duration INT NOT NULL, end_time_ms "
       "INT NOT NULL, "
       "order_id INT NOT NULL, command_strip INT NOT NULL, work_dir TEXT NOT "
-      "NULL,"
-      "schedule_time INT NOT NULL);";
+      "NULL);";
 
   /* Migrate existing databases */
   sqlite3_exec(db, "ALTER TABLE Finished ADD COLUMN schedule_time INT NOT NULL DEFAULT 0", 0, 0, 0);
@@ -304,14 +304,14 @@ static int edit_DB(struct Job *job, const char *table, const char *action) {
       "notify_errorlevel_to, notify_errorlevel_to_size, "
       "dependency_errorlevel,label,email,num_slots,errorlevel,died_by_signal,"
       "signal,user_sec,system_sec,real_sec,skipped,"
-      "ptr,nchars,allocchars,wall_time,"
+      "ptr,nchars,allocchars,wall_time,schedule_time,"
       "enqueue_time,start_time,end_time,"
       "pause_time,pause_duration,end_time_ms, "
-      "order_id, command_strip, work_dir, schedule_time)"
+      "order_id, command_strip, work_dir)"
       "VALUES (%d,'%s',%d,'%s',%d,%d,%d,%d,'%s',%d,'%s',%d,%d,'%s','%s',%d,"
       "%d,%d,%d,%ld,%ld,%ld,%d,"
-      "'%s',%d,%d,%ld,'%ld','%ld','%ld','%ld','%ld','%ld', "
-      "%d, %d,'%s',%ld);",
+      "'%s',%d,%d,%ld,%ld,'%ld','%ld','%ld','%ld','%ld','%ld', "
+      "%d, %d,'%s');",
       action, table, job->jobid, esc_command, job->state, esc_output,
       job->store_output, job->pid, ts_uid, job->should_keep_finished,
       esc_depend, // job->depend_on,
@@ -319,10 +319,10 @@ static int edit_DB(struct Job *job, const char *table, const char *action) {
       job->dependency_errorlevel, esc_label, esc_email, job->num_slots,
       result->errorlevel, result->died_by_signal, result->signal,
       result->user_sec, result->system_sec, result->real_sec, result->skipped,
-      esc_ptr, info->nchars, info->allocchars, job->wall_time, info->enqueue_time,
+      esc_ptr, info->nchars, info->allocchars, job->wall_time, job->schedule_time, info->enqueue_time,
       info->start_time, info->end_time,
       info->pause_time, info->pause_duration, info->boot_time,
-      order_id, job->command_strip, esc_work_dir, job->schedule_time);
+      order_id, job->command_strip, esc_work_dir);
   char *errmsg = NULL;
   int rs = sqlite3_exec(db, sql, NULL, NULL, &errmsg);
   free(depend_on);
