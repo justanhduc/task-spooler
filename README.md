@@ -25,6 +25,7 @@ See [CHANGELOG](CHANGELOG.md).
 - **Optional stderr separation** for better log management
 - **PID lookup** (`--find-by-pid`) to identify which job owns a process (including descendants)
 - **Scheduled execution** (`--at`) — delay jobs until a specified time (+5m, 14:00, 2025-06-01T14:00)
+- **CPU binding** (`TS_CPU_BIND`) — NUMA-aware topology-based CPU allocation with cgroups cpuset v1/v2, HT exclusion, and crash-restart recovery
 - **Crash survival** — jobs persist through server restart with automatic client reconnect
 - **Post-job hook** (`--on-finish`) — run a command after a job finishes, with access to job info via placeholders
 
@@ -38,6 +39,8 @@ See [CHANGELOG](CHANGELOG.md).
 ```bash
 make                      # build (cgroups v1, default)
 make CGROUP_V2=1          # build with cgroups v2 support
+make TS_CPU_BIND=1        # build with CPU binding (cgroups cpuset)
+make CGROUP_V2=1 TS_CPU_BIND=1  # build with both cgroups v2 + CPU binding
 sudo ./ts --daemon        # start the server as daemon (root only)
 ./ts -l                   # list jobs
 ./ts sleep 30             # enqueue a job

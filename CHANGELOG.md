@@ -2,6 +2,26 @@
 
 All notable changes to task-spooler-PLUS.
 
+## [v2.5] — 2025-Q3
+
+### Added
+- **CPU binding allocator** (`TS_CPU_BIND` compile switch)
+  - NUMA-aware topology-based CPU allocation
+  - cgroups cpuset v1/v2 integration
+  - HT exclusion (default) or inclusion (`--ht`)
+  - Restart recovery from cgroup filesystem
+  - `gen_topology.py` — auto-detect system topology via `lstopo`
+  - `--no-bind` — disable CPU binding per-job or server-wide
+- **`upgrade_db.py`** — SQLite schema upgrade tool for older databases
+- **Human-readable memory** in `ts -i` (auto KB/MB/GB)
+
+### Changed
+- `cgroups_create_job()` uses `num_slots` directly instead of `num_allocated`
+- cpuset cgroup created before freezer cgroup (correct init order)
+- `ts -i` shows `CPU: free` for jobs without binding
+- Memory display in `ts -i` now auto-scales (KB/MB/GB)
+- PROTOCOL_VERSION bumped to 732 (`no_cpu_binding` field in NEWJOB)
+
 ## [v2.4] — 2025-Q2
 
 ### Added

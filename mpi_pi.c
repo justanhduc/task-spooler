@@ -103,26 +103,26 @@ int main(int argc, char **argv)
     double h = 1.0 / nprocs;
     double x0 = rank * h;
 
-    double start = MPI_Wtime();
+double start = MPI_Wtime();
+    double last_report_time = start; // 记录上一次打印的精准时间
     double next_out = start + 1.0;
     int step = 0;
+    
     double pi_acc = 0.0;
-    double flop_acc = 0.0;
-    double prev_flop = 0.0;
     long long step_acc = 0;
-    /* 保存最后一次显示时的值（用于汇总，排除隐藏运算） */
-    double save_pi = 0.0;
-    long long save_steps = 0;
+    long long prev_step_acc = 0; // 上一次打印时的总步数
 
     const long long SLICE = 200000000;
+    // 每一个循环周期，单 rank 执行的真实浮点操作数
+    // 循环内固定 6 次：2次乘法(*)、1次加法(+)、1次除法(/)、2次分支/权重运算
+    // 加上循环结束后的 local *= dx / 3.0 (2次)
+    const double FLOPS_PER_CYCLE = (double)(SLICE + 1) * 6.0 + 2.0;
 
     while (MPI_Wtime() < start + secs + 1.0) {
-        /* --- Simpson's rule on this rank's interval, parallel with OpenMP --- */
         double local = 0.0;
-        double local_flop = 0.0;
         double dx = h / SLICE;
 
-        #pragma omp parallel for reduction(+:local, local_flop) if(omp_threads > 1)
+        #pragma omp parallel for reduction(+:local) if(omp_threads > 1)
         for (long long i = 0; i <= SLICE; i++) {
             double x = x0 + i * dx;
             double f = 4.0 / (1.0 + x * x);
@@ -132,17 +132,15 @@ int main(int argc, char **argv)
                 local += 4.0 * f;
             else
                 local += 2.0 * f;
-            local_flop += 6.0;
         }
         local *= dx / 3.0;
-        flop_acc += local_flop;
 
         double total;
         MPI_Allreduce(&local, &total, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         pi_acc += total;
-        step_acc += SLICE;
+        step_acc += SLICE; // 所有 rank 同步增加步数
 
-        /* --- every ~1 sec report --- */
+        /* --- 每一秒汇报 --- */
         double now = MPI_Wtime();
         if (now >= next_out) {
             step++;
@@ -155,10 +153,13 @@ int main(int argc, char **argv)
                 if (rank == 0) {
                     qsort(cpus, nprocs, sizeof(int), int_cmp);
 
-                    double total_flop = nprocs * flop_acc;
-                    double delta = total_flop - prev_flop;
-                    prev_flop = total_flop;
-
+                    // 1. 精准计算当前周期的总时间差
+                    double delta_time = now - last_report_time;
+                    
+                    // 2. 精准计算当前周期内所有 rank 完成的总浮点数
+                    double delta_steps = (double)(step_acc - prev_step_acc);
+                    double delta_flops = delta_steps * FLOPS_PER_CYCLE * nprocs / SLICE;
+                    
                     char cpubuf[256] = "";
                     int pos = 0;
                     for (int i = 0; i < nprocs; i++)
@@ -166,33 +167,36 @@ int main(int argc, char **argv)
                                         "%s%d", i ? "," : "", cpus[i]);
 
                     double pi_val = pi_acc * (double)SLICE / (double)step_acc;
+                    
+                    // 核心修改：真正的 GFLOPS = 浮点数 / 时间差 / 1e9
                     printf(" [%d/%d] affinity[%s]  cpu[%s]  π=%.10f  %.2f GLOPS\n",
-                           step, secs, get_affinity(), cpubuf, pi_val, delta / 1e9);
+                           step, secs, get_affinity(), cpubuf, pi_val, (delta_flops / delta_time) / 1e9);
                     fflush(stdout);
                     free(cpus);
-                    /* 保存最后一次显示时的值 */
-                    save_pi = pi_acc;
-                    save_steps = step_acc;
                 }
+                // 所有 rank 统一更新时间步长基准
+                prev_step_acc = step_acc;
+                last_report_time = now;
             }
             next_out = now + 1.0;
         }
     }
 
-    /* summary — 使用最后一次显示时的值，排除隐藏运算 */
-    double total_flop = (double)nprocs * (double)save_steps * 6.0;
-
+    // ================= SUMMARY =================
+    // 所有的 rank 都能正确拿到自己的 step_acc，在 rank 0 汇总即可
     if (rank == 0) {
-        double pi_final = save_pi * (double)SLICE / (double)(save_steps > 0 ? save_steps : 1);
+        double total_elapsed_time = last_report_time - start;
+        double total_flop = (double)nprocs * ((double)step_acc / SLICE) * FLOPS_PER_CYCLE;
+        double pi_final = pi_acc * (double)SLICE / (double)(step_acc > 0 ? step_acc : 1);
         double err = pi_final - 3.14159265358979323846;
+        
         printf("========================================\n");
         printf(" π ≈ %.10f  (error %+.2e)\n", pi_final, err);
-        printf(" Steps/proc: %.2f B\n", (double)save_steps / 1e9);
+        printf(" Steps/proc: %.2f B\n", (double)step_acc / 1e9);
         printf(" Total FP:   %.2f G ops\n", total_flop / 1e9);
-        printf(" Avg:        %.2f GLOPS\n", total_flop / secs / 1e9);
+        printf(" Avg:        %.2f GLOPS\n", (total_flop / total_elapsed_time) / 1e9);
         printf("========================================\n");
     }
-
     MPI_Finalize();
     return 0;
 }

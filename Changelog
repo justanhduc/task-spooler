@@ -1,3 +1,12 @@
+v2.5.0:
+ - CPU binding allocator (TS_CPU_BIND): NUMA-aware topology-based CPU allocation
+   with cgroups cpuset v1/v2 support, HT exclusion, and restart recovery.
+ - Hybrid MPI+OpenMP benchmark (mpi_pi.c) for testing CPU binding.
+ - gen_topology.py: auto-detect system topology via lstopo, generate topology.h.
+ - --no-bind: disable CPU binding per-job or server-wide.
+ - Human-readable memory display in ts -i.
+ - upgrade_db.py: SQLite schema upgrade tool.
+
 ## Features to be implemented
 
 Doubtful tasks:
