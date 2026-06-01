@@ -24,6 +24,10 @@
 #include "user.h"
 #include "runtime_limit.h"
 #include "sqlite.h"
+#include "version.h"
+#ifdef TS_CPU_BIND
+#include "cpu_bind.h"
+#endif
 
 int server_socket;
 static char *socket_path;
@@ -121,7 +125,10 @@ void wait_server_up(int fd) {
 }
 
 static void server_info() {
-  printf("Start tast-spooler server from root[%d]\n", root_UID);
+  printf("Task Spooler v" TS_MAKE_STR(TS_VERSION) " — starting from root[%d]\n", root_UID);
+#ifdef TS_CPU_BIND
+  printf("  CPU binding: %s\n", cpu_bind_enabled() ? "ON" : "OFF");
+#endif
   printf("  Socket path: %s         [TS_SOCKET]\n", socket_path);
   printf("  Read user file from %s  [TS_USER_PATH]\n", get_user_path());
   printf("  Write log file to %s    [TS_LOGFILE_PATH]\n", set_server_logfile());
