@@ -289,7 +289,8 @@ void parse_opts(int argc, char **argv) {
       } else if (strcmp(longOptions[optionIdx].name, "on-finish") == 0) {
         command_line.on_finish_cmd = optarg;
       } else if (strcmp(longOptions[optionIdx].name, "no-bind") == 0) {
-        error("no-bind is not implemented");
+        command_line.no_cpu_binding = 1;
+        setenv("TS_NO_CPU_BIND", "1", 1);
       } else {
         error("Error: invalid option %s", longOptions[optionIdx].name);
       }
@@ -671,6 +672,7 @@ static void print_help(const char *cmd) {
   printf("                                  {pausetime} {start_time} {enque_time} {end_time} {slots}\n");
   printf("  --at <time>                     Schedule: +5m, 14:00, 06-01_14:00, 2025-06-01T14:00\n");
   printf("                                  ts -i shows: Schedule: Mon Jun  1 14:35:00 (in 5.00m)\n");
+  printf("  --no-bind                        Disable CPU binding at runtime (requires TS_CPU_BIND)\n");
   printf("  --add_wtime [add_time]          Increase job wall time by ADD_time in minutes (root only)\n");
   printf("  --job [jobid] || -J [jobid]   specify the Job ID for assignment or wall-time change\n");
   printf("  --daemon                        Run as daemon (root only)\n");

@@ -227,8 +227,8 @@ static void cross_node_merge(int N, struct CpuAlloc *alloc)
 
 void cpu_bind_init(void)
 {
-    /* 由编译开关 TS_CPU_BIND 控制，编译即启用 */
-    cpu_bind_disabled = 0;
+    /* 编译开关 TS_CPU_BIND 控制编译，--no-bind 运行时禁用 */
+    cpu_bind_disabled = (getenv("TS_NO_CPU_BIND") != NULL);
     vec_init(&cpu_allocs);
 
     for (int i = 0; i < MAX_OS_CPU; i++) {

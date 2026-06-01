@@ -96,6 +96,7 @@ struct CommandLine {
   int num_slots;
   int taskpid;
   int require_elevel;
+  int no_cpu_binding;
   time_t start_time;
   int64_t wall_time;
   int64_t schedule_time;
