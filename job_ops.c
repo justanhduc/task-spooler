@@ -275,21 +275,38 @@ void s_job_info(int s, int jobid) {
     fd_nprintf(s, 100, "End time: %s", ctime(&ct));
   }
 
+  if (p->schedule_time > 0) {
+      time_t boot = time(NULL) - get_monotonic_sec();
+      time_t wall = p->schedule_time + boot;
+      struct tm *tm = localtime(&wall);
+      char datebuf[64];
+      strftime(datebuf, sizeof(datebuf), "%c", tm);
+      time_t left = p->schedule_time - get_monotonic_sec();
+      if (left > 0) {
+          time_repr_t dr = format_time(left);
+          fd_nprintf(s, 100, "Schedule: %s (in %.2f%c)\n", datebuf, dr.value, dr.unit);
+      } else {
+          fd_nprintf(s, 100, "Schedule: %s (now)\n", datebuf);
+      }
+  }
+
   time_t t_wall = i64abs(p->wall_time);
   time_repr_t r = format_time(t_wall);
   fd_nprintf(s, 100, "Wall-time: %.4f %c\n----\n", r.value, r.unit);
+
   time_t t_work = get_work_time_by_job(p);
-  r = format_time(t_work);
-  fd_nprintf(s, 100, "Work time: %.4f %c\n", r.value, r.unit);
+  if (t_work > 0) {
+      r = format_time(t_work);
+      fd_nprintf(s, 100, "Work time: %.4f %c\n", r.value, r.unit);
+  }
 
   time_t t_pause = get_pause_time_by_job(p);
   time_t t_real = t_pause + t_work;
-  double p_rate = (double)(t_pause) / t_real;
-  if (p_rate > 0.05 || 1) {
-    r = format_time(t_pause);
-    fd_nprintf(s, 100, "Pause time: %.4f %c\n", r.value, r.unit);
-    r = format_time(t_real);
-    fd_nprintf(s, 100, "Elapsed time: %.4f %c\n", r.value, r.unit);
+  if (t_real > 0) {
+      r = format_time(t_pause);
+      fd_nprintf(s, 100, "Pause time: %.4f %c\n", r.value, r.unit);
+      r = format_time(t_real);
+      fd_nprintf(s, 100, "Elapsed time: %.4f %c\n", r.value, r.unit);
   }
 
   if (p->state == FINISHED) {

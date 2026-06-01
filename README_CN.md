@@ -24,6 +24,8 @@
 - **简易构建**：`make` 即可（无需 autotools）
 - **stdout/stderr 分离**：方便日志管理
 - **PID 查询**（`--find-by-pid`）：查找某个 PID 属于哪个任务（含子进程）
+- **定时执行**（`--at`）：排期运行任务，支持 `+5m`、`14:00`、`2025-06-01T14:00` 等格式
+- **崩溃恢复**：服务端重启后任务自动恢复，客户端自动重连
 - **任务完成回调**（`--on-finish`）：任务结束后自动运行命令，通过占位符获取任务信息
 
 ## 工具
@@ -161,7 +163,7 @@ Copyright (C) 2007-2024  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell
   --resume [USER]         恢复用户
   --lock                  锁定服务器
   --unlock                解除服务器锁定
-  --relink [pid]          崩溃后重新挂载任务
+  --at <时间>              排期运行：+5m, 14:00, 06-01_14:00, 2025-06-01T14:00
   --on-finish <模板>      任务结束后运行命令
                           占位符：{jobid} {output} {exitcode} {pid} {label}
                           {command} {realtime} {usertime} {systime}

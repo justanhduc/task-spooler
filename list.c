@@ -215,11 +215,15 @@ static char *print_noresult(const struct Job *p) {
     time_t t_pause = get_pause_time_by_job(p);
     t_real = get_work_time_by_job(p) + t_pause;
     r = format_time(t_real);
-    double p_rate = 100.0 * (double)(t_pause) / t_real;
-    if (p_rate < 5) {
-        snprintf(buf, sizeof(buf), "%c", r.unit);
+    if (t_real > 0) {
+        double p_rate = 100.0 * (double)(t_pause) / t_real;
+        if (p_rate < 5) {
+            snprintf(buf, sizeof(buf), "%c", r.unit);
+        } else {
+            snprintf(buf, sizeof(buf), "%c (%.0f%%)", r.unit, p_rate);
+        }
     } else {
-      snprintf(buf, sizeof(buf), "%c (%.0f%%)", r.unit, p_rate);
+        snprintf(buf, sizeof(buf), "%c", r.unit);
     }
   }
 
@@ -365,13 +369,15 @@ static char *plainprint_noresult(const struct Job *p) {
   
   time_t t_pause = get_pause_time_by_job(p);
   time_t t_real = get_work_time_by_job(p) + t_pause;
-  double p_rate = 100.0 * (double)(t_pause) / t_real;
   time_repr_t r = format_time(t_real);
   char buf[128] = "";
-  if (p_rate < 5) {
-    snprintf(buf, sizeof(buf), "%c", r.unit);
-  } else {
+  if (t_real > 0) {
+      double p_rate = 100.0 * (double)(t_pause) / t_real;
+      if (p_rate < 5) {
+          snprintf(buf, sizeof(buf), "%c", r.unit);
+      } else {
     snprintf(buf, sizeof(buf), "%c (%.0f%%)", r.unit, p_rate);
+      }
   }
   // printf("get runtime %.3f sec for %d\n", runtime, p->pid);
     /*

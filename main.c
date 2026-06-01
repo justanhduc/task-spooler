@@ -670,6 +670,7 @@ static void print_help(const char *cmd) {
   printf("                                  {command} {realtime} {usertime} {systime}\n");
   printf("                                  {pausetime} {start_time} {enque_time} {end_time} {slots}\n");
   printf("  --at <time>                     Schedule: +5m, 14:00, 06-01_14:00, 2025-06-01T14:00\n");
+  printf("                                  ts -i shows: Schedule: Mon Jun  1 14:35:00 (in 5.00m)\n");
   printf("  --add_wtime [add_time]          Increase job wall time by ADD_time in minutes (root only)\n");
   printf("  --job [jobid] || -J [jobid]   specify the Job ID for assignment or wall-time change\n");
   printf("  --daemon                        Run as daemon (root only)\n");

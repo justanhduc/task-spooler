@@ -24,6 +24,8 @@ See [CHANGELOG](CHANGELOG.md).
 - **Simple build** — just `make` (no autotools)
 - **Optional stderr separation** for better log management
 - **PID lookup** (`--find-by-pid`) to identify which job owns a process (including descendants)
+- **Scheduled execution** (`--at`) — delay jobs until a specified time (+5m, 14:00, 2025-06-01T14:00)
+- **Crash survival** — jobs persist through server restart with automatic client reconnect
 - **Post-job hook** (`--on-finish`) — run a command after a job finishes, with access to job info via placeholders
 
 ## Tools
@@ -161,7 +163,7 @@ Long option actions:
   --resume [USER]         Resume user
   --lock                  Lock server
   --unlock                Release server lock
-  --relink [pid]          Reconnect after crash
+  --at <time>             Schedule: +5m, 14:00, 06-01_14:00, 2025-06-01T14:00
   --on-finish <template>  Run command after job finishes
                           Placeholders: {jobid} {output} {exitcode} {pid} {label}
                           {command} {realtime} {usertime} {systime}

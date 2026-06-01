@@ -2,6 +2,22 @@
 
 All notable changes to task-spooler-PLUS.
 
+## [v2.4] — 2025-Q2
+
+### Added
+- **`--at` scheduled execution**: delay jobs with `+5m`, `14:00`, `2025-06-01T14:00`
+  - Client sends schedule_time, server persists in SQLite
+  - `ts -l` shows `Wait` state and `Run at ...` output for scheduled jobs
+  - `ts -i` shows `Schedule:` line with time and remaining duration
+- **Client auto-reconnect on crash**: queued and running jobs survive server restart
+  - Client reconnects every 5s using RECONNECT protocol
+  - `s_add_job()` preserves QUEUED/RUNNING state (no fork, no DELINK)
+
+### Changed
+- Server `select()` uses 1s timeout for periodic schedule checks
+- List display hides `(-nan%)` for jobs with zero runtime
+- `ts -i` hides work/pause/elapsed time when value is zero
+
 ## [v2.3] — 2025-Q1
 
 ### Added
