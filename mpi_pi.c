@@ -110,15 +110,19 @@ int main(int argc, char **argv)
     double flop_acc = 0.0;
     double prev_flop = 0.0;
     long long step_acc = 0;
+    /* 保存最后一次显示时的值（用于汇总，排除隐藏运算） */
+    double save_pi = 0.0;
+    long long save_steps = 0;
 
     const long long SLICE = 200000000;
 
-    while (MPI_Wtime() < start + secs) {
+    while (MPI_Wtime() < start + secs + 1.0) {
         /* --- Simpson's rule on this rank's interval, parallel with OpenMP --- */
         double local = 0.0;
+        double local_flop = 0.0;
         double dx = h / SLICE;
 
-        #pragma omp parallel for reduction(+:local, flop_acc) if(omp_threads > 1)
+        #pragma omp parallel for reduction(+:local, local_flop) if(omp_threads > 1)
         for (long long i = 0; i <= SLICE; i++) {
             double x = x0 + i * dx;
             double f = 4.0 / (1.0 + x * x);
@@ -128,9 +132,10 @@ int main(int argc, char **argv)
                 local += 4.0 * f;
             else
                 local += 2.0 * f;
-            flop_acc += 6.0;
+            local_flop += 6.0;
         }
         local *= dx / 3.0;
+        flop_acc += local_flop;
 
         double total;
         MPI_Allreduce(&local, &total, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -165,46 +170,24 @@ int main(int argc, char **argv)
                            step, secs, get_affinity(), cpubuf, pi_val, delta / 1e9);
                     fflush(stdout);
                     free(cpus);
+                    /* 保存最后一次显示时的值 */
+                    save_pi = pi_acc;
+                    save_steps = step_acc;
                 }
             }
             next_out = now + 1.0;
         }
     }
 
-    /* force last report if not yet printed */
-    if (step < secs) {
-        step++;
-        int mycpu = sched_getcpu();
-        int *cpus = NULL;
-        if (rank == 0) cpus = malloc(nprocs * sizeof(int));
-        MPI_Gather(&mycpu, 1, MPI_INT, cpus, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        if (rank == 0 && cpus) {
-            double total_flop_now = nprocs * flop_acc;
-            double delta = total_flop_now - prev_flop;
-            qsort(cpus, nprocs, sizeof(int), int_cmp);
-            char cpubuf[256] = "";
-            int pos = 0;
-            for (int i = 0; i < nprocs; i++)
-                pos += snprintf(cpubuf + pos, sizeof(cpubuf) - pos,
-                                "%s%d", i ? "," : "", cpus[i]);
-            double pi_val = pi_acc * (double)SLICE / (double)step_acc;
-            printf(" [%d/%d] affinity[%s]  cpu[%s]  π=%.10f  %.2f GLOPS\n",
-                   step, secs, get_affinity(), cpubuf, pi_val, delta / 1e9);
-            fflush(stdout);
-            free(cpus);
-        }
-    }
-
-    /* summary */
-    double total_flop;
-    MPI_Reduce(&flop_acc, &total_flop, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    /* summary — 使用最后一次显示时的值，排除隐藏运算 */
+    double total_flop = (double)nprocs * (double)save_steps * 6.0;
 
     if (rank == 0) {
-        double pi_final = pi_acc * (double)SLICE / (double)step_acc;
+        double pi_final = save_pi * (double)SLICE / (double)(save_steps > 0 ? save_steps : 1);
         double err = pi_final - 3.14159265358979323846;
         printf("========================================\n");
         printf(" π ≈ %.10f  (error %+.2e)\n", pi_final, err);
-        printf(" Steps/proc: %.2f B\n", (double)step_acc / 1e9);
+        printf(" Steps/proc: %.2f B\n", (double)save_steps / 1e9);
         printf(" Total FP:   %.2f G ops\n", total_flop / 1e9);
         printf(" Avg:        %.2f GLOPS\n", total_flop / secs / 1e9);
         printf("========================================\n");
