@@ -758,7 +758,10 @@ void cgroups_set_cpuset(int jobid, pid_t pid, const void *valloc)
     cg_group_name(jobid, pid, group, sizeof(group));
 
 #ifdef CGROUP_V2
-    /* v2: 统一层级，目录已由 cgroups_v2_cpu 创建 */
+    /* v2: 统一层级，需要先确保目录存在 */
+    snprintf(path, sizeof(path), CGROUP_DIR "/%s", group);
+    cg_mkdir(path);
+
     snprintf(path, sizeof(path), CGROUP_DIR "/%s/cpuset.cpus", group);
     cg_write(path, "%s", cpus_str);
 
