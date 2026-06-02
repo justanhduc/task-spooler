@@ -132,6 +132,9 @@ install-local: $(TARGET)
 	$(INSTALL) -d $(PREFIX_LOCAL)/.local/share/man/man1
 	$(INSTALL) -m 644 $(TARGET).1 $(PREFIX_LOCAL)/.local/share/man/man1
 
+mpi_pi: tools/mpi_pi.c
+	mpicc -O2 -fopenmp -o tools/mpi_pi tools/mpi_pi.c
+
 .PHONY: uninstall
 uninstall:
 	rm -f $(PREFIX)/bin/$(TARGET)

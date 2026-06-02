@@ -10,8 +10,13 @@ ts
 # Logs and output
 log.txt
 ts_out.*
+test_job.*
 
 # IDE and tooling
 .cache/
 .vscode/
+.pytest_cache/
 build/
+
+# Generated files
+topology.h
