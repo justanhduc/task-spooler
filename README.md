@@ -151,14 +151,14 @@ Long option actions:
   --getenv [var]          Get server environment variable
   --setenv [var]          Set server environment flag
   --unsetenv [var]        Remove server environment flag
-  --get_label || -a [id]  Show job label
-  --full_cmd || -F [id]   Show full command
+  --get-label || -a [id]  Show job label
+  --full-cmd || -F [id]   Show full command
   --find-by-pid [pid]     Find which running job a PID belongs to
-  --check_daemon           Verify daemon status
-  --count_running || -R   Count running jobs
-  --last_queue_id || -q   Show last added job ID
-  --get_logdir             Display log directory path
-  --set_logdir [path]     Configure log directory
+  --check-daemon           Verify daemon status
+  --count-running || -R   Count running jobs
+  --last-queue-id || -q   Show last added job ID
+  --get-logdir             Display log directory path
+  --set-logdir [path]     Configure log directory
   --serialize || -M [fmt] Export job list (default/json/tab)
   --hold [jobid]          Pause specified job
   --cont [jobid]          Resume paused job
@@ -172,7 +172,7 @@ Long option actions:
                           {command} {realtime} {usertime} {systime}
                           {pausetime} {start_time} {enque_time} {end_time} {slots}
   --wtime [dur]           Wall time limit (e.g. 30s, 3.4m, 1.5H, 2d)
-  --add_wtime [dur]       Increase job wall time (root only)
+  --add-wtime [dur]       Increase job wall time (root only)
   --job [id] || -J [id]  Specify job ID
   --daemon                Run as daemon (root only)
 

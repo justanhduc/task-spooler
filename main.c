@@ -169,15 +169,15 @@ int strtok_int(char *str, char *delim, int *ids) {
 }
 
 static struct option longOptions[] = {
-    {"get_label", required_argument, NULL, 'a'},
-    {"add_wtime", required_argument, NULL, 0},
-    {"count_running", no_argument, NULL, 'R'},
+    {"get-label", required_argument, NULL, 'a'},
+    {"add-wtime", required_argument, NULL, 0},
+    {"count-running", no_argument, NULL, 'R'},
     {"help", no_argument, NULL, 0},
     {"serialize", required_argument, NULL, 'M'},
-    {"last_queue_id", no_argument, NULL, 'q'},
-    {"full_cmd", required_argument, NULL, 'F'},
-    {"get_logdir", no_argument, NULL, 0},
-    {"set_logdir", required_argument, NULL, 0},
+    {"last-queue-id", no_argument, NULL, 'q'},
+    {"full-cmd", required_argument, NULL, 'F'},
+    {"get-logdir", no_argument, NULL, 0},
+    {"set-logdir", required_argument, NULL, 0},
     {"getenv", required_argument, NULL, 0},
     {"setenv", required_argument, NULL, 0},
     {"unsetenv", required_argument, NULL, 0},
@@ -191,7 +191,7 @@ static struct option longOptions[] = {
     {"tmp", no_argument, NULL, 0},
     {"jobid", required_argument, NULL, 'J'},
     {"stime", required_argument, NULL, 0},
-    {"check_daemon", no_argument, NULL, 0},
+    {"check-daemon", no_argument, NULL, 0},
     {"no-bind", no_argument, NULL, 0},
     {"wtime", required_argument, NULL, 0},
     {"find-by-pid", required_argument, NULL, 0},
@@ -216,27 +216,27 @@ void parse_opts(int argc, char **argv) {
 
     switch (c) {
     case 0:
-      if (strcmp(longOptions[optionIdx].name, "get_logdir") == 0) {
+      if (strcmp(longOptions[optionIdx].name, "get-logdir") == 0) {
         command_line.request = c_GET_LOGDIR;
       } else if (strcmp(longOptions[optionIdx].name, "daemon") == 0) {
         command_line.request = c_DAEMON;
       } else if (strcmp(longOptions[optionIdx].name, "tmp") == 0) {
         command_line.outfile = get_tmp();
-      } else if (strcmp(longOptions[optionIdx].name, "check_daemon") == 0) {
+      } else if (strcmp(longOptions[optionIdx].name, "check-daemon") == 0) {
         command_line.request = c_CHECK_DAEMON;
         command_line.need_server = 0;
-      } else if (strcmp(longOptions[optionIdx].name, "set_logdir") == 0) {
+      } else if (strcmp(longOptions[optionIdx].name, "set-logdir") == 0) {
         command_line.request = c_SET_LOGDIR;
         command_line.label = optarg; /* reuse this variable */
       } else if (strcmp(longOptions[optionIdx].name, "help") == 0) {
         command_line.request = c_SHOW_HELP;
-      } else if (strcmp(longOptions[optionIdx].name, "get_label") == 0) {
+      } else if (strcmp(longOptions[optionIdx].name, "get-label") == 0) {
         command_line.request = c_GET_LABEL;
         command_line.jobid = str2int64(optarg);
-      } else if (strcmp(longOptions[optionIdx].name, "add_wtime") == 0) {
+      } else if (strcmp(longOptions[optionIdx].name, "add-wtime") == 0) {
         command_line.request = c_ADD_WTIME;
         if (parse_time(optarg, &command_line.wall_time) != 0) {
-          fprintf(stderr, "Error: invalid duration '%s' for --add_wtime (examples, 30s, 3.4m, 1.5H, 2d).\n", optarg);
+          fprintf(stderr, "Error: invalid duration '%s' for --add-wtime (examples, 30s, 3.4m, 1.5H, 2d).\n", optarg);
           exit(EXIT_FAILURE);
         }
       } else if (strcmp(longOptions[optionIdx].name, "hold") == 0) {
@@ -264,7 +264,7 @@ void parse_opts(int argc, char **argv) {
       } else if (strcmp(longOptions[optionIdx].name, "unsetenv") == 0) {
         command_line.request = c_UNSET_ENV;
         command_line.label = optarg; /* reuse this var */
-      } else if (strcmp(longOptions[optionIdx].name, "full_cmd") == 0) {
+      } else if (strcmp(longOptions[optionIdx].name, "full-cmd") == 0) {
         command_line.request = c_SHOW_CMD;
         if (optarg != NULL) {
           command_line.jobid = str2int64(optarg);

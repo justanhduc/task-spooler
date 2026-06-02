@@ -30,7 +30,7 @@ echo "--- 1. Basic operations ---"
 
 check "show help"       $TS -h > /dev/null
 check "show version"    $TS -V > /dev/null
-check "check daemon"    $TS --check_daemon > /dev/null 2>&1 || true
+check "check daemon"    $TS --check-daemon > /dev/null 2>&1 || true
 check "list jobs (empty)" [ "$($TS -l | wc -l)" -ge 1 ]
 
 # ── 2. Enqueue & list ─────────────────────────────────────
@@ -44,7 +44,7 @@ check "enqueue with -L" [ -n "$ID2" ]
 
 check "list jobs"       $TS -l | grep -q "$ID1"
 
-check "get label"       $TS --get_label "$ID2" 2>&1 | grep -q "test_label"
+check "get label"       $TS --get-label "$ID2" 2>&1 | grep -q "test_label"
 
 check "get state"       $TS -s "$ID1" | grep -qE '(queued|running|finished)'
 
@@ -57,7 +57,7 @@ check "show output file" $TS -o "$ID1" | grep -q "ts_out"
 
 check "show PID"        $TS -p "$ID1" > /dev/null 2>&1 || true
 
-check "show full cmd"   $TS --full_cmd "$ID1" 2>&1 | grep -q "sleep"
+check "show full cmd"   $TS --full-cmd "$ID1" 2>&1 | grep -q "sleep"
 
 # ── 4. Wait ───────────────────────────────────────────────
 echo "--- 4. Wait for jobs ---"
@@ -103,9 +103,9 @@ $TS -r "$ID7" > /dev/null 2>&1 || true
 # ── 8. Count & last ID ────────────────────────────────────
 echo "--- 8. Count & last ID ---"
 
-check "count running"   $TS --count_running | grep -qE '^[0-9]+$'
+check "count running"   $TS --count-running | grep -qE '^[0-9]+$'
 
-check "last queue ID"   $TS --last_queue_id | grep -qE '^[0-9]+$'
+check "last queue ID"   $TS --last-queue-id | grep -qE '^[0-9]+$'
 
 # ── 9. Remove & kill ──────────────────────────────────────
 echo "--- 9. Remove & kill ---"

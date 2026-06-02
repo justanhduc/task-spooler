@@ -148,14 +148,14 @@ Copyright (C) 2007-2024  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell
   --getenv [var]          获取服务器环境变量
   --setenv [var]          设置服务器环境变量
   --unsetenv [var]        删除服务器环境变量
-  --get_label || -a [id]  显示任务标签
-  --full_cmd || -F [id]   显示完整命令
+  --get-label || -a [id]  显示任务标签
+  --full-cmd || -F [id]   显示完整命令
   --find-by-pid [pid]     查找 PID 属于哪个运行中的任务（含子进程）
-  --check_daemon           验证守护进程状态
-  --count_running || -R   统计运行中的任务数
-  --last_queue_id || -q   显示最后添加的任务 ID
-  --get_logdir             显示日志目录路径
-  --set_logdir [path]     配置日志目录
+  --check-daemon           验证守护进程状态
+  --count-running || -R   统计运行中的任务数
+  --last-queue-id || -q   显示最后添加的任务 ID
+  --get-logdir             显示日志目录路径
+  --set-logdir [path]     配置日志目录
   --serialize || -M [fmt] 导出任务列表（default/json/tab）
   --hold [jobid]          暂停指定任务
   --cont [jobid]          恢复暂停的任务
@@ -169,7 +169,7 @@ Copyright (C) 2007-2024  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell
                           {command} {realtime} {usertime} {systime}
                           {pausetime} {start_time} {enque_time} {end_time} {slots}
   --wtime [dur]           设置 wall-time 限制（如 30s, 3.4m, 1.5H, 2d）
-  --add_wtime [dur]       增加任务 wall-time（仅 root）
+  --add-wtime [dur]       增加任务 wall-time（仅 root）
   --job [id] || -J [id]  指定任务 ID
   --daemon                以守护进程模式运行（仅 root）
 
