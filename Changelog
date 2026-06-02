@@ -1,3 +1,7 @@
+v2.6.0:
+ - cpu_bind_defrag() triggered after job finishes (auto-defrag)
+ - Merged cpu-bind-merge branch into cpu-only (stable)
+
 v2.5.1:
  - Unified option naming (underscore → dash: --get-label, --add-wtime, etc.)
  - Server startup output format unified (key : value, PID, [ENV_VAR] retained)

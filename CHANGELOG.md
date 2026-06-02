@@ -5,6 +5,7 @@ All notable changes to task-spooler-PLUS.
 ## [v2.6.0] — 2026-Q2
 
 ### Changed
+- **`cpu_bind_defrag()`** auto-triggered after each job finishes
 - **`gen_topology.py` rewritten**: uses `hwloc-calc` CLI instead of parsing `lstopo` XML
   - All topology queries follow top-down hierarchy (`type:i → Core → PU`)
   - Precomputed `core_pu_map` and `core_node_map` at startup, shared across all strategies
