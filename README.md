@@ -112,6 +112,13 @@ Build-time selection:
 
 Both provide CPU quota limiting and freezer-based pause/resume.
 
+To check which cgroup version your system supports:
+```bash
+mount | grep cgroup
+# v1 shows: cgroup on /sys/fs/cgroup/cpu, freezer, cpuset ...
+# v2 shows: cgroup2 on /sys/fs/cgroup type cgroup2
+```
+
 ### Single-instance guard
 
 The server checks `/proc` on `--daemon` startup: if another instance of the same binary is already running as root, it refuses to start.
