@@ -1009,6 +1009,7 @@ static void new_finished_job(struct Job *j) {
             cpu_bind_free((struct CpuAlloc *)j->cpu_alloc);
             j->cpu_alloc = NULL;
         }
+        cpu_bind_defrag();
 #endif
     }
     send_mail_via_ssmtp(j);
@@ -1370,6 +1371,7 @@ int s_remove_job(int s, int *jobid, struct User *client) {
                 cpu_bind_free((struct CpuAlloc *)p->cpu_alloc);
                 p->cpu_alloc = NULL;
             }
+            cpu_bind_defrag();
 #endif
             new_finished_job(p);
         } else {

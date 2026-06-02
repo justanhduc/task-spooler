@@ -12,16 +12,17 @@ Precomputed once at startup:
 Strategy groups query type:i → Core (top-down ✓), then expand cores via cache.
 
 Usage:
-    python3 gen_topology.py              # auto-select best strategy
-    python3 gen_topology.py by_l2        # specify strategy
-    python3 gen_topology.py by_l2 --ht   # include HT siblings
+    python3 gen_topology.py                 # auto-select best strategy
+    python3 gen_topology.py by_l2           # specify strategy
+    python3 gen_topology.py by_l2 --ht      # include HT siblings
+    python3 gen_topology.py by_l2 --no-ht   # no HT at all (core == PU, skip PU queries)
 
 Output: topology.h — #defines + TOPOLOGY_INIT macro for cpu_bind.
 """
 
 import subprocess, sys
 
-MAX_GROUPS = 128
+MAX_GROUPS = 256
 OUTPUT_HEADER = "topology.h"
 
 STRATEGIES = {
@@ -56,7 +57,7 @@ def hwloc_count(obj_type):
     return int(hwloc(["--number-of", obj_type, "all"]))
 
 
-def hwloc_intersect(obj_spec, target_type, extra = "--physical"):
+def hwloc_intersect(obj_spec, target_type, extra = ""):
     """Return list of ints: obj_spec --intersect target_type."""
     out = hwloc([obj_spec, "--intersect", target_type, extra])
     if not out:
@@ -66,12 +67,14 @@ def hwloc_intersect(obj_spec, target_type, extra = "--physical"):
 
 # ── Topology cache (precomputed once, all top-down) ─────────────────────────
 
-def build_topology_cache():
+def build_topology_cache(no_ht=False):
     """Precompute core→PU and core→NUMA maps.
 
     All queries follow the natural hierarchy direction:
       - Core:N → PU      (top-down: core contains PUs)
       - NUMANode:N → Core (top-down: NUMA contains cores, then inverted)
+
+    When no_ht is True, core == PU (no HT), skip all per-core queries.
     """
     total_cores = hwloc_count("Core")
     total_nodes = hwloc_count("NUMANode")
@@ -80,13 +83,17 @@ def build_topology_cache():
 
     # ── core→PU  (top-down: Core:N → PU) ──
     core_pu_map = {}
-    for i in range(total_cores):
-        core_pu_map[i] = sorted(hwloc_intersect(f"Core:{i}", "PU"))
+    if no_ht:
+        for i in range(total_cores):
+            core_pu_map[i] = [i]
+    else:
+        for i in range(total_cores):
+            core_pu_map[i] = sorted(hwloc_intersect(f"Core:{i}", "PU", "--physical"))
 
     # ── node→cores (top-down: NUMANode:N → Core), then invert to core→node ──
     core_node_map = {}
     for ni in range(total_nodes):
-        for c in hwloc_intersect(f"NUMANode:{ni}", "Core", ""):
+        for c in hwloc_intersect(f"NUMANode:{ni}", "Core"):
             core_node_map[c] = ni
     print("core_node_map:", core_node_map)
     # Fill any core not covered (shouldn't happen, but safety)
@@ -119,8 +126,8 @@ def collect_pus(core_indices, core_pu_map, include_ht):
 def get_node(core_indices, core_node_map):
     """Determine NUMA node from the first core in the list."""
     if not core_indices:
-        return 0
-    return core_node_map.get(core_indices[0], 0)
+        return -1
+    return core_node_map.get(core_indices[0], -1)
 
 
 # ── Group building ──────────────────────────────────────────────────────────
@@ -303,23 +310,24 @@ def generate(groups, strategy):
 # ── Main ────────────────────────────────────────────────────────────────────
 
 def main():
-    include_ht = "--ht" in sys.argv
-    args = [a for a in sys.argv[1:] if a != "--ht"]
+    no_ht = "--no-ht" in sys.argv
+    include_ht = not no_ht and "--ht" in sys.argv
+    args = [a for a in sys.argv[1:] if a not in ("--ht", "--no-ht")]
     strategy = args[0].lower() if args else None
 
     if strategy and strategy not in STRATEGIES:
         print(f"ERROR: unknown strategy '{strategy}'")
-        print(f"  Valid: {', '.join(STRATEGIES)} [--ht]")
+        print(f"  Valid: {', '.join(STRATEGIES)} [--ht] [--no-ht]")
         sys.exit(1)
 
-    total_pus = hwloc_count("PU")
+    total_pus = hwloc_count("PU") if not no_ht else hwloc_count("Core")
     total_cores = hwloc_count("Core")
     total_nodes = hwloc_count("NUMANode")
-    print(f"  System — {total_pus} PUs, {total_cores} cores, {total_nodes} NUMA nodes"
-          f"  {'(+HT)' if include_ht else '(HT excluded)'}")
+    ht_label = " (no HT)" if no_ht else (" (+HT)" if include_ht else " (HT excluded)")
+    print(f"  System — {total_pus} PUs, {total_cores} cores, {total_nodes} NUMA nodes{ht_label}")
 
     # Precompute once — all top-down queries, all strategies share this cache
-    core_pu_map, core_node_map = build_topology_cache()
+    core_pu_map, core_node_map = build_topology_cache(no_ht)
     print()
 
     if strategy:
