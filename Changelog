@@ -1,3 +1,10 @@
+v2.5.1:
+ - Unified option naming (underscore → dash: --get-label, --add-wtime, etc.)
+ - Server startup output format unified (key : value, PID, [ENV_VAR] retained)
+ - Help text format unified (consistent [param], comma-separated short opts)
+ - ts-guardian: non-system process freezer for shared workstations
+ - login-check.sh: user login audit tool
+
 v2.5.0:
  - CPU binding allocator (TS_CPU_BIND): NUMA-aware topology-based CPU allocation
    with cgroups cpuset v1/v2 support, HT exclusion, and restart recovery.

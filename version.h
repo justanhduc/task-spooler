@@ -6,7 +6,7 @@
 #define TASK_SPOOLER_VERSION_H
 
 #ifndef TS_VERSION
-#define TS_VERSION 2.5.0
+#define TS_VERSION 2.5.1
 #endif
 
 /* from https://github.com/LLNL/lbann/issues/117

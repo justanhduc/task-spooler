@@ -2,6 +2,21 @@
 
 All notable changes to task-spooler-PLUS.
 
+## [v2.5.1] — 2025-Q3
+
+### Changed
+- Unified option naming: all long options use dashes (`--get-label`, `--add-wtime`, etc.)
+- Server startup output: `key : value` format, PID shown, `[ENV_VAR]` retained
+- Help text format: consistent `[param]` style, comma-separated short options
+- Removed `pip install hwloc` reference (uses `lstopo` directly)
+
+### Added
+- `ts-guardian.sh` / `ts-guardian.conf` — non-system process freezer daemon
+- `login-check.sh` — user session audit tool
+
+### Fixed
+- CLAUDE.md: restored missing Cgroups support section, corrected user.txt example
+
 ## [v2.5] — 2025-Q3
 
 ### Added

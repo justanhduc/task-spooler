@@ -18,8 +18,7 @@ Build uses `-std=gnu11 -Wall -ansi -pedantic -fcommon -Wno-format-truncation`. T
 
 CPU binding (`TS_CPU_BIND`): requires `lstopo` (hwloc) to generate `topology.h`:
 ```bash
-pip install hwloc            # or: apt install hwloc
-python3 gen_topology.py      # auto-detect, generate topology.h
+python3 gen_topology.py      # auto-detect via lstopo, generate topology.h
 make TS_CPU_BIND=1           # build with CPU binding
 make TS_CPU_BIND=1 CGROUP_V2=1  # CPU binding + cgroups v2
 ```
@@ -76,7 +75,7 @@ The server reads a user config file (path from `TS_USER_PATH` or env var) that m
 **user.txt format**:
 ```
 # <username> <max_slots>
-TS_SLOTS = 16
+#TS_SLOTS = 16         # global default (can be overridden per-user)
 john    4
 mary    2
 ```
@@ -95,6 +94,10 @@ Ordering: cpuset cgroup is created BEFORE freezer cgroup, so the child process's
 Runtime controls: `--no-bind` disables binding per-job (via NEWJOB message) or server-wide (via `cpu_bind_set_disabled()`).
 
 ### Cgroups support
+
+Build with `make CGROUP_V2=1` for cgroups v2, or just `make` for v1 (default). Path constants defined at top of `cgroups.c`:
+- v1: `/sys/fs/cgroup/cpu/` + `/sys/fs/cgroup/freezer/`
+- v2: `/sys/fs/cgroup/` (unified hierarchy, `cpu.max` + `cgroup.freeze`)
 
 ### Environment variables
 
