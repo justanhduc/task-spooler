@@ -17,6 +17,7 @@
 #include "runtime_limit.h"
 #include "cgroups.h"
 #include "error.h"
+#include "defaults.h"
 
 /* return 0 for running and 1 for sleep and -1 for error */
 int is_sleep(const struct Job* p) {
@@ -85,9 +86,10 @@ char *joblist_headers() {
              user_locker->name, r.value, r.unit);
   }
 
-  line = malloc(256);
-  snprintf(line, 256,
-           "%-4s %-9s %-6s %-7s %-10s %7s  %-20s  Log [run=%i/%i %.2f%%] %s\n",
+  line = malloc(320);
+  snprintf(line, 320,
+           "[%s]\n%-4s %-9s %-6s %-7s %-10s %7s  %-20s  Log [run=%i/%i %.2f%%] %s\n",
+           DEFAULT_HPC_NAME,
            "ID", "State", "Proc.", "User", "Label", "Time", "Command",
            busy_slots, max_slots, 100.0 * busy_slots / max_slots, extra);
   return line;

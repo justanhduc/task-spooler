@@ -11,9 +11,10 @@
 #ifndef DEFAULTS_H
 #define DEFAULTS_H
 
-#define DEFAULT_USER_PATH "/home/kylin/Public/task-spooler/user.txt"
-#define DEFAULT_LOG_PATH "/home/kylin/Public/task-spooler/log.txt"
-#define DEFAULT_SQLITE_PATH "/home/kylin/Public/task-spooler/task-spooler.db"
+#define DEFAULT_BASE_DIR "/home/kylin/Public/task-spooler"
+#define DEFAULT_USER_PATH DEFAULT_BASE_DIR "/user.txt"
+#define DEFAULT_LOG_PATH DEFAULT_BASE_DIR "/log.txt"
+#define DEFAULT_SQLITE_PATH DEFAULT_BASE_DIR "/task-spooler.db"
 #define DEFAULT_EMAIL_SENDER "XXX@foxmail.com"
 #define DEFAULT_EMAIL_TIME 45.0
 #define DEFAULT_USER_LOCK_TIME 30
