@@ -125,16 +125,16 @@ void wait_server_up(int fd) {
 }
 
 static void server_info() {
-  printf("Task Spooler v" TS_MAKE_STR(TS_VERSION) " — starting from root[%d]\n", root_UID);
+  printf("Task Spooler v" TS_MAKE_STR(TS_VERSION) "  (PID %d)\n", getpid());
 #ifdef TS_CPU_BIND
-  printf("  CPU binding: %s\n", cpu_bind_enabled() ? "ON" : "OFF");
+  printf("  CPU binding : %s\n", cpu_bind_enabled() ? "ON" : "OFF");
 #endif
-  printf("  Socket path: %s         [TS_SOCKET]\n", socket_path);
-  printf("  Read user file from %s  [TS_USER_PATH]\n", get_user_path());
-  printf("  Write log file to %s    [TS_LOGFILE_PATH]\n", set_server_logfile());
-  printf("  Sqlite Database @ %s    [TS_SQLITE_PATH]\n", get_sqlite_path());
+  printf("  Socket      : %s  [TS_SOCKET]\n", socket_path);
+  printf("  Users       : %s  [TS_USER_PATH]\n", get_user_path());
+  printf("  Log         : %s  [TS_LOGFILE_PATH]\n", set_server_logfile());
+  printf("  DB          : %s  [TS_SQLITE_PATH]\n", get_sqlite_path());
   time_repr_t r = format_time(get_max_wall_time());
-  printf("  Max_Wall_Time: %.2f %c  [TS_MAX_WALL_TIME]\n", r.value, r.unit);
+  printf("  Max wall    : %.2f %c  [TS_MAX_WALL_TIME]\n", r.value, r.unit);
 }
 
 static void server_daemon() {
