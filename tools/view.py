@@ -1,6 +1,9 @@
 import sqlite3
+import sys
 
-conn = sqlite3.connect("task-spooler.db")
+db_path = sys.argv[1] if len(sys.argv) > 1 else "task-spooler.db"
+
+conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 
 # 获取表的列信息
@@ -16,7 +19,7 @@ column_names = [col[1] for col in columns]
 print(column_names)
 conn.close()
 
-conn = sqlite3.connect("task-spooler.db")
+conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 
 cursor.execute("SELECT * FROM Jobs")

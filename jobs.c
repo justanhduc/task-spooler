@@ -989,6 +989,30 @@ static int get_max_finished_jobs() {
     return num;
 }
 
+/* ---- defrag 回调：暂停/更新 cpuset/恢复 ---- */
+#ifdef TS_CPU_BIND
+static void defrag_pause_job(int jobid)
+{
+    struct Job *p = findjob(jobid);
+    if (p && p->pid > 0 && (p->state == RUNNING || p->state == PAUSE))
+        cgroups_freeze_job(p);
+}
+
+static void defrag_update_cpuset(int jobid, const struct CpuAlloc *alloc)
+{
+    struct Job *p = findjob(jobid);
+    if (p && p->pid > 0 && p->state == RUNNING)
+        cgroups_set_cpuset(p->jobid, p->pid, alloc);
+}
+
+static void defrag_resume_job(int jobid)
+{
+    struct Job *p = findjob(jobid);
+    if (p && p->pid > 0 && (p->state == RUNNING || p->state == PAUSE))
+        cgroups_thaw_job(p);
+}
+#endif
+
 /* Add the job to the finished queue. */
 static void new_finished_job(struct Job *j) {
     int max = get_max_finished_jobs();
@@ -1009,7 +1033,7 @@ static void new_finished_job(struct Job *j) {
             cpu_bind_free((struct CpuAlloc *)j->cpu_alloc);
             j->cpu_alloc = NULL;
         }
-        cpu_bind_defrag();
+        cpu_bind_defrag(defrag_pause_job, defrag_update_cpuset, defrag_resume_job);
 #endif
     }
     send_mail_via_ssmtp(j);
@@ -1371,7 +1395,7 @@ int s_remove_job(int s, int *jobid, struct User *client) {
                 cpu_bind_free((struct CpuAlloc *)p->cpu_alloc);
                 p->cpu_alloc = NULL;
             }
-            cpu_bind_defrag();
+            cpu_bind_defrag(defrag_pause_job, defrag_update_cpuset, defrag_resume_job);
 #endif
             new_finished_job(p);
         } else {

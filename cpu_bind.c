@@ -353,7 +353,9 @@ static int alloc_defrag_cmp(const void *a, const void *b)
     return pb->count - pa->count;
 }
 
-int cpu_bind_defrag(void)
+int cpu_bind_defrag(cpu_bind_pause_fn pause,
+                    cpu_bind_update_fn update_cpuset,
+                    cpu_bind_resume_fn resume)
 {
     int count = (int)vec_size(&cpu_allocs);
     if (count <= 0)
@@ -369,6 +371,16 @@ int cpu_bind_defrag(void)
     while (n < count && allocs[n]->quality == 0)
         n++;
 
+    if (n >= count)
+        return 0;  /* 全部 quality=0，无需 defrag */
+
+    /* ---- 第一步：暂停所有 quality>0 的 job ---- */
+    for (int i = n; i < count; i++) {
+        if (pause)
+            pause(allocs[i]->jobid);
+    }
+
+    /* ---- 第二步：重建分配状态 ---- */
     /* 全部清空 */
     memset(cpu_owner, 0, sizeof(cpu_owner));
     for (int i = 0; i < sys_topology.num_groups; i++)
@@ -390,7 +402,7 @@ int cpu_bind_defrag(void)
         }
     }
 
-    /* 重分 quality>0 的 allocs（手动重置，不调 malloc/vec_push） */
+    /* ---- 第三步：重分 quality>0 的 allocs + 更新 cpuset ---- */
     for (int i = n; i < count; i++) {
         struct CpuAlloc *a = allocs[i];
         int N = a->count;
@@ -399,6 +411,16 @@ int cpu_bind_defrag(void)
         a->quality   = 0;
         a->mem_nodes = 0;
         cpu_bind_alloc(a, N);
+
+        /* 写入新 CPU 绑定 */
+        if (update_cpuset)
+            update_cpuset(a->jobid, a);
+    }
+
+    /* ---- 第四步：恢复所有 quality>0 的 job ---- */
+    for (int i = n; i < count; i++) {
+        if (resume)
+            resume(allocs[i]->jobid);
     }
 
     return 0;

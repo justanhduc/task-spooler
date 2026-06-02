@@ -57,7 +57,15 @@ struct CpuAlloc *cpu_bind_alloc_init(int jobid, int max_cpus);
 void              cpu_bind_alloc(struct CpuAlloc *alloc, int N);
 void              cpu_bind_free(struct CpuAlloc *alloc);
 
-int               cpu_bind_defrag(void);
+/* defrag 回调类型 — 传 NULL 表示跳过对应步骤 */
+typedef void (*cpu_bind_pause_fn)(int jobid);
+typedef void (*cpu_bind_update_fn)(int jobid, const struct CpuAlloc *alloc);
+typedef void (*cpu_bind_resume_fn)(int jobid);
+
+/* 碎片整理：先暂停 quality>0 的 job，重分配后更新 cpuset，再恢复 */
+int               cpu_bind_defrag(cpu_bind_pause_fn pause,
+                                 cpu_bind_update_fn update_cpuset,
+                                 cpu_bind_resume_fn resume);
 
 char             *cpu_bind_format_cpus(const struct CpuAlloc *alloc);
 char             *cpu_bind_format_mems(const struct CpuAlloc *alloc);
