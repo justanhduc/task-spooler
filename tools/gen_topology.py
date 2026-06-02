@@ -2,9 +2,14 @@
 """
 gen_topology.py — Generate topology.h via hwloc-calc (zero XML parsing).
 
-Queries hwloc-calc CLI for topology — no XML parsing needed.
-Precomputes core→PU and core→NUMA maps once at startup,
-then all strategies share the cached data (no per-core subprocess calls).
+All topology queries follow the natural top-down hierarchy:
+    NUMANode / L3 / L2 / L1 → Core → PU
+
+Precomputed once at startup:
+  - core_pu_map:    Core:N → PU list  (top-down ✓)
+  - core_node_map:  derived from NUMANode:N → Core (top-down ✓), then inverted
+
+Strategy groups query type:i → Core (top-down ✓), then expand cores via cache.
 
 Usage:
     python3 gen_topology.py              # auto-select best strategy
@@ -51,32 +56,43 @@ def hwloc_count(obj_type):
     return int(hwloc(["--number-of", obj_type, "all"]))
 
 
-def hwloc_intersect(obj_spec, target_type):
-    """Return list of ints from intersecting obj_spec with target_type."""
-    out = hwloc([obj_spec, "--intersect", target_type])
+def hwloc_intersect(obj_spec, target_type, extra = "--physical"):
+    """Return list of ints: obj_spec --intersect target_type."""
+    out = hwloc([obj_spec, "--intersect", target_type, extra])
     if not out:
         return []
     return [int(x) for x in out.split(",")]
 
 
-# ── Precomputed topology cache ──────────────────────────────────────────────
+# ── Topology cache (precomputed once, all top-down) ─────────────────────────
 
 def build_topology_cache():
-    """Query hwloc-calc once per core to build PU and NUMA lookup tables.
+    """Precompute core→PU and core→NUMA maps.
 
-    Returns (core_pu_map, core_node_map) where:
-        core_pu_map[i]   = [sorted PU indices for core i]
-        core_node_map[i] = NUMA node index for core i
+    All queries follow the natural hierarchy direction:
+      - Core:N → PU      (top-down: core contains PUs)
+      - NUMANode:N → Core (top-down: NUMA contains cores, then inverted)
     """
     total_cores = hwloc_count("Core")
-    print(f"  Building topology cache for {total_cores} cores ...", end=" ", flush=True)
+    total_nodes = hwloc_count("NUMANode")
+    print(f"  Precomputing topology for {total_cores} cores, "
+          f"{total_nodes} NUMA nodes ...", end=" ", flush=True)
 
+    # ── core→PU  (top-down: Core:N → PU) ──
     core_pu_map = {}
-    core_node_map = {}
     for i in range(total_cores):
         core_pu_map[i] = sorted(hwloc_intersect(f"Core:{i}", "PU"))
-        node = hwloc_intersect(f"Core:{i}", "NUMANode")
-        core_node_map[i] = node[0] if node else 0
+
+    # ── node→cores (top-down: NUMANode:N → Core), then invert to core→node ──
+    core_node_map = {}
+    for ni in range(total_nodes):
+        for c in hwloc_intersect(f"NUMANode:{ni}", "Core", ""):
+            core_node_map[c] = ni
+    print("core_node_map:", core_node_map)
+    # Fill any core not covered (shouldn't happen, but safety)
+    for i in range(total_cores):
+        if i not in core_node_map:
+            core_node_map[i] = -1
 
     print("done.")
     return core_pu_map, core_node_map
@@ -85,7 +101,7 @@ def build_topology_cache():
 # ── PU collection (from cache) ──────────────────────────────────────────────
 
 def collect_pus(core_indices, core_pu_map, include_ht):
-    """Given core OS indices and the precomputed core→PU map, return sorted PU list.
+    """Given core OS indices, return sorted PU list.
 
     If include_ht is False, keep only the smallest PU per core (no HT siblings).
     """
@@ -110,20 +126,27 @@ def get_node(core_indices, core_node_map):
 # ── Group building ──────────────────────────────────────────────────────────
 
 def build_groups(strategy, core_pu_map, core_node_map, include_ht):
-    """Return list of {node, pus} dicts for the given strategy."""
+    """Return list of {node, pus} dicts.
+
+    Queries type:i → Core (top-down), then expands via precomputed maps.
+    Skips hwloc-calc when count == total_cores (e.g. by_core, or cache level
+    where each object contains exactly one core).
+    """
     hwloc_type = STRATEGIES[strategy]
+    total_cores = len(core_pu_map)
     count = hwloc_count(hwloc_type)
     if count == 0:
         return None
 
+    trivial = (count == total_cores)  # each object maps 1:1 to a core
     groups = []
     for i in range(count):
-        cores = hwloc_intersect(f"{hwloc_type}:{i}", "Core")
+        cores = [i] if trivial else hwloc_intersect(f"{hwloc_type}:{i}", "Core")
         pus = collect_pus(cores, core_pu_map, include_ht)
         if not pus:
             continue
 
-        node = get_node(cores, core_node_map) if strategy != "by_numa" else i
+        node = i if strategy == "by_numa" else get_node(cores, core_node_map)
         groups.append({"node": node, "pus": pus})
 
     return groups or None
@@ -132,7 +155,7 @@ def build_groups(strategy, core_pu_map, core_node_map, include_ht):
 # ── Auto-select ─────────────────────────────────────────────────────────────
 
 def report_strategies(core_pu_map, core_node_map, include_ht):
-    """Try all strategies, return (best_strategy_name, best_groups)."""
+    """Try all strategies, return (best_name, best_groups)."""
     TARGET_AVG = 4
     results = []
     for s in STRATEGIES:
@@ -146,26 +169,21 @@ def report_strategies(core_pu_map, core_node_map, include_ht):
         tp = sum(len(g["pus"]) for g in groups)
         results.append((s, groups, ng, mp, xp, tp))
 
-    # Pick strategy with average cores/group closest to TARGET_AVG (>1 required)
-    best, best_dist = None, None
+    # Select strategy with average cores/group closest to TARGET_AVG (>1 required)
+    best, best_groups, best_dist = None, None, None
     for r in results:
         s, data, ng, _mp, _xp, tp = r
         if data is None or ng <= 1:
             continue
         dist = abs(tp / ng - TARGET_AVG)
         if best is None or dist < best_dist:
-            best, best_dist = s, dist
+            best, best_groups, best_dist = s, data, dist
 
-    best_groups = None
+    # Fallback: any valid strategy
     if best is None:
         for r in results:
             if r[1] is not None:
                 best, best_groups = r[0], r[1]
-                break
-    else:
-        for r in results:
-            if r[0] == best:
-                best_groups = r[1]
                 break
 
     ht_lbl = " (+HT)" if include_ht else ""
@@ -300,7 +318,7 @@ def main():
     print(f"  System — {total_pus} PUs, {total_cores} cores, {total_nodes} NUMA nodes"
           f"  {'(+HT)' if include_ht else '(HT excluded)'}")
 
-    # Precompute once — all strategies share this cache
+    # Precompute once — all top-down queries, all strategies share this cache
     core_pu_map, core_node_map = build_topology_cache()
     print()
 

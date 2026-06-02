@@ -2,6 +2,22 @@
 
 All notable changes to task-spooler-PLUS.
 
+## [v2.6.0] — 2026-Q2
+
+### Changed
+- **`gen_topology.py` rewritten**: uses `hwloc-calc` CLI instead of parsing `lstopo` XML
+  - All topology queries follow top-down hierarchy (`type:i → Core → PU`)
+  - Precomputed `core_pu_map` and `core_node_map` at startup, shared across all strategies
+  - `build_groups` skips `hwloc-calc` when count == total_cores (by_core or 1:1 cache mapping)
+  - Auto-select targets average cores/group closest to 4 (tie-break: `by_l2 → by_core → by_l1 → by_l3 → by_numa`)
+  - MAX_GROUPS raised from 32 to 128
+
+### Fixed
+- `main.c`: missing newline in `TS_MAXCONN` help output
+
+### Removed
+- `upgrade_db.py` — no longer needed
+
 ## [v2.5.1] — 2025-Q3
 
 ### Changed

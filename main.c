@@ -625,7 +625,7 @@ static void print_help(const char *cmd) {
   printf("  TS_MAIL_TIME     : Email threshold in seconds (default: %.3f sec.)\n", DEFAULT_EMAIL_TIME);
   printf("  TS_SERVICE_NAME  : Service name for Email notifications (default: %s)\n", DEFAULT_HPC_NAME);
   printf("  TS_MAXFINISHED   : Max finished jobs in queue (default: %d)\n", DEFAULT_MAXFINISHED);
-  printf("  TS_MAXCONN       : Max concurrent connections (max %d, default: %d)", MAXCONN, MAXCONN);
+  printf("  TS_MAXCONN       : Max concurrent connections (max %d, default: %d)\n", MAXCONN, MAXCONN);
   printf("  TS_ONFINISH      : Binary executed post-job (args: ID, status, output, cmd)\n");
   printf("  TS_ENV           : Command to gather job info during enqueue\n");
   printf("  TS_SAVELIST      : Crash recovery file for job list\n");
