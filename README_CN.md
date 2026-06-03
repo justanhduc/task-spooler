@@ -240,6 +240,7 @@ Copyright (C) 2007-2026  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell
   --add-wtime [dur]       增加任务 wall-time（仅 root）
   --job [id] || -J [id]  指定任务 ID
   --daemon                以守护进程模式运行（仅 root）
+  --no-bind-defrag        关闭自动碎片整理（服务端启动，仅 root）
 
 操作：
   -A           显示所有用户信息

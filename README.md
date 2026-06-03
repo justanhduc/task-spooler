@@ -231,6 +231,7 @@ Long option actions:
   --add-wtime [dur]       Increase job wall time (root only)
   --job [id] || -J [id]  Specify job ID
   --daemon                Run as daemon (root only)
+  --no-bind-defrag        Disable defrag (server start, root only)
 
 Actions:
   -A           List info for all users

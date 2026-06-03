@@ -2,6 +2,11 @@
 
 All notable changes to task-spooler-PLUS.
 
+## [v2.6.4] — 2026-Q2
+
+### Changed
+- **`cpu_bind_defrag()` re-enabled** — auto-defrag after each job finishes, with `--no-bind-defrag` server flag to disable (root only, for MPI workloads)
+
 ## [v2.6.3] — 2026-Q2
 
 ### Changed
