@@ -1,80 +1,138 @@
 # Task Spooler PLUS
 
-本项目基于 [Lluís Batlle i Rossell 的 Task Spooler](https://vicerveza.homeunix.net/~viric/soft/ts/)，增加了**多用户支持、SQLite 崩溃恢复、cgroups CPU 限制与冻结/暂停、动态用户管理**等功能。以 root 权限后台服务运行，适用于多人共享的工作站。
+**一个二进制文件搞定多用户任务调度**——你可以把它当成共享工作站的轻量级 Slurm。没有守护进程集群、不用配数据库、不需要任何集群基础设施，一个 `ts` 就够了。
 
-## 简介
+最初只是一个单用户的任务排队工具，**Kylin JIANG** 把它重构成了一个具备崩溃恢复、cgroups 资源隔离、NUMA 感知 CPU 绑定的多用户调度器，让小型共享机器也能享受 Slurm 级别的调度能力。
 
-在日常研究中，我经常需要在工作站上同时提交大量仿真任务，而原始的 task-spooler 不支持多用户（每个用户独立维护队列）。<u>task-spooler-PLUS</u> 通过中心化服务器实现多用户统一管理。
+[English](README.md)
 
-近期增强包括：**cgroups v1/v2 CPU 限制与 freezer 暂停/恢复**、**SQLite3 WAL 模式崩溃恢复**、基于 `vec_t` 的动态用户管理。
+## 为什么选 TS PLUS？
+
+### 相比原版 Task Spooler
+
+| | 原版 | TS PLUS |
+|---|---|---|
+| **用户模型** | 各管各的，每人一个独立队列 | 一个中心服务端统一调度，支持按用户限制槽位 |
+| **崩溃恢复** | 任务丢了就没了 | SQLite3 WAL 持久化，任务、状态、耗时数据跨崩溃和重启全保留 |
+| **资源管控** | 没有 | cgroups v1/v2：CPU 配额、freezer 暂停/恢复、NUMA CPU 绑定 |
+| **调度策略** | 只能先进先出 | 依赖链、超时自动暂停、`--at` 定时执行 |
+| **用户管理** | 没有 | 配置文件热加载（`ts -X`），支持按用户暂停/恢复 |
+| **容错能力** | 服务端一挂客户端全断 | 客户端自动重连，运行中的任务无缝恢复 |
+
+### 相比 Slurm
+
+| | Slurm | TS PLUS |
+|---|---|---|
+| **部署** | `slurmctld` + `slurmd` + `munge` + MySQL + 一堆配置文件 | 一个二进制，一个用户配置文件 |
+| **定位** | 成百上千节点的集群 | 一两台工作站，几个人到几十个人用 |
+| **多用户** | ✓ | ✓ |
+| **任务恢复** | 靠外部数据库 | SQLite3 WAL，自带 |
+| **CPU/NUMA 绑定** | `--cpu-bind` / `--mem-bind` | `TS_CPU_BIND=1` 编译即开，NUMA 感知分配 |
+| **cgroups** | v1/v2（靠插件） | v1/v2（编译进二进制） |
+| **时间限制** | ✓ | ✓（超时自动暂停，加时后重新排队） |
+| **任务回调** | Epilog/Prolog 脚本 | `--on-finish` 搭配占位符，直接在用户态执行 |
+
+如果你有一台共享工作站，几到几十个用户在上面跑仿真、炼丹、做实验，TS PLUS 能给你 Slurm 级别的调度体验，但运维成本几乎为零。
+
+## 起源
+
+Task Spooler PLUS 从 [Lluís Batlle i Rossell 的 Task Spooler](https://vicerveza.homeunix.net/~viric/soft/ts/) fork 而来。**Kylin JIANG** 主导了从单用户排队脚本到多用户调度器的全部改造，核心工作包括：
+
+- **cgroups v1/v2 全支持**：CPU 配额限制、freezer 暂停/恢复、cpuset NUMA 绑定，编译时一键切换
+- **SQLite3 崩溃恢复**：任务、状态、耗时全部持久化，重启不掉任何数据
+- **NUMA 感知的 CPU 绑定分配器**：拓扑自动探测、best-fit 选组、自动碎片整理且不破坏 NUMA 亲和性
+- **动态用户管理**：`vec_t` 承载 `struct User`，配置文件热加载，支持单用户一键暂停/恢复
+- **超时自动处理**：超时任务自动暂停，加时后重新入队，不丢不挂
+- **客户端自动重连**：服务端重启后客户端自动接上，运行中的任务不受影响
 
 ### 更新日志
 
-参见 [CHANGELOG](CHANGELOG.md)。
+详见 [CHANGELOG](CHANGELOG.md)。
 
-## 特性
+## 功能一览
 
-- **跨平台**：支持 GNU/Linux、Darwin、Cygwin、FreeBSD
-- **多用户**：每个用户可配置最大槽位（CPU 核数）
-- **崩溃恢复**：通过 SQLite3（WAL 模式）持久化，重启后恢复所有任务状态
-- **Cgroups 支持**：CPU 配额限制 + freezer 暂停/恢复（v1/v2 编译时可选）
-- **Wall-time 管理**：超时任务自动暂停并排到队尾
-- **用户全局控制**：暂停/恢复单个用户的所有任务
-- **多种输出格式**：默认、JSON、Tab 分隔
-- **简易构建**：`make` 即可（无需 autotools）
-- **stdout/stderr 分离**：方便日志管理
-- **PID 查询**（`--find-by-pid`）：查找某个 PID 属于哪个任务（含子进程）
-- **定时执行**（`--at`）：排期运行任务，支持 `+5m`、`14:00`、`2025-06-01T14:00` 等格式
-- **崩溃恢复**：服务端重启后任务自动恢复，客户端自动重连
-- **任务完成回调**（`--on-finish`）：任务结束后自动运行命令，通过占位符获取任务信息
+- **跨平台**：GNU/Linux、Darwin、Cygwin、FreeBSD 都能跑
+- **多用户**：每个用户独立配置最大槽位（CPU 核数）
+- **崩溃恢复**：SQLite3 WAL 模式，重启后所有任务状态完整恢复
+- **cgroups 集成**：CPU 配额限制 + freezer 暂停/恢复（v1/v2，编译时选）
+- **超时管理**：任务超时自动冻结并排到队尾
+- **用户级控制**：一键暂停/恢复某个用户的所有任务
+- **多格式输出**：默认、JSON、Tab 分隔三种格式
+- **构建简单**：`make` 一把梭，不用 autotools
+- **stdout/stderr 分离**：日志管理更清爽
+- **PID 反查**（`--find-by-pid`）：给定一个 PID，查出它属于哪个任务（含子进程）
+- **定时执行**（`--at`）：支持 `+5m`、`14:00`、`2025-06-01T14:00` 等格式
+- **任务回调**（`--on-finish`）：任务完成后自动执行命令，通过占位符拿任务信息
+- **CPU 绑定**（`TS_CPU_BIND`）：NUMA 感知的拓扑分配 + cgroups cpuset，支持 HT 排除
 
 ## 工具
 
-- `tools/migrate_uid.py` — 将旧的 `ts_UID` 列（向量索引）迁移为 Linux UID
-- `tools/clear_finished.py` — 清空或 `--drop` + 重建 Finished 表
+- `tools/migrate_uid.py`：旧版 `ts_UID` 迁移为 Linux UID
+- `tools/clear_finished.py`：清空 / 重建 Finished 表
+- `tools/gen_topology.py`：一键生成 CPU 拓扑头文件，自动跳过平凡/重复策略
 
 ## 快速开始
 
 ```bash
-make                      # 编译（cgroups v1，默认）
-make CGROUP_V2=1          # 编译 cgroups v2 版本
-sudo ./ts --daemon        # 启动后台服务（仅 root）
-./ts -l                   # 列出所有任务
-./ts sleep 30             # 提交一个任务
-./ts -r <id>              # 删除任务
-./ts -k <id>              # 终止运行中的任务
-./ts -w <id>              # 等待任务完成
+make                              # 编译（默认 cgroups v1）
+make CGROUP_V2=1                  # 换成 cgroups v2
+make TS_CPU_BIND=1                # 加上 NUMA CPU 绑定
+make CGROUP_V2=1 TS_CPU_BIND=1   # 全都上
+sudo ./ts --daemon                # 启动服务端（需要 root）
+./ts -l                           # 看看队列
+./ts sleep 30                     # 扔个任务进去
+./ts -r <id>                      # 删掉一个任务
+./ts -k <id>                      # 干掉一个在跑的任务
+./ts -w <id>                      # 等任务跑完
 ```
+
+### 回调示例
+
+`--on-finish` 可以在任务结束后自动执行命令，通过占位符拿到任务的全部信息：
+
+```bash
+./ts --on-finish "cat > job-{jobid}.info << 'EOF'
+ pid={pid}  label={label}  exitcode={exitcode}
+ realtime={realtime} usertime={usertime} systime={systime} pausetime={pausetime}
+ start_time={start_time}
+ enque_time={enque_time}
+ end_time={end_time}
+ slots={slots}
+EOF" -L test_job sleep 10
+```
+
+任务跑完后，`job-<id>.info` 里就是解析后的完整信息——用来记日志、发邮件（`--on-finish "sendmail {exitcode} ..."`）、串联工作流都很方便。
 
 ## 编译与安装
 
 ```bash
-make                      # 编译 ts 二进制文件
-make CGROUP_V2=1          # 编译 cgroups v2 版本
-make clean                # 清理编译产物
-./install_make            # 安装到 /usr/local（需要 root）
+make                      # 编译
+make CGROUP_V2=1          # cgroups v2 编译
+make TS_CPU_BIND=1        # CPU 绑定编译
+make clean                # 清理
+./install_make            # 装到 /usr/local（需要 root）
 ```
 
-**默认路径**（可通过环境变量覆盖）：
+**默认路径**（都能用环境变量覆盖）：
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `TS_SOCKET` | `$TMPDIR/socket-ts.root` | Unix 套接字 |
-| `TS_USER_PATH` | `user.txt` 所在路径 | 用户配置文件 |
+| `TS_USER_PATH` | `user.txt` 所在路径 | 用户配置 |
 | `TS_LOGFILE_PATH` | `log.txt` 所在路径 | 任务日志 |
 | `TS_SQLITE_PATH` | `task-spooler.db` 所在路径 | SQLite 数据库 |
-| `TS_SLOTS` | `1` | 最大并发任务数 |
-| `TS_MAXFINISHED` | `1000` | 最大已完成任务数 |
-| `TS_MAX_WALL_TIME` | `10080`（分钟） | 最大 wall-time 限制 |
+| `TS_SLOTS` | `1` | 最大并发数 |
+| `TS_MAXFINISHED` | `1000` | 最多保留多少已完成任务 |
+| `TS_MAX_WALL_TIME` | `10080`（分钟） | 单任务最大运行时长 |
 | `TS_FIRST_JOBID` | `1000` | 起始任务 ID |
 
-可编辑 `defaults.h` 修改内置默认值。
+也可以直接改 `defaults.h` 里的默认值。
 
 ## 用户配置
 
-服务器通过用户配置文件（路径由 `TS_USER_PATH` 指定）管理用户。配置格式为 **用户名 + 最大槽位数**，用户名通过 `getpwnam()` 自动解析为系统 UID，无需手动指定。
+服务端启动时读取用户配置文件（路径由 `TS_USER_PATH` 指定）。格式很简单：**用户名 + 最大槽位数**。用户名通过 `getpwnam()` 自动解析为系统 UID，不用自己查。
 
-**user.txt 格式**：
+**user.txt 示例**：
 
 ```
 # <用户名> <最大槽位数>
@@ -83,71 +141,80 @@ john    4
 mary    2
 ```
 
-root（uid=0）自动加入，拥有完全控制权。
+root（uid=0）自动加入，拥有全部权限。
 
-运行时可使用 `ts -X`（仅 root）刷新配置。刷新只允许**新增**用户——已有用户不可删除或更改槽位数。
+运行时用 `ts -X`（需要 root）可以热加载配置。注意：热加载只允许**新增**用户，已有的不能删也不能改槽位。
 
 ## 工作原理
 
-**服务器进程**以 root 运行，在内存中管理任务并通过 SQLite3 持久化。**客户端进程**通过 Unix 套接字连接。服务器不执行用户命令——客户端 fork 并运行任务，保留用户环境、ulimits 和工作目录。
+**服务端**以 root 身份跑，在内存里管理所有任务，同时通过 SQLite3 持久化到磁盘。**客户端**通过 Unix 套接字连上来。服务端自己不跑任何用户命令——客户端 fork 出来执行，保留用户原本的环境变量、ulimits 和工作目录。
 
 ```
-ts (客户端)  ──Unix socket──▶  ts (服务器守护进程)
+ts (客户端)  ──Unix socket──▶  ts (服务端)
    │                              │
-   fork() + exec(cmd)             │  管理队列、槽位、用户
-   │                              │  持久化到 SQLite3 (WAL)
-   waitpid() → 通知服务器          │
+   fork() + exec(cmd)             │  管队列、管槽位、管用户
+   │                              │  SQLite3 WAL 持久化
+   waitpid() → 通知服务端           │
 ```
 
-崩溃后，运行中的任务通过 `--relink` 重新挂载。重启后，所有任务状态从 SQLite 恢复。
+服务端崩了？客户端会自动重连，把跑着的任务重新挂上去。机器重启了？SQLite 里什么都在，起来继续。
 
-### Cgroups 支持
+### cgroups 支持
 
-编译时选择：
-- `make` — cgroups v1（`cpu.cfs_quota_us` + `freezer.state`）
-- `make CGROUP_V2=1` — cgroups v2（`cpu.max` + `cgroup.freeze`）
+编译的时候选：
+- `make` → cgroups v1（`cpu.cfs_quota_us` + `freezer.state`）
+- `make CGROUP_V2=1` → cgroups v2（`cpu.max` + `cgroup.freeze`）
 
-两者均提供 CPU 配额限制和 freezer 暂停/恢复功能。
+不管哪个版本，CPU 配额限制和 freezer 暂停/恢复都有。
+
+要知道自己的系统是 v1 还是 v2：
+```bash
+mount | grep cgroup
+# v1 会显示: cgroup on /sys/fs/cgroup/cpu, freezer, cpuset ...
+# v2 会显示: cgroup2 on /sys/fs/cgroup type cgroup2
+```
+
+### CPU 绑定（TS_CPU_BIND）
+
+编译时加上 `TS_CPU_BIND=1`，自动探测 NUMA 拓扑，把任务绑到最优的 CPU 组上。默认排除超线程，想带上就 `--ht`。每次任务结束后自动碎片整理，尽量保持 NUMA 亲和性。
 
 ### 单实例保护
 
-`--daemon` 启动时扫描 `/proc`：如发现同路径的二进制文件已被 root 运行，拒绝启动。
+`--daemon` 启动时会扫 `/proc`，发现同路径已经有 root 在跑了就直接拒绝，防止开了多个服务端把队列搞乱。
 
 ### 常见问题
 
-- **服务器卡住**：删除套接字文件（`/tmp/socket-ts.root`）后重启
-- **SIGKILL 后残留**：`.db-wal` 和 `.db-shm` 文件保留——SQLite 下次打开时自动恢复
-- **崩溃后**：运行中的任务丢失退出码和信号信息
+- **服务端卡死了**：删掉 socket 文件（`/tmp/socket-ts.root`），重开就行
+- **被 SIGKILL 了**：`.db-wal` 和 `.db-shm` 文件还在，SQLite 下次打开自动恢复
+- **崩溃之后**：正在跑的任务会丢失退出码和信号信息（进程没了），但任务本身能从 SQLite 恢复
 
 ## 命令参考
 
-运行 `ts -h` 查看完整帮助。
+跑 `ts -h` 看完整帮助。
 
 ```
-Task Spooler 2.1.1a - Unix 用户任务队列系统
-Copyright (C) 2007-2024  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell
+Task Spooler PLUS 2.6.1 - 多用户任务调度器，类似 Slurm
+Copyright (C) 2007-2026  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell
 
 环境变量：
   TS_SOCKET        : Unix 套接字路径（默认：$TMPDIR/socket-ts.root）
-  TS_SLOTS         : 最大并发任务数（服务器启动，默认：1）
-  TS_USER_PATH     : 用户配置文件路径（服务器启动）
-  TS_LOGFILE_PATH  : 任务日志路径（服务器启动）
-  TS_SQLITE_PATH   : SQLite 数据库路径（服务器启动）
+  TS_SLOTS         : 最大并发任务数（服务端启动，默认：1）
+  TS_USER_PATH     : 用户配置文件路径（服务端启动）
+  TS_LOGFILE_PATH  : 任务日志路径（服务端启动）
+  TS_SQLITE_PATH   : SQLite 数据库路径（服务端启动）
   TS_MAXFINISHED   : 最大已完成任务数（默认：1000）
   TS_MAX_WALL_TIME : 最大 wall-time（默认：10080 分钟）
   TS_MAXCONN       : 最大连接数（默认：1000）
   TS_SORTJOBS      : 任务队列排序控制
   TS_SAVELIST      : 崩溃恢复任务列表文件
-  TS_ONFINISH      : 任务完成后执行的二进制文件
   TS_ENV           : 提交任务时收集环境信息的命令
-  TS_MAIL_FROM     : 结果邮件发件人
-  TS_MAIL_TIME     : 邮件通知阈值（秒）
+  TS_ONFINISH      : 默认的任务完成回调（可被 --on-finish 覆盖）
   TMPDIR           : 临时输出目录
 
 长选项操作：
-  --getenv [var]          获取服务器环境变量
-  --setenv [var]          设置服务器环境变量
-  --unsetenv [var]        删除服务器环境变量
+  --getenv [var]          获取服务端环境变量
+  --setenv [var]          设置服务端环境变量
+  --unsetenv [var]        删除服务端环境变量
   --get-label || -a [id]  显示任务标签
   --full-cmd || -F [id]   显示完整命令
   --find-by-pid [pid]     查找 PID 属于哪个运行中的任务（含子进程）
@@ -157,12 +224,13 @@ Copyright (C) 2007-2024  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell
   --get-logdir             显示日志目录路径
   --set-logdir [path]     配置日志目录
   --serialize || -M [fmt] 导出任务列表（default/json/tab）
+                          用 -M json -J <id> 导出单个任务 JSON
   --hold [jobid]          暂停指定任务
   --cont [jobid]          恢复暂停的任务
   --suspend [USER]        暂停用户
   --resume [USER]         恢复用户
-  --lock                  锁定服务器
-  --unlock                解除服务器锁定
+  --lock                  锁定服务端
+  --unlock                解除服务端锁定
   --at <时间>              排期运行：+5m, 14:00, 06-01_14:00, 2025-06-01T14:00
   --on-finish <模板>      任务结束后运行命令
                           占位符：{jobid} {output} {exitcode} {pid} {label}
@@ -176,7 +244,7 @@ Copyright (C) 2007-2024  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell
 操作：
   -A           显示所有用户信息
   -X           刷新用户配置（仅 root）
-  -K           停止服务器（仅 root）
+  -K           停止服务端（仅 root）
   -C           清空已完成任务
   -l           显示任务列表（默认）
   -S [num]     获取/设置最大并发任务数（仅 root）
@@ -196,18 +264,17 @@ Copyright (C) 2007-2024  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell
   -V           显示版本
 
 添加任务的选项：
-  -B           服务器满时退出
-  -n           不存储输出
+  -B           服务端满时直接退出
+  -n           不存输出
   -E           分离 stderr
-  -O           设置日志文件名
-  -z           Gzip 压缩输出
-  -f           前台运行
-  -m <email>   邮件通知
-  -d           在上一个任务后运行
-  -D <id,...>  在指定 ID 后运行
-  -W <id,...>  在指定 ID 成功后运行
-  -L [label]   设置任务标签
-  -N [num]     所需槽位数（默认：1）
+  -O           自定义日志文件名
+  -z           输出用 gzip 压缩
+  -f           前台跑
+  -d           在前一个任务后跑
+  -D <id,...>  在指定 ID 后跑
+  -W <id,...>  在指定 ID 成功后跑
+  -L [label]   给任务贴个标签
+  -N [num]     需要的槽位数（默认：1）
 ```
 
 ## 致谢
@@ -217,10 +284,10 @@ Copyright (C) 2007-2024  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell
 - Alexander V. Inyukhin 维护非官方 Debian 包
 - Pascal Bleser 为 SuSE/openSuSE 打包
 - Gnomeye 维护 AUR 包
-- Eric Keller 编写了 task spooler 队列的 nodejs web 服务器
+- Eric Keller 为 task spooler 队列编写了 nodejs web 服务器
 - Duc Nguyen 开发了 GPU 支持
-- **Kylin JIANG** 添加了：多用户支持、SQLite3 崩溃恢复、cgroups CPU/freezer（v1+v2）、动态用户管理、PID 查询及多项稳定性修复
+- **Kylin JIANG** 将 Task Spooler 彻底改造为 Task Spooler PLUS：多用户中心化架构、SQLite3 WAL 崩溃恢复、cgroups v1/v2（CPU 限制、freezer、cpuset NUMA 绑定）、NUMA 感知 CPU 绑定分配器与自动碎片整理、超时自动暂停、动态用户管理与热加载、客户端自动重连、定时执行（`--at`）、任务完成回调（`--on-finish`）、PID 反查，以及数百项稳定性修复
 
 ## 许可证
 
-参见项目中的 `COPYING` 文件。
+详见项目中的 `COPYING` 文件。

@@ -1,6 +1,6 @@
 /*
-    Task Spooler - a task queue system for the unix user
-    Copyright (C) 2007-2009  Lluís Batlle i Rossell
+    Task Spooler PLUS - a multi-user job scheduler like slurm.
+    Copyright (C) 2007-2026  Kylin JIANG - Lluís Batlle i Rossell
 
     Please find the license in the provided COPYING file.
 */
@@ -24,7 +24,6 @@
 #include "main.h"
 #include "execute.h"
 #include "signals.h"
-#include "mail.h"
 #include "error.h"
 #include "client.h"
 #include "runtime_limit.h"
@@ -182,14 +181,9 @@ void run_on_finish(const char *tmpl, int jobid, const char *output,
                                      start_time, enqueue_time, end_time, num_slots);
     if (!expanded) return;
 
-    int child = fork();
-    if (child == 0) {
-        restore_sigmask();
-        execl("/bin/sh", "sh", "-c", expanded, NULL);
-        _exit(127);
-    } else if (child > 0) {
-        waitpid(child, NULL, 0);
-    }
+    int ret = system(expanded);
+    if (ret == -1)
+        error("system on finish");
     free(expanded);
 }
 
@@ -242,11 +236,6 @@ static void run_parent(int fd_read_filename, int pid, struct Result *result) {
     result->died_by_signal = 0;
     result->errorlevel = -1;
   }
-
-  if (command_line.send_output_by_mail) {
-    send_mail(command_line.jobid, result->errorlevel, ofname, command_line.linux_cmd);
-  }
-  hook_on_finish(command_line.jobid, result->errorlevel, ofname, command_line.linux_cmd);
 
   command_line.rt_pid = pid;
   if (command_line.on_finish_cmd && ofname)

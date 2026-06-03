@@ -1,29 +1,29 @@
 #!/usr/bin/env python3
 """
-gen_topology.py — Generate topology.h via hwloc-calc (zero XML parsing).
+gen_topology.py — Generate topology headers via hwloc-calc (zero XML parsing).
 
 All topology queries follow the natural top-down hierarchy:
     NUMANode / L3 / L2 / L1 → Core → PU
 
 Precomputed once at startup:
-  - core_pu_map:    Core:N → PU list  (top-down ✓)
-  - core_node_map:  derived from NUMANode:N → Core (top-down ✓), then inverted
+  - core_pu_map:    Core:N → PU list  (top-down)
+  - core_node_map:  derived from NUMANode:N → Core (top-down), then inverted
 
-Strategy groups query type:i → Core (top-down ✓), then expand cores via cache.
+Strategy groups query type:i → Core (top-down), then expand cores via cache.
+
+Output: topology_{strategy}.h for EVERY valid strategy. Pick one and copy/link to
+        topology.h before building.
 
 Usage:
-    python3 gen_topology.py                 # auto-select best strategy
-    python3 gen_topology.py by_l2           # specify strategy
+    python3 gen_topology.py                 # generate all non-trivial strategies
+    python3 gen_topology.py by_l2           # generate only the specified strategy
     python3 gen_topology.py by_l2 --ht      # include HT siblings
-    python3 gen_topology.py by_l2 --no-ht   # no HT at all (core == PU, skip PU queries)
-
-Output: topology.h — #defines + TOPOLOGY_INIT macro for cpu_bind.
+    python3 gen_topology.py by_l2 --no-ht   # no HT at all (core == PU)
 """
 
 import subprocess, sys
 
 MAX_GROUPS = 256
-OUTPUT_HEADER = "topology.h"
 
 STRATEGIES = {
     "by_numa": "NUMANode",
@@ -130,20 +130,40 @@ def get_node(core_indices, core_node_map):
     return core_node_map.get(core_indices[0], -1)
 
 
+def groups_equal(g1, g2):
+    """Return True if two groups lists produce identical topology."""
+    if len(g1) != len(g2):
+        return False
+    for a, b in zip(g1, g2):
+        if a["node"] != b["node"] or a["pus"] != b["pus"]:
+            return False
+    return True
+
+
 # ── Group building ──────────────────────────────────────────────────────────
 
-def build_groups(strategy, core_pu_map, core_node_map, include_ht):
-    """Return list of {node, pus} dicts.
+def build_groups(strategy, core_pu_map, core_node_map, include_ht,
+                 total_cores, total_pus):
+    """Return list of {node, pus} dicts, or None if strategy is trivial.
 
-    Queries type:i → Core (top-down), then expands via precomputed maps.
-    Skips hwloc-calc when count == total_cores (e.g. by_core, or cache level
-    where each object contains exactly one core).
+    A strategy is trivial (returns None) when its object count equals
+    total_cores, or equals total_pus when --ht is active.  This means every
+    group would contain exactly one core/PU — useless for grouping.
+    by_core is always kept (never skipped as trivial).
     """
     hwloc_type = STRATEGIES[strategy]
-    total_cores = len(core_pu_map)
     count = hwloc_count(hwloc_type)
     if count == 0:
         return None
+
+    # Skip trivial: each object maps 1:1 to a core or PU (except by_core)
+    if strategy != "by_core":
+        if count == total_cores:
+            print(f"  {strategy}: count={count} == cores={total_cores}, skipping (trivial)")
+            return None
+        if include_ht and count == total_pus:
+            print(f"  {strategy}: count={count} == PUs={total_pus}, skipping (trivial)")
+            return None
 
     trivial = (count == total_cores)  # each object maps 1:1 to a core
     groups = []
@@ -159,61 +179,10 @@ def build_groups(strategy, core_pu_map, core_node_map, include_ht):
     return groups or None
 
 
-# ── Auto-select ─────────────────────────────────────────────────────────────
-
-def report_strategies(core_pu_map, core_node_map, include_ht):
-    """Try all strategies, return (best_name, best_groups)."""
-    TARGET_AVG = 4
-    results = []
-    for s in STRATEGIES:
-        groups = build_groups(s, core_pu_map, core_node_map, include_ht)
-        if groups is None:
-            results.append((s, None))
-            continue
-        ng = len(groups)
-        mp = min(len(g["pus"]) for g in groups)
-        xp = max(len(g["pus"]) for g in groups)
-        tp = sum(len(g["pus"]) for g in groups)
-        results.append((s, groups, ng, mp, xp, tp))
-
-    # Select strategy with average cores/group closest to TARGET_AVG (>1 required)
-    best, best_groups, best_dist = None, None, None
-    for r in results:
-        s, data, ng, _mp, _xp, tp = r
-        if data is None or ng <= 1:
-            continue
-        dist = abs(tp / ng - TARGET_AVG)
-        if best is None or dist < best_dist:
-            best, best_groups, best_dist = s, data, dist
-
-    # Fallback: any valid strategy
-    if best is None:
-        for r in results:
-            if r[1] is not None:
-                best, best_groups = r[0], r[1]
-                break
-
-    ht_lbl = " (+HT)" if include_ht else ""
-    print(f"  {'Strategy':<14} {'Groups':<8} {'PUs/group':<12} {'Note'}")
-    print(f"  {'-'*14} {'-'*8} {'-'*12} {'-'*40}")
-    for r in results:
-        s = r[0]
-        if r[1] is None:
-            print(f"  {s:<14} {'—':<8} {'—':<12}  (not available)")
-            continue
-        ng, mp, xp = r[2], r[3], r[4]
-        note = (" ← auto-selected" if s == best
-                else " (too coarse)" if ng <= 1
-                else "")
-        n2 = f"{mp}" if mp == xp else f"{mp}–{xp}"
-        print(f"  {s:<14} {ng:<8} {n2:<12} {note}{ht_lbl}")
-
-    return best, best_groups
-
-
 # ── topology.h generation ───────────────────────────────────────────────────
 
-def generate(groups, strategy):
+def generate(groups, strategy, suffix=""):
+    """Write topology_{strategy}{suffix}.h ."""
     ng = len(groups)
     nn = max(g["node"] for g in groups) + 1 if groups else 1
 
@@ -228,6 +197,9 @@ def generate(groups, strategy):
     ng_by_node = {ni: [] for ni in range(nn)}
     for gi, g in enumerate(groups):
         ng_by_node[g["node"]].append(gi)
+
+    # MAX_GROUPS_PER_NODE: max groups on any single node
+    max_gpn = max(len(gids) for gids in ng_by_node.values()) if ng_by_node else ng
 
     g_inits = []
     for gi, g in enumerate(groups):
@@ -274,7 +246,7 @@ def generate(groups, strategy):
 
     lines = [
         "/* topology.h — AUTO-GENERATED by gen_topology.py. DO NOT EDIT. */",
-        "/* Strategy: " + strategy + " */",
+        f"/* Strategy: {strategy}{suffix} */",
         "",
         "#ifndef TOPOLOGY_H",
         "#define TOPOLOGY_H",
@@ -283,6 +255,7 @@ def generate(groups, strategy):
         "#define NUM_GROUPS           " + str(ng),
         "#define MAX_CORES_PER_GROUP  " + str(max_cpg),
         "#define MAX_OS_CPU           " + str(max_os),
+        "#define MAX_GROUPS_PER_NODE  " + str(max_gpn),
         "",
     ] + macro + [
         "",
@@ -290,13 +263,14 @@ def generate(groups, strategy):
         "",
     ]
 
-    with open(OUTPUT_HEADER, "w") as f:
+    fname = f"topology_{strategy}{suffix}.h"
+    with open(fname, "w") as f:
         f.write("\n".join(lines) + "\n")
 
     total_pu = len(all_pu)
-    print(f"\n\u2713 {OUTPUT_HEADER} generated  (strategy: {strategy})")
-    print(f"  NUMA nodes: {nn},  Groups: {ng},  PUs: {total_pu}")
-    print(f"\n  {'Group':<8} {'Node':<6} {'PUs':<6}  CPU list")
+    print(f"\n  -> {fname}  "
+          f"(nodes={nn}, groups={ng}, max_groups_per_node={max_gpn}, PUs={total_pu})")
+    print(f"  {'Group':<8} {'Node':<6} {'PUs':<6}  CPU list")
     print(f"  {'-'*8} {'-'*6} {'-'*6}  {'-'*30}")
     for gi, g in enumerate(groups):
         print(f"  {gi:<8} {g['node']:<6} {len(g['pus']):<6}  "
@@ -307,16 +281,43 @@ def generate(groups, strategy):
         print(f"  Node {ni}: {len(gids)} groups, {len(all_np)} PUs — {all_np}")
 
 
+# ── Auto-select best strategy ───────────────────────────────────────────────
+
+def select_best(results):
+    """Given list of (name, groups, ng, min_pu, max_pu, total_pu) or
+       (name, None) for skipped, pick best."""
+    TARGET_AVG = 4
+    best, best_groups, best_dist = None, None, None
+    for r in results:
+        if r[1] is None:
+            continue
+        s, data, ng, _mp, _xp, tp = r
+        if ng <= 1:
+            continue
+        dist = abs(tp / ng - TARGET_AVG)
+        if best is None or dist < best_dist:
+            best, best_groups, best_dist = s, data, dist
+
+    # Fallback: any valid strategy
+    if best is None:
+        for r in results:
+            if r[1] is not None:
+                best, best_groups = r[0], r[1]
+                break
+
+    return best, best_groups
+
+
 # ── Main ────────────────────────────────────────────────────────────────────
 
 def main():
     no_ht = "--no-ht" in sys.argv
     include_ht = not no_ht and "--ht" in sys.argv
     args = [a for a in sys.argv[1:] if a not in ("--ht", "--no-ht")]
-    strategy = args[0].lower() if args else None
+    requested = args[0].lower() if args else None
 
-    if strategy and strategy not in STRATEGIES:
-        print(f"ERROR: unknown strategy '{strategy}'")
+    if requested and requested not in STRATEGIES:
+        print(f"ERROR: unknown strategy '{requested}'")
         print(f"  Valid: {', '.join(STRATEGIES)} [--ht] [--no-ht]")
         sys.exit(1)
 
@@ -326,24 +327,88 @@ def main():
     ht_label = " (no HT)" if no_ht else (" (+HT)" if include_ht else " (HT excluded)")
     print(f"  System — {total_pus} PUs, {total_cores} cores, {total_nodes} NUMA nodes{ht_label}")
 
-    # Precompute once — all top-down queries, all strategies share this cache
+    # Precompute once — all strategies share this cache
     core_pu_map, core_node_map = build_topology_cache(no_ht)
     print()
 
-    if strategy:
-        groups = build_groups(strategy, core_pu_map, core_node_map, include_ht)
+    suffix = "_ht" if include_ht else ""
+    strategies = [requested] if requested else list(STRATEGIES)
+
+    # Build all requested strategies, skipping trivial ones
+    results = []
+    for s in strategies:
+        groups = build_groups(s, core_pu_map, core_node_map, include_ht,
+                              total_cores, total_pus)
         if groups is None:
-            print(f"  '{strategy}' not available.")
-            sys.exit(1)
-        print(f"  Using: {strategy} ({len(groups)} groups)")
-        generate(groups, f"{strategy}{'_ht' if include_ht else ''}")
-    else:
-        best, groups = report_strategies(core_pu_map, core_node_map, include_ht)
-        if groups is None:
-            print("ERROR: no valid strategy found.")
-            sys.exit(1)
-        print(f"\n  Auto-selected: {best}")
-        generate(groups, f"{best}{'_ht' if include_ht else ''}")
+            results.append((s, None))
+            continue
+        ng = len(groups)
+        mp = min(len(g["pus"]) for g in groups)
+        xp = max(len(g["pus"]) for g in groups)
+        tp = sum(len(g["pus"]) for g in groups)
+        results.append((s, groups, ng, mp, xp, tp))
+
+    # Detect duplicate group configurations — keep first, skip later ones
+    dup_of = {}  # strategy → first strategy with identical groups
+    valid = [r for r in results if r[1] is not None]
+    for i in range(len(valid)):
+        si = valid[i][0]
+        for j in range(i + 1, len(valid)):
+            sj = valid[j][0]
+            if sj in dup_of:
+                continue
+            if groups_equal(valid[i][1], valid[j][1]):
+                dup_of[sj] = si
+
+    # Report
+    best, best_groups = select_best(results)
+    print(f"  {'Strategy':<14} {'Groups':<8} {'PUs/group':<12} {'Note'}")
+    print(f"  {'-'*14} {'-'*8} {'-'*12} {'-'*40}")
+    for r in results:
+        s = r[0]
+        if r[1] is None:
+            note = " (skipped — trivial)"
+            print(f"  {s:<14} {'—':<8} {'—':<12} {note}")
+            continue
+        if s in dup_of:
+            note = f" (skipped — duplicate of {dup_of[s]})"
+            print(f"  {s:<14} {'—':<8} {'—':<12} {note}")
+            continue
+        ng, mp, xp = r[2], r[3], r[4]
+        note = (" <- best" if s == best
+                else " (too coarse)" if ng <= 1
+                else "")
+        n2 = f"{mp}" if mp == xp else f"{mp}–{xp}"
+        print(f"  {s:<14} {ng:<8} {n2:<12} {note}")
+    print()
+
+    # Generate .h files (skip trivial and duplicates)
+    generated = []
+    for r in results:
+        s, data = r[0], r[1]
+        if data is None or s in dup_of:
+            continue
+        generate(data, s, suffix)
+        generated.append(s)
+
+    if not generated:
+        print("ERROR: no non-trivial strategy available.")
+        sys.exit(1)
+
+    # Fallback: if no best was picked (e.g. all ng <= 1), use first generated
+    if best is None:
+        best = generated[0]
+
+    # Show best recommendation
+    if requested is None:
+        print(f"\n  Best: {best} — copy it to topology.h:")
+    print(f"  cp topology_{best}{suffix}.h topology.h")
+
+    # Summary of all generated files
+    if requested is None:
+        print(f"\n  All generated ({len(generated)} files):")
+        for s in generated:
+            print(f"    topology_{s}{suffix}.h")
 
 
 if __name__ == "__main__":

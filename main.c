@@ -1,6 +1,6 @@
 /*
-    Task Spooler - a task queue system for the unix user
-    Copyright (C) 2007-2009  Lluís Batlle i Rossell
+    Task Spooler PLUS - a multi-user job scheduler like slurm.
+    Copyright (C) 2007-2026  Kylin JIANG - Lluís Batlle i Rossell
 
     Please find the license in the provided COPYING file.
 */
@@ -45,10 +45,10 @@ static char version[1024];
 static void init_version() {
   char *ts_version = TS_MAKE_STR(TS_VERSION);
   sprintf(version,
-          "Task Spooler %s - a task queue system for the unix user.\n"
+          "Task Spooler PLUS %s - a multi-user job scheduler like slurm.\n"
           "Copyright (C) 2007-%d  Kylin JIANG - Duc Nguyen - Lluis Batlle i "
           "Rossell\n",
-          ts_version, 2024);
+          ts_version, 2026);
 }
 
 static void default_command_line() {
@@ -58,10 +58,8 @@ static void default_command_line() {
   command_line.should_go_background = 1;
   command_line.should_keep_finished = 1;
   command_line.gzip = 0;
-  command_line.send_output_by_mail = 0;
   command_line.linux_cmd = NULL;
   command_line.label = NULL;
-  command_line.email = NULL;
   command_line.depend_on_size = 0;
   command_line.depend_on = NULL; /* -1 means depend on previous */
   command_line.max_slots = 1;
@@ -70,7 +68,7 @@ static void default_command_line() {
   command_line.num_slots = 1;
   command_line.require_elevel = 0;
   command_line.logfile = NULL;
-  command_line.on_finish_cmd = NULL;
+  command_line.on_finish_cmd = getenv("TS_ONFINISH");
   command_line.rt_pid = 0;
   command_line.rt_output = NULL;
   command_line.rt_real_sec = 0;
@@ -208,7 +206,7 @@ void parse_opts(int argc, char **argv) {
   while (1) {
     c = getopt_long(
         argc, argv,
-        ":AXRTVhKzClnfBE:a:F:t:c:o:p:w:k:r:u:s:U:qi:N:J:m:L:dS:D:W:O:M:",
+        ":AXRTVhKzClnfBE:a:F:t:c:o:p:w:k:r:u:s:U:qi:N:J:L:dS:D:W:O:M:",
         longOptions, &optionIdx);
 
     if (c == -1)
@@ -355,9 +353,6 @@ void parse_opts(int argc, char **argv) {
       break;
     case 'f':
       command_line.should_go_background = 0;
-      break;
-    case 'm':
-      command_line.email = optarg;
       break;
     case 't':
       command_line.request = c_TAIL;
@@ -570,15 +565,6 @@ void parse_opts(int argc, char **argv) {
 
   if (!command_line.store_output && !command_line.should_go_background)
     command_line.should_keep_finished = 0;
-
-  /*
-  if (command_line.send_output_by_mail &&
-      ((!command_line.store_output) || command_line.gzip)) {
-    fprintf(stderr,
-            "For e-mail, you should store the output (not through gzip)\n");
-    exit(EXIT_FAILURE);
-  }
-  */
 }
 
 static void fill_first_3_handles() {
@@ -621,13 +607,11 @@ static void print_help(const char *cmd) {
   printf("\nusage: %s [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]\n\n", cmd);
   printf("Environment Variables:\n");
   printf("  TS_SOCKET        : Unix socket path (default: $TMPDIR/socket-ts.root)\n");
-  printf("  TS_MAIL_FROM     : Sender email for results (default: %s)\n", DEFAULT_EMAIL_SENDER);
-  printf("  TS_MAIL_TIME     : Email threshold in seconds (default: %.3f sec.)\n", DEFAULT_EMAIL_TIME);
-  printf("  TS_SERVICE_NAME  : Service name for Email notifications (default: %s)\n", DEFAULT_HPC_NAME);
+  printf("  TS_SERVICE_NAME  : Service name (default: %s)\n", DEFAULT_HPC_NAME);
   printf("  TS_MAXFINISHED   : Max finished jobs in queue (default: %d)\n", DEFAULT_MAXFINISHED);
   printf("  TS_MAXCONN       : Max concurrent connections (max %d, default: %d)\n", MAXCONN, MAXCONN);
-  printf("  TS_ONFINISH      : Binary executed post-job (args: ID, status, output, cmd)\n");
   printf("  TS_ENV           : Command to gather job info during enqueue\n");
+  printf("  TS_ONFINISH      : Default on-finish command (overridden by --on-finish)\n");
   printf("  TS_SAVELIST      : Crash recovery file for job list\n");
   printf("  TS_SLOTS         : Max concurrent jobs (server start, default: 1)\n");
   printf("  TS_USER_PATH     : User config file path (server start)\n");
@@ -649,7 +633,8 @@ static void print_help(const char *cmd) {
   printf("  --last-queue-id, -q         Show last added job ID\n");
   printf("  --get-logdir                Display log directory path\n");
   printf("  --set-logdir [path]         Configure log directory\n");
-  printf("  --serialize, -M [format]    Export job list (default/json/tab)\n");
+  printf("  --serialize, -M [fmt]       Export job list (default/json/tab)\n");
+  printf("                              Use -M json -J <id> for single job JSON\n");
   printf("  --tmp                       Store logs in tmp folder\n");
   printf("  --hold [id]                 Pause specified job\n");
   printf("  --cont [id]                 Resume paused job\n");
@@ -697,7 +682,6 @@ static void print_help(const char *cmd) {
   printf("  -O [name]       Set output filename\n");
   printf("  -z              Gzip output\n");
   printf("  -f              Run in foreground\n");
-  printf("  -m [email]      Email results\n");
   printf("  -d              Run after last queued job\n");
   printf("  -D [ids]        Run after specified job IDs complete\n");
   printf("  -W [ids]        Run after successful (exit 0) job IDs\n");

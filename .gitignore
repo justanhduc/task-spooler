@@ -16,7 +16,9 @@ test_job.*
 .cache/
 .vscode/
 .pytest_cache/
+__pycache__
 build/
 
 # Generated files
 topology.h
+topology_by*.h

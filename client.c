@@ -1,6 +1,6 @@
 /*
-    Task Spooler - a task queue system for the unix user
-    Copyright (C) 2007-2009  Lluís Batlle i Rossell
+    Task Spooler PLUS - a multi-user job scheduler like slurm.
+    Copyright (C) 2007-2026  Kylin JIANG - Lluís Batlle i Rossell
 
     Please find the license in the provided COPYING file.
 */
@@ -64,12 +64,6 @@ void c_new_job() {
   else
     m.u.newjob.label_size = 0;
 
-  if (command_line.email) {
-    // printf("send email to %s\n", command_line.email);
-    m.u.newjob.email_size = strlen(command_line.email) + 1; /* add null */
-  } else
-    m.u.newjob.email_size = 0;
-
 
   m.u.newjob.store_output = command_line.store_output;
   m.u.newjob.depend_on_size = command_line.depend_on_size;
@@ -100,9 +94,6 @@ void c_new_job() {
 
   /* Send the label */
   send_bytes(server_socket, command_line.label, m.u.newjob.label_size);
-
-  /* Send the label */
-  send_bytes(server_socket, command_line.email, m.u.newjob.email_size);
 
   /* Send the environment */
   send_bytes(server_socket, myenv, m.u.newjob.env_size);
@@ -313,7 +304,7 @@ void c_list_jobs() {
   m.type = LIST;
   m.u.list.list_format = command_line.list_format;
   m.u.list.term_width = term_width;
-  // m.u.term_width = term_width;
+  m.jobid = command_line.jobid;
   send_msg(server_socket, &m);
 }
 

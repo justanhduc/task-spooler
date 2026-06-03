@@ -1,6 +1,6 @@
 /*
-    Task Spooler - a task queue system for the unix user
-    Copyright (C) 2007-2013  Lluís Batlle i Rossell
+    Task Spooler PLUS - a multi-user job scheduler like slurm.
+    Copyright (C) 2007-2026  Kylin JIANG - Lluís Batlle i Rossell
 
     Please find the license in the provided COPYING file.
 */
@@ -69,7 +69,6 @@ struct Job {
   int notify_errorlevel_to_size;
   int dependency_errorlevel;
   char *label;
-  char *email;
   struct Procinfo info;
   int num_slots;
   int num_allocated;
@@ -97,7 +96,6 @@ extern char buff[256];
 extern int max_jobs;
 extern struct User *user_locker;
 extern time_t locker_time;
-extern char *email_sender;
 extern time_t sstmp_skip_sec;
 
 /* Job queue operations */
@@ -132,7 +130,6 @@ void s_read_sqlite(void);
 int s_find_pid(pid_t target_pid, int deep_search);
 int s_update_slots_usage(void);
 void send_list_line(int s, const char *str);
-void setup_ssmtp(void);
 void notify_errorlevel(struct Job *p);
 void dump_jobs_struct(FILE *out);
 void dump_notifies_struct(FILE *out);

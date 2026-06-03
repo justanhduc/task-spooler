@@ -1,6 +1,6 @@
 /*
-    Task Spooler - a task queue system for the unix user
-    Copyright (C) 2007-2013  Lluís Batlle i Rossell
+    Task Spooler PLUS - a multi-user job scheduler like slurm.
+    Copyright (C) 2007-2026  Kylin JIANG - Lluís Batlle i Rossell
 
     Please find the license in the provided COPYING file.
 */
@@ -86,7 +86,6 @@ struct Msg {
       int store_output;
       int should_keep_finished;
       int label_size;
-      int email_size;
       int env_size;
       int depend_on_size;
       int wait_enqueuing;

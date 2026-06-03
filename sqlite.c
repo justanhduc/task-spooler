@@ -271,7 +271,6 @@ static int edit_DB(struct Job *job, const char *table, const char *action) {
   struct Result *result = &(job->result);
   struct Procinfo *info = &(job->info);
   const char *label = job->label == NULL ? "(..)" : job->label;
-  const char *email = job->email == NULL ? "(..)" : job->email;
   int err = 0;
   int order_id = get_order_id(job->jobid, &err);
   if (err != 0) {
@@ -287,7 +286,6 @@ static int edit_DB(struct Job *job, const char *table, const char *action) {
   char *esc_depend = sqlite3_mprintf("%q", depend_on);
   char *esc_notify = sqlite3_mprintf("%q", notify_errorlevel_to);
   char *esc_label = sqlite3_mprintf("%q", label);
-  char *esc_email = sqlite3_mprintf("%q", email);
   char *esc_ptr = sqlite3_mprintf("%q", info->ptr);
   char *esc_work_dir = sqlite3_mprintf("%q", job->work_dir);
 
@@ -298,13 +296,13 @@ static int edit_DB(struct Job *job, const char *table, const char *action) {
       "%s INTO %s (jobid, command, state, output_filename, store_output, pid, "
       "ts_UID, should_keep_finished, depend_on, depend_on_size,"
       "notify_errorlevel_to, notify_errorlevel_to_size, "
-      "dependency_errorlevel,label,email,num_slots,errorlevel,died_by_signal,"
+      "dependency_errorlevel,label,email,num_slots,errorlevel,died_by_signal," /* email column kept for backward compat */
       "signal,user_sec,system_sec,real_sec,skipped,"
       "ptr,nchars,allocchars,wall_time,schedule_time,"
       "enqueue_time,start_time,end_time,"
       "pause_time,pause_duration,end_time_ms, "
       "order_id, command_strip, work_dir)"
-      "VALUES (%d,'%s',%d,'%s',%d,%d,%d,%d,'%s',%d,'%s',%d,%d,'%s','%s',%d,"
+      "VALUES (%d,'%s',%d,'%s',%d,%d,%d,%d,'%s',%d,'%s',%d,%d,'%s','',%d,"
       "%d,%d,%d,%ld,%ld,%ld,%d,"
       "'%s',%d,%d,%ld,%ld,'%ld','%ld','%ld','%ld','%ld','%ld', "
       "%d, %d,'%s');",
@@ -312,7 +310,7 @@ static int edit_DB(struct Job *job, const char *table, const char *action) {
       job->store_output, job->pid, ts_uid, job->should_keep_finished,
       esc_depend, // job->depend_on,
       job->depend_on_size, esc_notify, job->notify_errorlevel_to_size,
-      job->dependency_errorlevel, esc_label, esc_email, job->num_slots,
+      job->dependency_errorlevel, esc_label, job->num_slots,
       result->errorlevel, result->died_by_signal, result->signal,
       result->user_sec, result->system_sec, result->real_sec, result->skipped,
       esc_ptr, info->nchars, info->allocchars, job->wall_time, job->schedule_time, info->enqueue_time,
@@ -329,7 +327,6 @@ static int edit_DB(struct Job *job, const char *table, const char *action) {
   sqlite3_free(esc_depend);
   sqlite3_free(esc_notify);
   sqlite3_free(esc_label);
-  sqlite3_free(esc_email);
   sqlite3_free(esc_ptr);
   sqlite3_free(esc_work_dir);
 
@@ -517,8 +514,7 @@ struct Job *read_DB(int jobid, const char *table) {
     strcpy(sql, (const char *)sqlite3_column_text(stmt, 13));
     copy_with_nullcheck(&(job->label), sql);
 
-    strcpy(sql, (const char *)sqlite3_column_text(stmt, 14));
-    copy_with_nullcheck(&(job->email), sql);
+    /* column 14 (email) — removed, use --on-finish instead */
 
     job->num_slots = sqlite3_column_int(stmt, 15);
 

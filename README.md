@@ -1,16 +1,49 @@
 # Task Spooler PLUS
 
-This project builds upon [Task Spooler by Lluís Batlle i Rossell](https://vicerveza.homeunix.net/~viric/soft/ts/), enhanced with **multi-user support, SQLite-based crash recovery, cgroups CPU limiting and freeze/pause, and dynamic user management**. It runs as a root-privileged background service and is designed for workstations shared by several to tens of users.
+A **single-binary, multi-user job scheduler** — think of it as a lightweight Slurm for shared workstations. No daemons, no databases to configure, no cluster infrastructure. Just one `ts` binary.
 
-## Introduction
+Originally a single-user task queue, Task Spooler PLUS has been transformed by **Kylin JIANG** into a multi-user job scheduler with crash recovery, cgroups resource isolation, and NUMA-aware CPU binding — bringing Slurm-like scheduling to small shared machines.
 
-As a computer scientist, I frequently submit multiple simulation tasks on shared workstations. The original task-spooler lacked multi-user support — each user maintained an independent queue. <u>task-spooler-PLUS</u> adds a centralised server that manages all users through a single queue.
+[中文文档](README_CN.md)
 
-Recent enhancements include: **cgroups v1/v2 CPU limiting and freezer-based pause/resume**, **SQLite3 WAL-mode persistence with crash recovery**, and dynamic `struct User` management via `vec_t`.
+## Why Task Spooler PLUS?
 
-### Changelog
+### vs. the original Task Spooler
 
-See [CHANGELOG](CHANGELOG.md).
+| | Original TS | TS PLUS |
+|---|---|---|
+| **Users** | One queue per user | Central server, multi-user with per-user slot limits |
+| **Recovery** | Jobs lost on crash | SQLite3 WAL — all jobs, states, timings survive crashes and reboots |
+| **Resource control** | None | cgroups v1/v2 CPU limiting, freezer pause/resume, NUMA CPU binding |
+| **Scheduling** | FIFO only | Dependency chains, wall-time auto-pause, `--at` scheduled execution |
+| **User management** | None | Dynamic user config, suspend/resume per user, `ts -X` hot-reload |
+| **Client resilience** | Disconnected on server restart | Auto-reconnect, re-attach running jobs seamlessly |
+
+### vs. Slurm
+
+| | Slurm | TS PLUS |
+|---|---|---|
+| **Setup** | `slurmctld`, `slurmd`, `munge`, MySQL, config files | One binary, one config file |
+| **Target** | Clusters (hundreds–thousands of nodes) | Workstations (1 node, several–tens of users) |
+| **Multi-user** | ✓ | ✓ |
+| **Job recovery** | Via database | SQLite3 WAL |
+| **CPU/NUMA binding** | `--cpu-bind` / `--mem-bind` | `TS_CPU_BIND=1`, NUMA-aware allocator |
+| **cgroups** | v1/v2 (via plugin) | v1/v2 (built-in) |
+| **Wall-time limits** | ✓ | ✓ (auto-pause + re-queue) |
+| **Per-job callbacks** | Epilog/Prolog scripts | `--on-finish` hook with placeholders |
+
+If you have a shared workstation with a handful of users running simulation or ML workloads, TS PLUS gives you Slurm-like job management without the operational burden.
+
+## How it Started
+
+Task Spooler PLUS began as a fork of [Task Spooler by Lluís Batlle i Rossell](https://vicerveza.homeunix.net/~viric/soft/ts/). **Kylin JIANG** transformed it from a single-user queue into a multi-user system with:
+
+- **cgroups v1/v2** — CPU quota limiting, freezer-based pause/resume, cpuset NUMA binding
+- **SQLite3 crash recovery** — jobs, states, and timing data survive reboots
+- **CPU/NUMA binding allocator** — topology-aware, best-fit group selection, auto-defrag with NUMA affinity preservation
+- **Dynamic user management** — `struct User` via `vec_t`, config hot-reload, per-user suspend/resume
+- **Wall-time enforcement** — auto-pause timed-out jobs, re-queue with extended deadline
+- **Client auto-reconnect** — running jobs survive server restarts
 
 ## Features
 
@@ -48,6 +81,23 @@ sudo ./ts --daemon        # start the server as daemon (root only)
 ./ts -k <id>              # kill a running job
 ./ts -w <id>              # wait for a job to finish
 ```
+
+### Per-job callback example
+
+`--on-finish` lets you run a command after a job finishes, with full job info via placeholders:
+
+```bash
+./ts --on-finish "cat > job-{jobid}.info << 'EOF'
+ pid={pid}  label={label}  exitcode={exitcode}
+ realtime={realtime} usertime={usertime} systime={systime} pausetime={pausetime}
+ start_time={start_time}
+ enque_time={enque_time}
+ end_time={end_time}
+ slots={slots}
+EOF" -L test_job sleep 10
+```
+
+After the job finishes, `job-<id>.info` will contain all the resolved values — useful for logging, email notifications (`--on-finish "sendmail {exitcode} ..."`), or chaining workflows.
 
 ## Build & Install
 
@@ -102,7 +152,7 @@ ts (client)  ──Unix socket──▶  ts (server daemon)
    waitpid() → notify server      │
 ```
 
-On crash, running jobs are re-attached via `--relink`. On reboot, all job state is restored from SQLite.
+On crash, the client auto-reconnects and re-attaches running jobs. On reboot, all job state is restored from SQLite.
 
 ### Cgroups support
 
@@ -134,8 +184,8 @@ The server checks `/proc` on `--daemon` startup: if another instance of the same
 See `man ts` or run `ts -h` for the full command reference.
 
 ```
-Task Spooler 2.1.1a - a task queue system for the unix user.
-Copyright (C) 2007-2024  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell
+Task Spooler PLUS 2.6.1 - a multi-user job scheduler like slurm.
+Copyright (C) 2007-2026  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell
 
 Environment Variables:
   TS_SOCKET        : Unix socket path (default: $TMPDIR/socket-ts.root)
@@ -148,10 +198,8 @@ Environment Variables:
   TS_MAXCONN       : Max connections (default: 1000)
   TS_SORTJOBS      : Job queue sorting control
   TS_SAVELIST      : Crash recovery file for job list
-  TS_ONFINISH      : Binary executed post-job
   TS_ENV           : Command to gather job info during enqueue
-  TS_MAIL_FROM     : Sender email for results
-  TS_MAIL_TIME     : Email threshold in seconds
+  TS_ONFINISH      : Default on-finish command (overridden by --on-finish)
   TMPDIR           : Temporary output directory
 
 Long option actions:
@@ -167,6 +215,7 @@ Long option actions:
   --get-logdir             Display log directory path
   --set-logdir [path]     Configure log directory
   --serialize || -M [fmt] Export job list (default/json/tab)
+                          Use -M json -J <id> for single job JSON
   --hold [jobid]          Pause specified job
   --cont [jobid]          Resume paused job
   --suspend [USER]        Suspend user
@@ -212,7 +261,6 @@ Options adding jobs:
   -O           Set log filename
   -z           Gzip output
   -f           Run in foreground
-  -m <email>   Email results
   -d           Run after last job
   -D <id,...>  Run after specified IDs
   -W <id,...>  Run after successful IDs
@@ -229,7 +277,7 @@ Options adding jobs:
 - Gnomeye maintains the AUR package.
 - Eric Keller wrote a nodejs web server for the task spooler queue.
 - Duc Nguyen developed GPU support.
-- **Kylin JIANG** added: multi-user support, SQLite3 crash recovery, cgroups CPU/freezer (v1+v2), dynamic user management, PID lookup, and numerous stability fixes.
+- **Kylin JIANG** transformed Task Spooler into Task Spooler PLUS: multi-user architecture with central server, SQLite3 WAL crash recovery, cgroups v1/v2 (CPU limiting, freezer, cpuset NUMA binding), NUMA-aware CPU binding allocator with auto-defrag, wall-time auto-pause, dynamic user management with hot-reload, client auto-reconnect, scheduled execution (`--at`), per-job hooks (`--on-finish`), PID lookup, and hundreds of stability fixes.
 
 ## License
 

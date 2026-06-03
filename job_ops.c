@@ -1,6 +1,6 @@
 /*
-    Task Spooler - a task queue system for the unix user
-    Copyright (C) 2007-2013  Lluís Batlle i Rossell
+    Task Spooler PLUS - a multi-user job scheduler like slurm.
+    Copyright (C) 2007-2026  Kylin JIANG - Lluís Batlle i Rossell
 
     Please find the license in the provided COPYING file.
 
@@ -42,58 +42,116 @@ static int add_job_to_json_array(struct Job *p, cJSON *jobs) {
   cJSON_AddItemToArray(jobs, job);
 
   cJSON *field;
-  field = cJSON_CreateNumber(p->jobid);
-  if (field == NULL) { error("Error initializing JSON field ID for job %i.", p->jobid); return 0; }
-  cJSON_AddItemToObject(job, "ID", field);
 
-  const char *state_string = jstate2string(p->state);
-  field = cJSON_CreateStringReference(state_string);
-  if (field == NULL) { error("Error initializing JSON field State for job %i.", p->jobid); return 0; }
-  cJSON_AddItemToObject(job, "State", field);
+#define ADD_NUM(key, val) \
+  do { field = cJSON_CreateNumber(val); \
+       if (field == NULL) return 0; \
+       cJSON_AddItemToObject(job, key, field); } while(0)
 
-  field = cJSON_CreateNumber(p->num_slots);
-  if (field == NULL) { error("Error initializing JSON field Proc for job %i.", p->jobid); return 0; }
-  cJSON_AddItemToObject(job, "Proc.", field);
+#define ADD_STR(key, val) \
+  do { field = cJSON_CreateStringReference(val); \
+       if (field == NULL) return 0; \
+       cJSON_AddItemToObject(job, key, field); } while(0)
 
-  field = cJSON_CreateStringReference(p->user->name);
-  if (field == NULL) { error("Error initializing JSON field User for job %i.", p->jobid); return 0; }
-  cJSON_AddItemToObject(job, "User", field);
-
-  if (p->label != NULL)
-    field = cJSON_CreateStringReference(p->label);
-  else
-    field = cJSON_CreateNull();
-  if (field == NULL) { error("Error initializing JSON field Label for job %i.", p->jobid); return 0; }
-  cJSON_AddItemToObject(job, "Label", field);
-
-  field = cJSON_CreateStringReference(p->output_filename);
-  if (field == NULL) { error("Error initializing JSON field Output for job %i.", p->jobid); return 0; }
-  cJSON_AddItemToObject(job, "Output", field);
-
-  if (p->state == FINISHED)
-    field = cJSON_CreateNumber(p->result.errorlevel);
-  else
-    field = cJSON_CreateNull();
-  if (field == NULL) { error("Error initializing JSON field E-Level for job %i.", p->jobid); return 0; }
-  cJSON_AddItemToObject(job, "E-Level", field);
-
-  if (p->state == FINISHED) {
-    field = cJSON_CreateNumber(p->result.real_sec);
-    if (field == NULL) { error("Error initializing JSON field Time for job %i.", p->jobid); return 0; }
+  ADD_NUM("jobid",     p->jobid);
+  ADD_STR("state",     jstate2string(p->state));
+  ADD_STR("command",   p->command + p->command_strip);
+  ADD_NUM("slots",     p->num_slots);
+  if (p->user) {
+    ADD_STR("user",    p->user->name);
+    ADD_NUM("uid",     p->user->uid);
   } else {
-    field = cJSON_CreateNull();
-    if (field == NULL) { error("Error initializing JSON field Time for job %i.", p->jobid); return 0; }
+    cJSON_AddItemToObject(job, "user", cJSON_CreateNull());
+    cJSON_AddItemToObject(job, "uid", cJSON_CreateNull());
   }
-  cJSON_AddItemToObject(job, "Time_ms", field);
 
-  field = cJSON_CreateStringReference(p->command + p->command_strip);
-  if (field == NULL) { error("Error initializing JSON field Command for job %i.", p->jobid); return 0; }
-  cJSON_AddItemToObject(job, "Command", field);
+  if (p->label)
+    ADD_STR("label",   p->label);
+  else
+    cJSON_AddItemToObject(job, "label", cJSON_CreateNull());
+
+  if (p->pid)
+    ADD_NUM("pid",      p->pid);
+
+  ADD_STR("output",    p->output_filename);
+
+  if (p->work_dir)
+    ADD_STR("workdir",  p->work_dir);
+
+  /* dependencies */
+  if (p->depend_on && p->depend_on_size > 0) {
+    cJSON *deps = cJSON_CreateIntArray(p->depend_on, p->depend_on_size);
+    if (deps) cJSON_AddItemToObject(job, "depend_on", deps);
+  }
+
+  /* wall-time limit */
+  ADD_NUM("wall_time", i64abs(p->wall_time));
+
+  /* CPU binding */
+#ifdef TS_CPU_BIND
+  if (p->cpu_alloc) {
+    struct CpuAlloc *ca = (struct CpuAlloc *)p->cpu_alloc;
+    char *cpus = cpu_bind_format_cpus(ca);
+    char *mems = cpu_bind_format_mems(ca);
+    if (cpus) { ADD_STR("cpu_set", cpus); free(cpus); }
+    if (mems) { ADD_STR("numa_mems", mems); free(mems); }
+  }
+#endif
+
+  /* time fields */
+  time_t g_boot = p->info.boot_time;
+  if (g_boot == 0)
+    g_boot = time(NULL) - get_monotonic_sec();
+
+  ADD_NUM("enqueue_ts", (double)(p->info.enqueue_time + g_boot));
+  ADD_NUM("start_ts",   (double)(p->info.start_time + g_boot));
+  if (p->info.pause_time != 0)
+    ADD_NUM("pause_ts", (double)(p->info.pause_time + g_boot));
+  if (p->state == FINISHED)
+    ADD_NUM("end_ts",   (double)(p->info.end_time + g_boot));
+
+  /* schedule */
+  if (p->schedule_time > 0) {
+    time_t boot = time(NULL) - get_monotonic_sec();
+    ADD_NUM("schedule_ts", (double)(p->schedule_time + boot));
+    time_t left = p->schedule_time - get_monotonic_sec();
+    ADD_NUM("schedule_left", left > 0 ? (double)left : 0.0);
+  }
+
+  /* work time / elapsed */
+  time_t t_work = get_work_time_by_job(p);
+  if (t_work > 0) ADD_NUM("work_time", t_work);
+  if (p->state == FINISHED && p->result.real_sec > 0)
+    ADD_NUM("elapsed_time", p->result.real_sec);
+  else if (p->state == RUNNING && p->info.start_time > 0)
+    ADD_NUM("elapsed_time", get_monotonic_sec() - p->info.start_time);
+
+  /* pause duration */
+  time_t t_pause = p->info.pause_duration;
+  if (p->info.pause_time != 0)
+    t_pause += get_monotonic_sec() - p->info.pause_time;
+  if (t_pause > 0) ADD_NUM("pause_time", t_pause);
+
+  /* finished job info */
+  if (p->state == FINISHED) {
+    ADD_NUM("exitcode",  p->result.errorlevel);
+    ADD_NUM("signal",    p->result.signal);
+    ADD_NUM("realtime",  p->result.real_sec);
+    ADD_NUM("cputime_us",  p->result.user_sec);
+    ADD_NUM("cputime_sys", p->result.system_sec);
+  }
+
+  /* SLEEP check */
+  if (p->state != FINISHED && p->state != PAUSE && is_sleep(p))
+    ADD_NUM("in_sleep", 1);
+
+#undef ADD_NUM
+#undef ADD_STR
 
   return 1;
 }
 
-void s_list(int s, struct User *user, enum ListFormat listFormat) {
+void s_list(int s, struct User *user, enum ListFormat listFormat, int jobid) {
   s_update_slots_usage();
 
   size_t an = vec_size(&active_jobs);
@@ -108,7 +166,7 @@ void s_list(int s, struct User *user, enum ListFormat listFormat) {
     for (size_t i = 0; i < an; i++) {
       struct Job *p = (struct Job *)vec_get(&active_jobs, i);
       if (p->state != HOLDING_CLIENT) {
-        if (p->user == user || user == USER(0)) {
+        if (!user || p->user == user || user == USER(0)) {
           buffer = joblist_line(p);
           send_list_line(s, buffer);
           free(buffer);
@@ -121,13 +179,13 @@ void s_list(int s, struct User *user, enum ListFormat listFormat) {
 
     for (size_t i = 0; i < fn; i++) {
       struct Job *p = (struct Job *)vec_get(&finished_jobs, i);
-      if (p->user == user || user == USER(0)) {
+      if (!user || p->user == user || user == USER(0)) {
         buffer = joblist_line(p);
         send_list_line(s, buffer);
         free(buffer);
       }
     }
-    if (user == USER(0))
+    if (!user || user == USER(0))
       s_user_status_all(s);
     else
       s_user_status(s, user);
@@ -135,15 +193,29 @@ void s_list(int s, struct User *user, enum ListFormat listFormat) {
     cJSON *jobs = cJSON_CreateArray();
     if (jobs == NULL) { error("Error initializing JSON array."); goto end; }
 
-    for (size_t i = 0; i < an; i++) {
-      struct Job *p = (struct Job *)vec_get(&active_jobs, i);
-      if (p->state != HOLDING_CLIENT) {
+    if (jobid > 0) {
+      /* single job lookup */
+      struct Job *p = findjob(jobid);
+      if (p && p->state != HOLDING_CLIENT) {
         if (add_job_to_json_array(p, jobs) == 0) goto end;
       }
-    }
-    for (size_t i = 0; i < fn; i++) {
-      struct Job *p = (struct Job *)vec_get(&finished_jobs, i);
-      if (add_job_to_json_array(p, jobs) == 0) goto end;
+      if (!p) {
+        p = find_finished_job(jobid);
+        if (p) {
+          if (add_job_to_json_array(p, jobs) == 0) goto end;
+        }
+      }
+    } else {
+      for (size_t i = 0; i < an; i++) {
+        struct Job *p = (struct Job *)vec_get(&active_jobs, i);
+        if (p->state != HOLDING_CLIENT) {
+          if (add_job_to_json_array(p, jobs) == 0) goto end;
+        }
+      }
+      for (size_t i = 0; i < fn; i++) {
+        struct Job *p = (struct Job *)vec_get(&finished_jobs, i);
+        if (add_job_to_json_array(p, jobs) == 0) goto end;
+      }
     }
 
     buffer = cJSON_PrintUnformatted(jobs);
@@ -274,8 +346,6 @@ void s_job_info(int s, int jobid) {
   } else {
     fd_nprintf(s, strlen(p->work_dir) + 30, "Workdir: %s\n", p->work_dir);
   }
-  if (p->email)
-    fd_nprintf(s, 100, "Email: %s\n", p->email);
 
   time_t g_boot_wallclock = p->info.boot_time;
   if (g_boot_wallclock == 0) {

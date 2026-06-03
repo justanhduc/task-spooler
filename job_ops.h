@@ -1,6 +1,6 @@
 /*
-    Task Spooler - a task queue system for the unix user
-    Copyright (C) 2007-2013  Lluís Batlle i Rossell
+    Task Spooler PLUS - a multi-user job scheduler like slurm.
+    Copyright (C) 2007-2026  Kylin JIANG - Lluís Batlle i Rossell
 
     Please find the license in the provided COPYING file.
 */
@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include "msg.h"
 
-void s_list(int s, struct User *user, enum ListFormat listFormat);
+void s_list(int s, struct User *user, enum ListFormat listFormat, int jobid);
 void s_list_all(int s, enum ListFormat listFormat);
 void s_swap_jobs(int s, int jobid1, int jobid2);
 void s_move_urgent(int s, int jobid);

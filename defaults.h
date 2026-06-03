@@ -1,6 +1,6 @@
 /*
-    Task Spooler - a task queue system for the unix user
-    Copyright (C) 2007-2013  Lluís Batlle i Rossell
+    Task Spooler PLUS - a multi-user job scheduler like slurm.
+    Copyright (C) 2007-2026  Kylin JIANG - Lluís Batlle i Rossell
 
     Please find the license in the provided COPYING file.
 
@@ -15,8 +15,6 @@
 #define DEFAULT_USER_PATH DEFAULT_BASE_DIR "/user.txt"
 #define DEFAULT_LOG_PATH DEFAULT_BASE_DIR "/log.txt"
 #define DEFAULT_SQLITE_PATH DEFAULT_BASE_DIR "/task-spooler.db"
-#define DEFAULT_EMAIL_SENDER "XXX@foxmail.com"
-#define DEFAULT_EMAIL_TIME 45.0
 #define DEFAULT_USER_LOCK_TIME 30
 #define DEFAULT_ROOT_LOCK_TIME 86400
 #define DEFAULT_MAX_WALL_TIME 604800 /* 7 days in seconds */

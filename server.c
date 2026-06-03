@@ -1,6 +1,6 @@
 /*
-    Task Spooler - a task queue system for the unix user
-    Copyright (C) 2007-2013  Lluís Batlle i Rossell
+    Task Spooler PLUS - a multi-user job scheduler like slurm.
+    Copyright (C) 2007-2026  Kylin JIANG - Lluís Batlle i Rossell
 
     Please find the license in the provided COPYING file.
 */
@@ -271,7 +271,6 @@ void server_main(int notify_fd, char *_path) {
   // jobDB_num = jobDB_wait_num = 0;
   // jobDB_Jobs = NULL;
   set_server_logfile();
-  setup_ssmtp();
   // int jobid = read_first_jobid_from_logfile(logfile_path);
   read_user_file(get_user_path());
   set_socket_model(_path);
@@ -646,7 +645,7 @@ static enum Break client_read(int index) {
       */
   case LIST:
     term_width = m.u.list.term_width;
-    s_list(s, user, m.u.list.list_format);
+    s_list(s, user, m.u.list.list_format, m.jobid);
 
     /* We must actively close, meaning End of Lines */
     close(s);
@@ -654,7 +653,7 @@ static enum Break client_read(int index) {
     break;
   case LIST_ALL:
     term_width = m.u.list.term_width;
-    s_list(s, 0, m.u.list.list_format); // list all
+    s_list(s, 0, m.u.list.list_format, m.jobid); // list all
 
     /* We must actively close, meaning End of Lines */
     close(s);

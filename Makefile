@@ -21,7 +21,6 @@ OBJECTS=main.o \
 	server_env.o \
 	execute.o \
 	msg.o \
-	mail.o \
 	error.o \
 	signals.o \
 	list.o \
@@ -50,7 +49,6 @@ OBJECTS=main.o \
 	server_env.o \
 	execute.o \
 	msg.o \
-	mail.o \
 	error.o \
 	signals.o \
 	list.o \
@@ -91,14 +89,13 @@ server.o: server.c server.h main.h msg.h jobs.h user.h vec.h defaults.h error.h 
 server_start.o: server_start.c server_start.h server.h main.h error.h user.h runtime_limit.h sqlite.h
 client.o: client.c client.h main.h msg.h server_start.h error.h utils.h env.h execute.h tail.h
 msgdump.o: msgdump.c msgdump.h main.h msg.h
-jobs.o: jobs.c jobs.h main.h msg.h user.h vec.h defaults.h sqlite.h runtime_limit.h cgroups.h info.h list.h utils.h notify.h mail.h execute.h error.h
+jobs.o: jobs.c jobs.h main.h msg.h user.h vec.h defaults.h sqlite.h runtime_limit.h cgroups.h info.h list.h utils.h notify.h execute.h error.h
 notify.o: notify.c notify.h jobs.h main.h msg.h vec.h error.h
 job_ops.o: job_ops.c job_ops.h main.h msg.h jobs.h user.h vec.h list.h info.h print.h runtime_limit.h error.h server_user.h utils.h
 server_user.o: server_user.c server_user.h main.h msg.h jobs.h user.h vec.h runtime_limit.h sqlite.h utils.h list.h cgroups.h
 server_env.o: server_env.c server_env.h main.h msg.h jobs.h error.h
-execute.o: execute.c execute.h main.h msg.h jobs.h signals.h mail.h error.h client.h runtime_limit.h
+execute.o: execute.c execute.h main.h msg.h jobs.h signals.h error.h client.h runtime_limit.h
 msg.o: msg.c msg.h main.h msgdump.h error.h
-mail.o: mail.c mail.h main.h msg.h error.h signals.h print.h
 error.o: error.c error.h main.h msg.h server.h server_start.h sqlite.h notify.h msgdump.h
 signals.o: signals.c signals.h main.h msg.h
 list.o: list.c list.h jobs.h main.h msg.h user.h runtime_limit.h cgroups.h error.h

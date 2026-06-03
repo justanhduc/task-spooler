@@ -2,6 +2,45 @@
 
 All notable changes to task-spooler-PLUS.
 
+## [v2.6.2] — 2026-Q2
+
+### Changed
+- **JSON output** (`-M json`) expanded to match `-i` info fields (times, CPU bind, dependencies, etc.)
+- **`-M json -J <id>`** filters JSON output to a single job (reuses existing `--jobid` / `-J`)
+
+### Removed
+- **Mail subsystem** — `mail.c`, `mail.h`, `mymail.sh`, ssmtp/sendmail integration removed
+  - `-m` CLI option removed; use `--on-finish` hook for notifications
+  - `TS_MAIL_FROM`, `TS_MAIL_TIME` env vars removed
+  - `TS_ONFINISH` retained as default on-finish command (overridden by `--on-finish`)
+- **Legacy `TS_ONFINISH` hook** (`hook_on_finish` wrapper) removed; `--on-finish` is the only callback path
+
+### Fixed
+- `run_on_finish`: simplified from `fork+execl("/bin/sh",...)` to `system()`
+
+## [v2.6.1] — 2026-Q2
+
+### Changed
+- **`cpu_bind_defrag()` refactored** — two-phase NUMA-aware defrag:
+  - Phase 3: reassign jobs on their original `primary_node` first (NUMA affinity preserved)
+  - Phase 4: cross-node merge for remaining jobs
+  - Callback pattern removed; directly calls `cgroups_freeze_job` / `cgroups_set_cpuset` / `cgroups_thaw_job`
+- **`cpu_bind_alloc_init()`** now takes `jobid`; `cpu_owner[]` tracks real job IDs throughout allocation
+- **`cpu_bind_post_alloc()`** called in both initial allocation and defrag paths (sort + validate)
+- **`gen_topology.py`** — generates `.h` files for ALL non-trivial strategies at once
+  - New `#define MAX_GROUPS_PER_NODE` in every output
+  - Skips trivial strategies (count == cores, or count == PUs with `--ht`; except `by_core`)
+  - Skips duplicate strategies (identical group topologies)
+
+### Fixed
+- `cgroups_set_cpuset`: create cgroup v2 directory before writing `cpuset.cpus`
+- `cpu_bind_defrag`: memory leak on early return (all quality=0)
+- `cpu_bind_defrag`: frozen jobs lost due to `jobs[n]` overwrite bug
+
+### Removed
+- `cpu_bind_pause_fn` / `cpu_bind_update_fn` / `cpu_bind_resume_fn` typedefs (no longer used)
+- `defrag_pause_job` / `defrag_update_cpuset` / `defrag_resume_job` callbacks in `jobs.c`
+
 ## [v2.6.0] — 2026-Q2
 
 ### Changed

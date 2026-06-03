@@ -6,6 +6,8 @@
 
 #include "cpu_bind.h"
 #include "vec.h"
+#include "main.h"
+#include "cgroups.h"
 
 /* 拓扑实例 — 由 gen_topology.py 生成 */
 struct Topology sys_topology = TOPOLOGY_INIT;
@@ -182,15 +184,14 @@ static void cross_node_merge(int N, struct CpuAlloc *alloc)
           node_free_desc);
 
     /* 确定主节点 */
-    /* 64 = MAX_CPU_ON_NODE，N > 64 必然跨节点 */
-    if (N > 64) {
+    if (N > MAX_CORES_PER_GROUP) {
         alloc->primary_node = -1;
     } else {
         /* 前几个节点可能 free_count 相同（平局） */
         int nt = 0;
         int best_free = sys_topology.nodes[order[0]].free_count;
         while (nt < sys_topology.num_nodes &&
-               sys_topology.nodes[order[nt]].free_count == best_free)
+            sys_topology.nodes[order[nt]].free_count == best_free)
             nt++;
 
         if (nt > 1)
@@ -217,8 +218,9 @@ static void cross_node_merge(int N, struct CpuAlloc *alloc)
     }
 
     alloc->mem_nodes = bitmap;
-    if (ng > 0)
+    if (ng > 0) {
         alloc_from_groups(N, groups_collected, ng, alloc);
+    }
 }
 
 /* ================================================================
@@ -336,8 +338,8 @@ struct CpuAlloc *cpu_bind_alloc_init(int jobid, int max_cpus)
     if (!alloc)
         return NULL;
 
-    alloc->jobid     = jobid;
     alloc->slots     = max_cpus;
+    alloc->jobid     = jobid;
 
     vec_push(&cpu_allocs, alloc);
     return alloc;
@@ -353,15 +355,14 @@ static int alloc_defrag_cmp(const void *a, const void *b)
     return pb->count - pa->count;
 }
 
-int cpu_bind_defrag(cpu_bind_pause_fn pause,
-                    cpu_bind_update_fn update_cpuset,
-                    cpu_bind_resume_fn resume)
-{
+int cpu_bind_defrag() {
     int count = (int)vec_size(&cpu_allocs);
     if (count <= 0)
         return 0;
 
     struct CpuAlloc **allocs = (struct CpuAlloc **)cpu_allocs.data;
+    struct Job** jobs = (struct Job**)calloc(count, sizeof(struct Job*));
+    int* skipped = (int*)calloc(count, sizeof(int));
 
     /* 排序：quality 小的在前，N 大的在前 */
     qsort(allocs, (size_t)count, sizeof(struct CpuAlloc *), alloc_defrag_cmp);
@@ -371,24 +372,31 @@ int cpu_bind_defrag(cpu_bind_pause_fn pause,
     while (n < count && allocs[n]->quality == 0)
         n++;
 
-    if (n >= count)
+    if (n >= count) {
+        free(skipped);
+        free(jobs);
         return 0;  /* 全部 quality=0，无需 defrag */
+    }
 
     /* ---- 第一步：暂停所有 quality>0 的 job ---- */
     for (int i = n; i < count; i++) {
-        if (pause)
-            pause(allocs[i]->jobid);
+        struct Job* p = findjob(allocs[i]->jobid);
+        if (p && p->pid > 0 && (p->state == RUNNING || p->state == PAUSE)) {
+            cgroups_freeze_job(p);
+            jobs[i] = p;
+        }
     }
 
     /* ---- 第二步：重建分配状态 ---- */
     /* 全部清空 */
     memset(cpu_owner, 0, sizeof(cpu_owner));
-    for (int i = 0; i < sys_topology.num_groups; i++)
-        sys_topology.groups[i].free_count =
-            sys_topology.groups[i].num_cores;
-    for (int i = 0; i < sys_topology.num_nodes; i++)
-        sys_topology.nodes[i].free_count =
-            sys_topology.nodes[i].num_cores;
+    for (int i = 0; i < sys_topology.num_groups; i++) {
+        sys_topology.groups[i].free_count = sys_topology.groups[i].num_cores;
+    }
+
+    for (int i = 0; i < sys_topology.num_nodes; i++) {
+        sys_topology.nodes[i].free_count = sys_topology.nodes[i].num_cores;
+    }
 
     /* 恢复 quality=0 的 allocs（直接写回 cpu_owner） */
     for (int i = 0; i < n; i++) {
@@ -402,27 +410,51 @@ int cpu_bind_defrag(cpu_bind_pause_fn pause,
         }
     }
 
-    /* ---- 第三步：重分 quality>0 的 allocs + 更新 cpuset ---- */
+    /* ---- 第三步：优先在原节点上重分配 ---- */
     for (int i = n; i < count; i++) {
         struct CpuAlloc *a = allocs[i];
         int N = a->count;
-        a->count     = 0;
-        a->error     = 0;
-        a->quality   = 0;
-        a->mem_nodes = 0;
-        cpu_bind_alloc(a, N);
+        int pn = a->primary_node;
 
-        /* 写入新 CPU 绑定 */
-        if (update_cpuset)
-            update_cpuset(a->jobid, a);
+        if (pn >= 0 && pn < sys_topology.num_nodes &&
+            sys_topology.nodes[pn].free_count >= N) {
+            a->count   = 0;
+            a->error   = 0;
+            a->quality = 0;
+            alloc_from_groups(N, sys_topology.nodes[pn].group_ids,
+                              sys_topology.nodes[pn].num_groups, a);
+            cpu_bind_post_alloc(a);
+            if (jobs[i]) {
+                cgroups_set_cpuset(a->jobid, jobs[i]->pid, a);
+                cgroups_thaw_job(jobs[i]);
+            }
+        } else {
+            skipped[i] = 1;
+        }
     }
 
-    /* ---- 第四步：恢复所有 quality>0 的 job ---- */
+    /* ---- 第四步：剩余 job 跨节点合并 ---- */
     for (int i = n; i < count; i++) {
-        if (resume)
-            resume(allocs[i]->jobid);
+        if (skipped[i]) {
+            struct CpuAlloc *a = allocs[i];
+            int N = a->count;
+            int pn = a->primary_node;
+            int mn = a->mem_nodes;
+            a->count   = 0;
+            a->error   = 0;
+            a->quality = 0;
+            cross_node_merge(N, a);
+            a->primary_node = pn;
+            a->mem_nodes = mn;
+            cpu_bind_post_alloc(a);
+            if (jobs[i]) {
+                cgroups_set_cpuset(a->jobid, jobs[i]->pid, a);
+                cgroups_thaw_job(jobs[i]);
+            }
+        }
     }
-
+    free(skipped);
+    free(jobs);
     return 0;
 }
 

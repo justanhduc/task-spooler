@@ -1,6 +1,6 @@
 /*
-    Task Spooler - a task queue system for the unix user
-    Copyright (C) 2007-2013  Lluís Batlle i Rossell
+    Task Spooler PLUS - a multi-user job scheduler like slurm.
+    Copyright (C) 2007-2026  Kylin JIANG - Lluís Batlle i Rossell
 
     Please find the license in the provided COPYING file.
 */
@@ -31,7 +31,6 @@
 #include "list.h"
 #include "utils.h"
 #include "notify.h"
-#include "mail.h"
 #include "execute.h"
 #include "error.h"
 #ifdef TS_CPU_BIND
@@ -41,9 +40,6 @@
 /* The list will access them */
 int busy_slots = 0;
 int max_slots = 1;
-time_t sstmp_skip_sec = DEFAULT_EMAIL_TIME; // skip task smaller than 200 s
-
-char *email_sender;
 
 /* Server globals */
 int jobsort_flag;
@@ -76,7 +72,6 @@ void destroy_jobs(void) {
 }
 
 struct Job *get_job(int jobid);
-static int fork_cmd(int UID, char const *path, char const *cmd);
 int safe_pause_job(struct Job *p);
 
 /* Return index in active_jobs, or -1 */
@@ -103,47 +98,6 @@ void s_set_jobids(int i) {
     jobids = i;
     set_jobids_DB(i);
 }
-
-void setup_ssmtp() {
-    email_sender = getenv("TS_MAIL_FROM");
-    if (email_sender == NULL) {
-        email_sender = DEFAULT_EMAIL_SENDER;
-    }
-    char *time_s = getenv("TS_MAIL_TIME");
-    if (time_s != NULL) {
-        float time_sec;
-        int ret = sscanf(time_s, "%f", &time_sec);
-        if (ret == 1) {
-            sstmp_skip_sec = time_sec;
-        }
-    }
-}
-
-static void send_mail_via_ssmtp(struct Job *p) {
-    time_t real_sec = p->result.real_sec; // units in second
-    if (real_sec == 0) {
-        real_sec = p->info.end_time - p->info.start_time; // TODO add a function
-    }
-    // skip the short task
-    if (real_sec < sstmp_skip_sec || p->email == NULL) {
-        return;
-    }
-    char const *state =
-        (p->result.errorlevel || p->result.signal || p->result.died_by_signal)
-            ? "failed"
-            : "finished";
-    time_repr_t r = format_time(real_sec);
-    char cmd[2048];
-    snprintf(cmd, 2047,
-             "echo \"Subject: %s[%d] n_core: %d, Elsp %.3f %c from MSI\nFrom: "
-             "TS<%s>\nTo: %s\n\n\n Cmd: %s [%s] Output: %s\" | ssmtp %s",
-             p->label, p->jobid, p->num_slots, r.value, r.unit, p->email,
-             email_sender, p->command + p->command_strip, state,
-             p->output_filename, p->email);
-    fork_cmd(root_UID, NULL, cmd);
-}
-
-
 
 void destroy_job(struct Job *p) {
     if (p != NULL) {
@@ -828,20 +782,6 @@ int s_newjob(int s, struct Msg *m, struct User *user) {
         p->label = ptr;
     }
 
-    p->email = NULL;
-    if (m->u.newjob.email_size > 0) {
-        char *ptr;
-        ptr = (char *)malloc(m->u.newjob.email_size);
-        if (ptr == 0) {
-            error("Cannot allocate memory in s_newjob email_size(%i)",
-                  m->u.newjob.email_size);
-        }
-        res = recv_bytes(s, ptr, m->u.newjob.email_size);
-        if (res == -1) {
-            error("wrong bytes received");
-        }
-        p->email = ptr;
-    }
 
     /* load the info */
     if (m->u.newjob.env_size > 0) {
@@ -989,29 +929,6 @@ static int get_max_finished_jobs() {
     return num;
 }
 
-/* ---- defrag 回调：暂停/更新 cpuset/恢复 ---- */
-#ifdef TS_CPU_BIND
-static void defrag_pause_job(int jobid)
-{
-    struct Job *p = findjob(jobid);
-    if (p && p->pid > 0 && (p->state == RUNNING || p->state == PAUSE))
-        cgroups_freeze_job(p);
-}
-
-static void defrag_update_cpuset(int jobid, const struct CpuAlloc *alloc)
-{
-    struct Job *p = findjob(jobid);
-    if (p && p->pid > 0 && p->state == RUNNING)
-        cgroups_set_cpuset(p->jobid, p->pid, alloc);
-}
-
-static void defrag_resume_job(int jobid)
-{
-    struct Job *p = findjob(jobid);
-    if (p && p->pid > 0 && (p->state == RUNNING || p->state == PAUSE))
-        cgroups_thaw_job(p);
-}
-#endif
 
 /* Add the job to the finished queue. */
 static void new_finished_job(struct Job *j) {
@@ -1030,13 +947,13 @@ static void new_finished_job(struct Job *j) {
         cgroups_clean_job(j);
 #ifdef TS_CPU_BIND
         if (j->cpu_alloc) {
+            // clean finished job   
             cpu_bind_free((struct CpuAlloc *)j->cpu_alloc);
             j->cpu_alloc = NULL;
         }
-        cpu_bind_defrag(defrag_pause_job, defrag_update_cpuset, defrag_resume_job);
+        cpu_bind_defrag();
 #endif
     }
-    send_mail_via_ssmtp(j);
 }
 
 static int job_is_in_state(int jobid, enum Jobstate state) {
@@ -1098,42 +1015,6 @@ void job_finished(const struct Result *result, int jobid) {
     new_finished_job(p);
 }
 
-static int fork_cmd(int const UID, char const *path, char const *cmd) {
-    int pid = -1;             // 定义一个进程ID变量
-
-    pid = fork();             // 调用fork()函数创建子进程
-    if (pid < 0)              // 如果返回值小于0，表示fork失败
-    {
-        perror("fork error"); // 打印错误信息
-        return -1;
-    } else if (pid == 0) // 如果返回值等于0，表示子进程正在运行
-    {
-        setuid(UID);
-        if (path != NULL) {
-            chdir(path);
-        }
-        system(cmd);
-        exit(EXIT_SUCCESS);
-        /*
-        int cmd_array_size;
-        printf("cmd = %s\n", cmd);
-        char** cmd_arry = split_str(cmd, &cmd_array_size);
-        if (cmd_array_size > 0) {
-          printf("run cmd %s\n", cmd_arry[0]);
-          system(cmd);
-          exit(EXIT_SUCCESS);
-          // execvp(cmd_arry[0], cmd_arry);
-        }
-        // execlp("ls", "-l", NULL); //执行ls -l命令，替换当前进程
-        */
-        return -1;
-    } else // 如果返回值大于0，表示父进程正在运行
-    {
-        printf("[Child PID:%d] Add queued job: %s\n", pid,
-               cmd); // 打印子进程的ID
-    }
-    return pid;
-}
 
 static void s_add_job(struct Job *j) {
     if (j->state == RUNNING) {
@@ -1395,7 +1276,7 @@ int s_remove_job(int s, int *jobid, struct User *client) {
                 cpu_bind_free((struct CpuAlloc *)p->cpu_alloc);
                 p->cpu_alloc = NULL;
             }
-            cpu_bind_defrag(defrag_pause_job, defrag_update_cpuset, defrag_resume_job);
+            cpu_bind_defrag();
 #endif
             new_finished_job(p);
         } else {
