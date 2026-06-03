@@ -5,12 +5,11 @@
  * Each MPI rank uses OpenMP threads to parallelize its interval.
  *
  * Compile:
- *   mpicc -O2 -fopenmp -o mpi_pi mpi_pi.c
+ * mpicc -O2 -fopenmp -o mpi_pi mpi_pi.c
  *
  * Run:
- *   mpirun -np 4 ./mpi_pi 10                # 4 MPI, 1 thread each
- *   mpirun -np 4 ./mpi_pi 10 -nt 4          # 4 MPI, 4 OMP threads each
- *   ts -N 4 mpirun -np 4 ./mpi_pi 10 -nt 4  # with ts cpu_bind
+ * mpirun -np 4 ./mpi_pi 10                 # 运行 10 秒
+ * mpirun -np 4 ./mpi_pi 10 -nt 4          # 运行 10 秒，每个 Rank 4 线程
  */
 
 #define _GNU_SOURCE
@@ -99,26 +98,55 @@ int main(int argc, char **argv)
         fflush(stdout);
     }
 
-    /* pi: each rank integrates [rank/nprocs, (rank+1)/nprocs) */
     double h = 1.0 / nprocs;
     double x0 = rank * h;
 
-double start = MPI_Wtime();
-    double last_report_time = start; // 记录上一次打印的精准时间
+    double start = MPI_Wtime();
+    double last_report_time = start; 
     double next_out = start + 1.0;
     int step = 0;
     
     double pi_acc = 0.0;
     long long step_acc = 0;
-    long long prev_step_acc = 0; // 上一次打印时的总步数
+    long long prev_step_acc = 0; 
 
     const long long SLICE = 200000000;
-    // 每一个循环周期，单 rank 执行的真实浮点操作数
-    // 循环内固定 6 次：2次乘法(*)、1次加法(+)、1次除法(/)、2次分支/权重运算
-    // 加上循环结束后的 local *= dx / 3.0 (2次)
-    const double FLOPS_PER_CYCLE = (double)(SLICE + 1) * 6.0 + 2.0;
+    /* Simpson inner loop: per-point 2(x)+3(f)+1|2(weight) + final *=dx/3.0(2) */
+    const double FLOPS_PER_CYCLE = 7.0 * (double)SLICE + 7.0;
 
-    while (MPI_Wtime() < start + secs + 1.0) {
+    // 状态控制变量（用数组统一广播：[0]表示是否继续循环，[1]表示本轮是否执行打印）
+    int ctrl[2] = {1, 0}; 
+
+    while (1) {
+        // 1. 只有 Rank 0 负责算时间、下达指令
+        if (rank == 0) {
+            double now = MPI_Wtime();
+            // 判断是否超时（多预留1秒，保证满额跑完指定的 secs）
+            if (now >= start + secs + 0.9) {
+                ctrl[0] = 0; // 通知所有人：退出循环
+            } else {
+                ctrl[0] = 1; // 继续跑
+            }
+
+            // 判断是否到了 1 秒的打印周期
+            if (now >= next_out && step < secs) {
+                ctrl[1] = 1; // 通知所有人：这一轮我们需要打印
+                step++;
+                next_out = now + 0.9; // 顺延下一次打印时间
+            } else {
+                ctrl[1] = 0; // 这一轮不打印
+            }
+        }
+
+        // 2. 关键点：Rank 0 把决定广播给所有人，步调达成绝对一致
+        MPI_Bcast(ctrl, 2, MPI_INT, 0, MPI_COMM_WORLD);
+
+        // 如果 Rank 0 下令退出，所有人一起退出
+        if (ctrl[0] == 0) {
+            break;
+        }
+
+        /* ---- 核心计算（所有 Rank 共同执行） ---- */
         double local = 0.0;
         double dx = h / SLICE;
 
@@ -138,54 +166,50 @@ double start = MPI_Wtime();
         double total;
         MPI_Allreduce(&local, &total, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         pi_acc += total;
-        step_acc += SLICE; // 所有 rank 同步增加步数
+        step_acc += SLICE; 
 
-        /* --- 每一秒汇报 --- */
-        double now = MPI_Wtime();
-        if (now >= next_out) {
-            step++;
-            if (step <= secs) {
-                int mycpu = sched_getcpu();
-                int *cpus = NULL;
-                if (rank == 0) cpus = malloc(nprocs * sizeof(int));
-                MPI_Gather(&mycpu, 1, MPI_INT, cpus, 1, MPI_INT, 0, MPI_COMM_WORLD);
+        /* ---- 统一判定是否进行 1 秒汇报 ---- */
+        if (ctrl[1] == 1) {
+            int mycpu = sched_getcpu();
+            int *cpus = NULL;
+            if (rank == 0) cpus = malloc(nprocs * sizeof(int));
+            
+            // 因为 ctrl[1] 在所有 Rank 里都等于 1，所有人都会安全调用，绝不发生死锁
+            MPI_Gather(&mycpu, 1, MPI_INT, cpus, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-                if (rank == 0) {
-                    qsort(cpus, nprocs, sizeof(int), int_cmp);
+            double now = MPI_Wtime();
 
-                    // 1. 精准计算当前周期的总时间差
-                    double delta_time = now - last_report_time;
-                    
-                    // 2. 精准计算当前周期内所有 rank 完成的总浮点数
-                    double delta_steps = (double)(step_acc - prev_step_acc);
-                    double delta_flops = delta_steps * FLOPS_PER_CYCLE * nprocs / SLICE;
-                    
-                    char cpubuf[256] = "";
-                    int pos = 0;
-                    for (int i = 0; i < nprocs; i++)
-                        pos += snprintf(cpubuf + pos, sizeof(cpubuf) - pos,
-                                        "%s%d", i ? "," : "", cpus[i]);
+            if (rank == 0) {
+                qsort(cpus, nprocs, sizeof(int), int_cmp);
 
-                    double pi_val = pi_acc * (double)SLICE / (double)step_acc;
-                    
-                    // 核心修改：真正的 GFLOPS = 浮点数 / 时间差 / 1e9
-                    printf(" [%d/%d] affinity[%s]  cpu[%s]  π=%.10f  %.2f GLOPS\n",
-                           step, secs, get_affinity(), cpubuf, pi_val, (delta_flops / delta_time) / 1e9);
-                    fflush(stdout);
-                    free(cpus);
-                }
-                // 所有 rank 统一更新时间步长基准
-                prev_step_acc = step_acc;
-                last_report_time = now;
+                double delta_time = now - last_report_time;
+                double delta_steps = (double)(step_acc - prev_step_acc);
+                double delta_flops = delta_steps * FLOPS_PER_CYCLE * nprocs / SLICE;
+                
+                char cpubuf[256] = "";
+                int pos = 0;
+                for (int i = 0; i < nprocs; i++)
+                    pos += snprintf(cpubuf + pos, sizeof(cpubuf) - pos,
+                                    "%s%d", i ? "," : "", cpus[i]);
+
+                double pi_val = pi_acc * (double)SLICE / (double)step_acc;
+                
+                printf(" [%d/%d] affinity[%s]  cpu[%s]  π=%.10f  %.2f GFLOPS, dt = %.4f sec\n",
+                       step, secs, get_affinity(), cpubuf, pi_val, (delta_flops / delta_time) / 1e9, delta_time);
+                fflush(stdout);
+                free(cpus);
             }
-            next_out = now + 1.0;
+            
+            // 所有 rank 统一更新时间步长基准
+            prev_step_acc = step_acc;
+            last_report_time = now;
         }
     }
 
     // ================= SUMMARY =================
-    // 所有的 rank 都能正确拿到自己的 step_acc，在 rank 0 汇总即可
     if (rank == 0) {
-        double total_elapsed_time = last_report_time - start;
+        double end_time = MPI_Wtime();
+        double total_elapsed_time = end_time - start;
         double total_flop = (double)nprocs * ((double)step_acc / SLICE) * FLOPS_PER_CYCLE;
         double pi_final = pi_acc * (double)SLICE / (double)(step_acc > 0 ? step_acc : 1);
         double err = pi_final - 3.14159265358979323846;
@@ -195,8 +219,10 @@ double start = MPI_Wtime();
         printf(" Steps/proc: %.2f B\n", (double)step_acc / 1e9);
         printf(" Total FP:   %.2f G ops\n", total_flop / 1e9);
         printf(" Avg:        %.2f GLOPS\n", (total_flop / total_elapsed_time) / 1e9);
+        printf(" Elps:       %.2f sec\n", total_elapsed_time);
         printf("========================================\n");
     }
+
     MPI_Finalize();
     return 0;
 }

@@ -124,13 +124,18 @@ mary    2
 Optional compile-time feature activated with `make TS_CPU_BIND=1`.
 
 1. **tools/gen_topology.py** — runs `hwloc-calc`, detects NUMA nodes, L2/L3/L1 caches, and PUs. Generates `topology_{strategy}.h` with `#define` constants (`NUM_NODES`, `NUM_GROUPS`, `MAX_CORES_PER_GROUP`, `MAX_OS_CPU`, `MAX_GROUPS_PER_NODE`) + `TOPOLOGY_INIT` macro. Handles HT exclusion/inclusion. Skips trivial strategies (1:1 object-to-core mapping) and duplicate topologies. Auto-selects best strategy by average cores/group closest to 4.
-2. **cpu_bind.c** — allocator: best-fit group selection, cross-node merge. Tracks CPU ownership via `cpu_owner[]` array using real job IDs. **Note: `cpu_bind_defrag()` is currently disabled** — running jobs cannot have their cpuset changed dynamically.
-3. **cgroups_set_cpuset()** — writes cpuset.cpus/mems to the cgroup (v1: `/sys/fs/cgroup/cpuset/`, v2: unified hierarchy).
-4. **Restart recovery** — `cgroups_restore_all_cpu_bind()` scans cgroup directories, reads cpuset.cpus, rebuilds alloc tracking via `cpu_bind_claim()`.
+2. **cpu_bind.c** — allocator: best-fit group selection, cross-node merge. Tracks CPU ownership via `cpu_owner[]` array using real job IDs.
+3. **`cpu_bind_defrag()`** — two-phase NUMA-aware defrag triggered after each job finishes:
+   - Phase 1-2: freeze quality>0 jobs, rebuild allocation state, restore quality=0 allocs
+   - Phase 3: try same-node reassignment first (NUMA affinity preserved)
+   - Phase 4: cross-node merge for remaining jobs
+   - `primary_node` / `mem_nodes` are preserved across defrag cycles
+4. **cgroups_set_cpuset()** — writes cpuset.cpus/mems to the cgroup (v1: `/sys/fs/cgroup/cpuset/`, v2: unified hierarchy).
+5. **Restart recovery** — `cgroups_restore_all_cpu_bind()` scans cgroup directories, reads cpuset.cpus, rebuilds alloc tracking via `cpu_bind_claim()`.
 
 Ordering: cpuset cgroup is created BEFORE freezer cgroup, so the child process's `cgroups_freeze_ok()` wait covers all cgroups.
 
-Runtime controls: `--no-bind` disables binding per-job (via NEWJOB message) or server-wide (via `cpu_bind_set_disabled()`).
+Runtime controls: `--no-bind` disables binding per-job (via NEWJOB message) or server-wide (via `cpu_bind_set_disabled()`). `--no-bind-defrag` disables auto-defrag at server start (root only; for MPI workloads, see Known Issues).
 
 ### Cgroups support
 
@@ -145,15 +150,15 @@ Key overrides: `TS_SOCKET`, `TS_SLOTS`, `TS_USER_PATH`, `TS_LOGFILE_PATH`, `TS_S
 ## Current branch work
 
 The `cpu-only` branch focuses on CPU binding and cgroups refinements:
-- **`cpu_bind_defrag()`** — two-phase NUMA-aware defrag (**currently disabled** — see Known Issues)
+- **`cpu_bind_defrag()`** — two-phase NUMA-aware defrag with `--no-bind-defrag` server flag
 - **`gen_topology.py`** — multi-strategy output with `MAX_GROUPS_PER_NODE`, skips trivial/duplicate topologies
-- **`cpu_owner[]`** tracks real job IDs throughout allocation
+- **`cpu_owner[]`** tracks real job IDs throughout allocation and defrag
 - **`cpu_bind.h`** — `group_ids[]` uses `MAX_GROUPS_PER_NODE`, cleaned up unused typedefs
 
 ## Known Issues
 
-### MPI + cpuset: dynamic cpuset changes cause deadlock
+### MPI + cpuset: dynamic cpuset changes may cause deadlock
 
-`cpu_bind_defrag()` is disabled because dynamically rewriting `cpuset.cpus` on running MPI jobs can cause deadlocks. MPI runtimes (Open MPI, MPICH) read cpuset at startup to determine process binding and topology. Changing the cpuset mid-run may leave the MPI runtime with a stale view of available CPUs, causing collective operations to hang waiting for processes that have been moved to a different core set.
+Dynamically rewriting `cpuset.cpus` on running MPI jobs may cause deadlocks. MPI runtimes (Open MPI, MPICH) read cpuset at startup to determine process binding and topology. Changing the cpuset mid-run may leave the MPI runtime with a stale view of available CPUs, causing collective operations to hang.
 
-**Workaround**: allocate CPU binding at job start — it persists correctly across forks (including `mpirun`). Do not change it while the job runs. Use `--no-bind` if CPU binding is not needed.
+**Workaround**: start the server with `--no-bind-defrag` to disable automatic defrag for MPI workloads. CPU binding allocated at job start persists correctly across forks (including `mpirun`). Use `--no-bind` if CPU binding is not needed at all.

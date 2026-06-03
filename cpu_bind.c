@@ -23,6 +23,7 @@ struct Topology sys_topology = TOPOLOGY_INIT;
 
 int cpu_owner[MAX_OS_CPU];          /* 0=空闲, >0=jobid */
 static int cpu_bind_disabled;
+static int cpu_bind_defrag_disabled;
 static int cpu_to_group[MAX_OS_CPU];  /* cpu→group 索引表 */
 vec_t cpu_allocs;                    /* 活跃 alloc 列表（供 defrag） */
 
@@ -230,6 +231,7 @@ static void cross_node_merge(int N, struct CpuAlloc *alloc)
 void cpu_bind_init(void)
 {
     cpu_bind_disabled = 0;
+    cpu_bind_defrag_disabled = 0;
     vec_init(&cpu_allocs);
 
     for (int i = 0; i < MAX_OS_CPU; i++) {
@@ -261,6 +263,16 @@ int cpu_bind_enabled(void)
 void cpu_bind_set_disabled(int disabled)
 {
     cpu_bind_disabled = disabled;
+}
+
+int cpu_bind_defrag_enabled(void)
+{
+    return !cpu_bind_defrag_disabled;
+}
+
+void cpu_bind_set_defrag_disabled(int disabled)
+{
+    cpu_bind_defrag_disabled = disabled;
 }
 
 void cpu_bind_alloc(struct CpuAlloc *alloc, int N)

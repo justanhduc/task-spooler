@@ -191,6 +191,7 @@ static struct option longOptions[] = {
     {"stime", required_argument, NULL, 0},
     {"check-daemon", no_argument, NULL, 0},
     {"no-bind", no_argument, NULL, 0},
+    {"no-bind-defrag", no_argument, NULL, 0},
     {"wtime", required_argument, NULL, 0},
     {"find-by-pid", required_argument, NULL, 0},
     {"at", required_argument, NULL, 0},
@@ -288,6 +289,8 @@ void parse_opts(int argc, char **argv) {
         command_line.on_finish_cmd = optarg;
       } else if (strcmp(longOptions[optionIdx].name, "no-bind") == 0) {
         command_line.no_cpu_binding = 1;
+      } else if (strcmp(longOptions[optionIdx].name, "no-bind-defrag") == 0) {
+        command_line.no_bind_defrag = 1;
       } else {
         error("Error: invalid option %s", longOptions[optionIdx].name);
       }
@@ -649,6 +652,7 @@ static void print_help(const char *cmd) {
   printf("                              {label} {command} {realtime} {slots}\n");
   printf("  --at [time]                 Schedule: +5m, 14:00, 2025-06-01T14:00\n");
   printf("  --no-bind                   Disable CPU binding\n");
+  printf("  --no-bind-defrag            Disable CPU defrag (server start)\n");
   printf("  --add-wtime [time]          Increase job wall time (root only)\n");
   printf("  --job, -J [id]              Specify job ID for command\n");
   printf("  --daemon                    Run as daemon (root only)\n");

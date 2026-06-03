@@ -289,6 +289,8 @@ void server_main(int notify_fd, char *_path) {
   /* --no-bind 服务器级关闭 */
   if (command_line.no_cpu_binding)
       cpu_bind_set_disabled(1);
+  if (command_line.no_bind_defrag)
+      cpu_bind_set_defrag_disabled(1);
   /* 若 max_slots 超过可绑核总数，降低到可用值 */
   if (cpu_bind_enabled()) {
       int total_cpus = 0;
