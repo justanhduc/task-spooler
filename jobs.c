@@ -958,7 +958,8 @@ static void new_finished_job(struct Job *j) {
             cpu_bind_free((struct CpuAlloc *)j->cpu_alloc);
             j->cpu_alloc = NULL;
         }
-        cpu_bind_defrag();
+        /* cpu_bind_defrag() disabled — mpirun jobs may spin on cpuset change.
+         * Code kept in cpu_bind.c for future re-evaluation. */
 #endif
     }
 }
@@ -1282,7 +1283,7 @@ int s_remove_job(int s, int *jobid, struct User *client) {
                 cpu_bind_free((struct CpuAlloc *)p->cpu_alloc);
                 p->cpu_alloc = NULL;
             }
-            cpu_bind_defrag();
+            /* cpu_bind_defrag() disabled — see new_finished_job for details. */
 #endif
             new_finished_job(p);
         } else {
