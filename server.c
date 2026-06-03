@@ -310,7 +310,15 @@ void server_main(int notify_fd, char *_path) {
   }
   init_jobs();
   jobsort_flag = get_env("TS_SORTJOBS", 0);
-  s_set_jobids(get_env("TS_FIRST_JOBID", get_jobids_DB()));
+
+  /* Try to get stored counter from Global table */
+  int stored = get_jobids_DB();
+  if (stored > 0) {
+      jobids = stored;
+  } else {
+      s_init_jobids(get_env("TS_FIRST_JOBID", 1000));
+  }
+
   s_read_sqlite();
 #ifdef TS_CPU_BIND
   cgroups_restore_all_cpu_bind();

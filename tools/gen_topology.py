@@ -399,16 +399,13 @@ def main():
     if best is None:
         best = generated[0]
 
-    # Show best recommendation
+    # Summary of all generated files, with recommendation
     if requested is None:
-        print(f"\n  Best: {best} — copy it to topology.h:")
-    print(f"  cp topology_{best}{suffix}.h topology.h")
-
-    # Summary of all generated files
-    if requested is None:
-        print(f"\n  All generated ({len(generated)} files):")
+        print(f"\n  Generated {len(generated)} topology headers:")
         for s in generated:
-            print(f"    topology_{s}{suffix}.h")
+            tag = "  <-- recommended" if s == best else ""
+            print(f"    topology_{s}{suffix}.h{tag}")
+        print(f"\n  Use:  cp topology_{best}{suffix}.h topology.h")
 
 
 if __name__ == "__main__":

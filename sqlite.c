@@ -184,12 +184,12 @@ int open_sqlite() {
   sql =
       "CREATE TABLE IF NOT EXISTS Global("
       "id INT PRIMARY KEY NOT NULL,"
-      "JOBIDs INT NOT NULL); INSERT INTO Global (id, JOBIDs) VALUES (1, 1000);";
+      "JOBIDs INT NOT NULL); INSERT OR IGNORE INTO Global (id, JOBIDs) VALUES (1, 1000);";
   rc = sqlite3_exec(db, sql, 0, 0, &zErrMsg);
   if (rc != SQLITE_OK) {
     printf("[open_sqlite2] SQL error: %s\n", zErrMsg);
     sqlite3_free(zErrMsg);
-    // error_flag--;
+    error_flag--;
   }
   return error_flag;
 }
@@ -229,25 +229,71 @@ int update_field_int64(const char *tableName, int jobid, const char *columnName,
 
 int get_jobids_DB() {
   char *err_msg = 0;
-  char *sql = "SELECT JOBIDs FROM Global WHERE id=1;";
+  char *local_sql = "SELECT JOBIDs FROM Global WHERE id=1;";
   int value = 0;
-  int rc = sqlite3_exec(db, sql, callback, &value, &err_msg);
+  int rc = sqlite3_exec(db, local_sql, callback, &value, &err_msg);
   if (rc != SQLITE_OK) {
     fprintf(stderr, "[get_jobids_DB] SQL error: %s\n", err_msg);
     sqlite3_free(err_msg);
-    return 1000; // default value
+    return -1;
   }
   return value;
 }
 
-// return error code
+/* Startup-only: validate seed value against existing Jobs/Finished tables,
+ * bump if needed to prevent duplicates, then write Global.
+ * If value <= 0, no valid seed — derive from existing data or default 1000. */
+int init_jobids_DB(int value) {
+  if (!db) {
+    fprintf(stderr, "[init_jobids_DB] db is NULL\n");
+    return -1;
+  }
+
+  int max_id = 0;
+  char *err_msg = 0;
+
+  snprintf(sql, sizeof(sql), "SELECT MAX(jobid) FROM Jobs;");
+  int rc = sqlite3_exec(db, sql, callback, &max_id, &err_msg);
+  if (rc != SQLITE_OK) { sqlite3_free(err_msg); err_msg = 0; }
+
+  snprintf(sql, sizeof(sql), "SELECT MAX(jobid) FROM Finished;");
+  rc = sqlite3_exec(db, sql, callback, &max_id, &err_msg);
+  if (rc != SQLITE_OK) { sqlite3_free(err_msg); err_msg = 0; }
+
+  if (value <= 0) {
+    value = max_id > 0 ? max_id + 1 : 1000;
+    printf("[init_jobids_DB] no valid seed — using %d\n", value);
+  } else if (value <= max_id) {
+    printf("[init_jobids_DB] bump %d → %d (existing max)\n",
+            value, max_id + 1);
+    value = max_id + 1;
+  }
+
+  snprintf(sql, sizeof(sql), "INSERT OR REPLACE INTO Global (id, JOBIDs) VALUES (1, %d);",
+          value);
+  rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
+  if (rc != SQLITE_OK) {
+    fprintf(stderr, "[init_jobids_DB] SQL error (rc=%d): %s\n",
+            rc, err_msg ? err_msg : "(no message)");
+    sqlite3_free(err_msg);
+    return -1;
+  }
+  return value;
+}
+
+/* Write value to Global without validation (normal operation). */
 int set_jobids_DB(int value) {
+  if (!db) {
+    fprintf(stderr, "[set_jobids_DB] db is NULL\n");
+    return -1;
+  }
   char *err_msg = 0;
   snprintf(sql, sizeof(sql), "INSERT OR REPLACE INTO Global (id, JOBIDs) VALUES (1, %d);",
           value);
   int rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
   if (rc != SQLITE_OK) {
-    fprintf(stderr, "[set_jobids_DB] SQL error: %s\n", err_msg);
+    fprintf(stderr, "[set_jobids_DB] SQL error (rc=%d): %s\n",
+            rc, err_msg ? err_msg : "(no message)");
     sqlite3_free(err_msg);
     return -1;
   }

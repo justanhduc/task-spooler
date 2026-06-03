@@ -21,6 +21,7 @@ int read_jobid_DB(int **jobids, const char *table);
 int delete_DB(int jobid, const char *table);
 int movetop_DB(int jobid);
 int swap_DB(int jobid0, int jobid1);
+int init_jobids_DB(int value);
 int set_jobids_DB(int value);
 int get_jobids_DB(void);
 int set_state_DB(int jobid, int state);

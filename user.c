@@ -137,14 +137,14 @@ void read_user_file(const char *path) {
         s_set_max_slots(0, slots);
         continue;
       }
-    } else if (strncmp("TS_FIRST_JOBID", line, 14) == 0) {
+    } /* else if (strncmp("TS_FIRST_JOBID", line, 14) == 0) {
       int res = sscanf(line, "TS_FIRST_JOBID = %d", &slots);
       if (res == 1 && slots > 0) {
         printf("TS_FIRST_JOBID = %d\n", slots);
         s_set_jobids(slots);
         continue;
       }
-    }
+    } */
     int res = sscanf(line, "%255s %d", name, &slots);
     if (res != 2) {
       printf("error in read %s at line %s", path, line);

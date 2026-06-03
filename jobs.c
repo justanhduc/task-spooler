@@ -49,7 +49,7 @@ time_t locker_time;
 /* Globals — dynamic arrays replacing linked lists */
 vec_t active_jobs;    /* QUEUED, RUNNING, PAUSE, etc. */
 vec_t finished_jobs;  /* FINISHED, SKIPPED */
-static int jobids = 1000;
+int jobids = 1000;
 /* This is used for dependencies from jobs
  * already out of the queue */
 static int last_errorlevel = 0; /* Before the first job, let's consider
@@ -94,6 +94,13 @@ int find_finished_idx(int jobid) {
 
 void notify_errorlevel(struct Job *p);
 
+/* Startup init: validate against existing tables, write, set memory. */
+void s_init_jobids(int i) {
+    int actual = init_jobids_DB(i);
+    jobids = (actual > 0) ? actual : ((i > 0) ? i : 1000);
+}
+
+/* Runtime: set jobid from client (e.g. ts -S), simple write. */
 void s_set_jobids(int i) {
     jobids = i;
     set_jobids_DB(i);
@@ -1067,7 +1074,6 @@ void s_read_sqlite() {
         }
     }
     free(jobs_DB);
-    set_jobids_DB(jobids);
 }
 
 void s_clear_finished(struct User *user) {

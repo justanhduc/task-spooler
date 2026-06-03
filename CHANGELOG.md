@@ -2,6 +2,19 @@
 
 All notable changes to task-spooler-PLUS.
 
+## [v2.6.3] — 2026-Q2
+
+### Changed
+- **Jobid init refactored** — robust startup with duplicate prevention
+  - `init_jobids_DB()`: validates seed against existing Jobs/Finished tables, bumps if needed
+  - `get_jobids_DB()` → valid (>0) → use directly; invalid → full scan + fallback to `TS_FIRST_JOBID` / 1000
+  - `set_jobids_DB()`: lightweight runtime write (no scan)
+  - `Global` table `INSERT OR IGNORE` to avoid UNIQUE constraint on restart
+  - `[set_jobids_DB]` error output now includes return code
+
+### Fixed
+- `gen_topology.py`: summary shows recommended strategy alongside generated files
+
 ## [v2.6.2] — 2026-Q2
 
 ### Changed
