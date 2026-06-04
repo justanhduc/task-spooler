@@ -2,10 +2,18 @@
 
 All notable changes to task-spooler-PLUS.
 
+## [v2.6.5] — 2026-Q2
+
+### Added
+- **`--n-retry N`** — retry failed jobs up to N times inside `run_child` if the command exits with error within 15 seconds (exec failures 126/127 excluded)
+
+### Fixed
+- **`ts -A` crash** — `s_list` with NULL user now correctly shows all users' jobs instead of crashing in `s_user_status`
+
 ## [v2.6.4] — 2026-Q2
 
 ### Changed
-- **`cpu_bind_defrag()` re-enabled** — auto-defrag after each job finishes, with `--no-bind-defrag` server flag to disable (root only, for MPI workloads)
+- **`cpu_bind_defrag()` re-enabled`** — auto-defrag after each job finishes, with `--no-bind-defrag` server flag to disable (root only, for MPI workloads)
 
 ## [v2.6.3] — 2026-Q2
 

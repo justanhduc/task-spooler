@@ -398,11 +398,43 @@ static void run_child(int fd_send_filename, const char *tmpdir, int jobid) {
        kill -- -`ts -p` */
   setsid();
 
-  pid_t pid = getpid();
-  while(cgroups_freeze_ok(jobid, pid) != 1) {
+  pid_t my_pid = getpid();
+  while(cgroups_freeze_ok(jobid, my_pid) != 1) {
     usleep(30000);
   }
-  execvp(command_line.command.array[0], command_line.command.array);
+
+  int max_retries = command_line.n_retry;
+  for (int attempt = 0; attempt <= max_retries; attempt++) {
+    time_t t_start = get_monotonic_sec();
+    pid_t child = fork();
+    if (child == 0) {
+      execvp(command_line.command.array[0], command_line.command.array);
+      _exit(127);
+    }
+    if (child == -1) {
+      _exit(EXIT_FAILURE);
+    }
+
+    int status;
+    waitpid(child, &status, 0);
+    time_t elapsed = get_monotonic_sec() - t_start;
+
+    if (WIFEXITED(status)) {
+      int code = WEXITSTATUS(status);
+      if (code != 0 && code != 126 && code != 127
+          && elapsed <= 15 && attempt < max_retries)
+        continue;
+      _exit(code);
+    }
+    if (WIFSIGNALED(status)) {
+      int sig = WTERMSIG(status);
+      signal(sig, SIG_DFL);
+      raise(sig);
+      _exit(128 + sig);
+    }
+    _exit(EXIT_FAILURE);
+  }
+  _exit(EXIT_FAILURE); /* unreachable */
 }
 
 int run_job(int jobid, struct Result *res) {
