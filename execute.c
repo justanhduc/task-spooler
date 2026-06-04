@@ -422,8 +422,10 @@ static void run_child(int fd_send_filename, const char *tmpdir, int jobid) {
     if (WIFEXITED(status)) {
       int code = WEXITSTATUS(status);
       if (code != 0 && code != 126 && code != 127
-          && elapsed <= 15 && attempt < max_retries)
+          && elapsed <= 15 && attempt < max_retries) {
+        sleep(10);
         continue;
+      }
       _exit(code);
     }
     if (WIFSIGNALED(status)) {
