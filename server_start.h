@@ -12,5 +12,6 @@ void wait_server_up(int fd);
 int ensure_server_up(int daemonFlag);
 void notify_parent(int fd);
 void create_socket_path(char **path);
+int ensure_single_instance_kill(int grace_seconds);
 
 #endif /* SERVER_START_H */

@@ -13,6 +13,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#ifdef TS_CPU_BIND
+#include "cpu_bind.h"
+#endif
 
 /* ---- path constants ---- */
 
@@ -652,6 +655,9 @@ int cgroups_is_frozen(const struct Job *p) {
 }
 
 int cgroups_freeze_job(const struct Job *p) {
+#ifdef TS_CPU_BIND
+    cgroup_io_wait_if_busy();
+#endif
 #ifdef CGROUP_V2
     return cgroups_v2_freeze(p->jobid, p->pid);
 #else
@@ -665,6 +671,9 @@ int cgroups_freeze_job(const struct Job *p) {
 }
 
 int cgroups_thaw_job(const struct Job *p) {
+#ifdef TS_CPU_BIND
+    cgroup_io_wait_if_busy();
+#endif
 #ifdef CGROUP_V2
     int ret = cgroups_v2_thaw(p->jobid, p->pid);
 #else
@@ -743,10 +752,10 @@ int cgroups_freeze_ok(int jobid, pid_t pid) {
  *  v2: /sys/fs/cgroup/TASK_SPOOLER_<jobid>_<pid>/cpuset.cpus (统一层级)
  * ================================================================ */
 #ifdef TS_CPU_BIND
-#include "cpu_bind.h"
-
 void cgroups_set_cpuset(int jobid, pid_t pid, const void *valloc)
 {
+    cgroup_io_wait_if_busy();
+
     const struct CpuAlloc *alloc = (const struct CpuAlloc *)valloc;
     char *cpus_str = cpu_bind_format_cpus(alloc);
     char *mems_str = cpu_bind_format_mems(alloc);

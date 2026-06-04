@@ -21,6 +21,7 @@ enum Request {
   c_LIST,
   c_LIST_ALL,
   c_DAEMON,
+  c_ONLY_DAEMON,
   c_CHECK_DAEMON,
   c_REFRESH_USER,
   c_SUSPEND_USER,
@@ -96,6 +97,7 @@ struct CommandLine {
   int require_elevel;
   int no_cpu_binding;
   int no_bind_defrag;
+  int only_daemon;
   int n_retry;
   time_t start_time;
   int64_t wall_time;

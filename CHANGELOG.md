@@ -2,15 +2,12 @@
 
 All notable changes to task-spooler-PLUS.
 
-## [v2.6.6] — 2026-Q2
+## [v2.6.7] — 2026-Q2
 
 ### Changed
-- **Async CPU binding defrag** — `cpu_bind_defrag()` moved to a detached pthread so the server `select()` loop stays responsive during cgroup I/O.
-  - Main thread sorts allocs and builds job pointer array (`findjob()`) before spawning the defrag thread — eliminates `active_jobs` race between server and defrag threads.
-  - During defrag, CPU bind allocation/free and job pause/resume are gated; new jobs dispatch without binding, freed allocs are deferred via retrigger flag.
-  - Synchronization: `defrag_in_progress` flag + `defrag_mutex`; server never blocks on the mutex.
-- **Documentation**: `--no-bind` / `--bind-on` / `--bind-off` / `--no-bind-defrag` added to help output and README
-- **Build**: `make TS_CPU_BIND=1` now links `-lpthread`; `make` (without TS_CPU_BIND) builds unchanged with no pthread dependency.
+- **Async CPU bind defrag: self-contained I/O thread** — the defrag thread receives a complete copy of all needed data (jobid, pid, state, is_sleep, pre-formatted cpuset/mems strings) instead of referencing main-thread `struct Job*` or `struct CpuAlloc*` pointers. The thread does all cgroup I/O via raw `open/write/close` — never calls public cgroup functions. This eliminates any possible data race between the main thread and the I/O thread.
+- **Wait, don't bail** — `cpu_bind_defrag_start()` now calls `cgroup_io_wait_if_busy()` before spawning a new defrag thread, so concurrent defrag requests block briefly instead of being dropped. All gating checks (`cpu_bind_alloc_is_locked`, retrigger flags) removed from jobs.c, server_user.c, and server.c — operations are unconditional, with wait inside cgroup I/O functions.
+- **Removed `in_defrag_io_thread` TLS flag** — no longer needed since the defrag thread never enters the public cgroup functions.
 
 ## [v2.6.5] — 2026-Q2
 

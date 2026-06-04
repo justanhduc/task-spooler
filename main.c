@@ -82,6 +82,7 @@ static void default_command_line() {
   command_line.schedule_time = 0;
   command_line.jobid = 0;
   command_line.list_format = DEFAULT;
+  command_line.only_daemon = 0;
 }
 
 struct Msg default_msg() {
@@ -187,6 +188,7 @@ static struct option longOptions[] = {
     {"lock-ts", no_argument, NULL, 0},
     {"unlock-ts", no_argument, NULL, 0},
     {"daemon", no_argument, NULL, 0},
+    {"only-daemon", no_argument, NULL, 0},
     {"tmp", no_argument, NULL, 0},
     {"jobid", required_argument, NULL, 'J'},
     {"stime", required_argument, NULL, 0},
@@ -221,6 +223,9 @@ void parse_opts(int argc, char **argv) {
         command_line.request = c_GET_LOGDIR;
       } else if (strcmp(longOptions[optionIdx].name, "daemon") == 0) {
         command_line.request = c_DAEMON;
+      } else if (strcmp(longOptions[optionIdx].name, "only-daemon") == 0) {
+        command_line.request = c_ONLY_DAEMON;
+        command_line.only_daemon = 1;
       } else if (strcmp(longOptions[optionIdx].name, "tmp") == 0) {
         command_line.outfile = get_tmp();
       } else if (strcmp(longOptions[optionIdx].name, "check-daemon") == 0) {
@@ -663,6 +668,7 @@ static void print_help(const char *cmd) {
   printf("  --add-wtime [time]          Increase job wall time (root only)\n");
   printf("  --job, -J [id]              Specify job ID for command\n");
   printf("  --daemon                    Run as daemon (root only)\n");
+  printf("  --only-daemon               Run as sole daemon, kill competing root instances (root only)\n");
 
   printf("\nActions:\n");
   printf("  -A              List all users' jobs\n");
@@ -747,7 +753,8 @@ int main(int argc, char **argv) {
   }
 
   if (command_line.need_server) {
-    if (command_line.request == c_DAEMON) {
+    if (command_line.request == c_DAEMON
+        || command_line.request == c_ONLY_DAEMON) {
       ensure_server_up(1);
     } else {
       ensure_server_up(0);
@@ -765,6 +772,8 @@ int main(int argc, char **argv) {
     }
     break;
   case c_DAEMON:
+    break;
+  case c_ONLY_DAEMON:
     break;
   case c_CHECK_DAEMON:
     break;

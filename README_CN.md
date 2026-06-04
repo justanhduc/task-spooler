@@ -40,7 +40,7 @@ Task Spooler PLUS 从 [Lluís Batlle i Rossell 的 Task Spooler](https://vicerve
 
 - **cgroups v1/v2 全支持**：CPU 配额限制、freezer 暂停/恢复、cpuset NUMA 绑定，编译时一键切换
 - **SQLite3 崩溃恢复**：任务、状态、耗时全部持久化，重启不掉任何数据
-- **NUMA 感知的 CPU 绑定分配器**：拓扑自动探测、best-fit 选组、后台线程异步碎片整理且不破坏 NUMA 亲和性
+- **NUMA 感知的 CPU 绑定分配器**：拓扑自动探测、best-fit 选组、自动碎片整理且不破坏 NUMA 亲和性
 - **动态用户管理**：`vec_t` 承载 `struct User`，配置文件热加载，支持单用户一键暂停/恢复
 - **超时自动处理**：超时任务自动暂停，加时后重新入队，不丢不挂
 - **客户端自动重连**：服务端重启后客户端自动接上，运行中的任务不受影响
@@ -63,7 +63,7 @@ Task Spooler PLUS 从 [Lluís Batlle i Rossell 的 Task Spooler](https://vicerve
 - **PID 反查**（`--find-by-pid`）：给定一个 PID，查出它属于哪个任务（含子进程）
 - **定时执行**（`--at`）：支持 `+5m`、`14:00`、`2025-06-01T14:00` 等格式
 - **任务回调**（`--on-finish`）：任务完成后自动执行命令，通过占位符拿任务信息
-- **CPU 绑定**（`TS_CPU_BIND`）：NUMA 感知的拓扑分配 + cgroups cpuset，支持 HT 排除，后台线程异步碎片整理
+- **CPU 绑定**（`TS_CPU_BIND`）：NUMA 感知的拓扑分配 + cgroups cpuset，支持 HT 排除
 
 ## 工具
 
@@ -193,7 +193,7 @@ mount | grep cgroup
 跑 `ts -h` 看完整帮助。
 
 ```
-Task Spooler PLUS 2.6.1 - 多用户任务调度器，类似 Slurm
+Task Spooler PLUS 2.6.7 - 多用户任务调度器，类似 Slurm
 Copyright (C) 2007-2026  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell
 
 环境变量：

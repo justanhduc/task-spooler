@@ -235,6 +235,113 @@ static int ensure_single_instance(void) {
   return 0;
 }
 
+static time_t get_process_uptime(pid_t pid) {
+  char path[64];
+  snprintf(path, sizeof(path), "/proc/%d/stat", pid);
+  FILE *fp = fopen(path, "r");
+  if (!fp) return -1;
+
+  char buf[1024];
+  if (!fgets(buf, sizeof(buf), fp)) {
+    fclose(fp);
+    return -1;
+  }
+  fclose(fp);
+
+  /* Find closing ')' of the comm field (field 2) */
+  char *ptr = strrchr(buf, ')');
+  if (!ptr) return -1;
+  ptr += 2; /* Skip ") " to reach field 3 (state) */
+
+  /* Skip fields 3-21 (19 fields) to reach starttime (field 22) */
+  int i;
+  for (i = 0; i < 19; i++) {
+    ptr = strchr(ptr, ' ');
+    if (!ptr) return -1;
+    ptr++;
+  }
+
+  /* Read starttime (clock ticks since boot) */
+  unsigned long long starttime;
+  if (sscanf(ptr, "%llu", &starttime) != 1) return -1;
+
+  /* Read system uptime from /proc/uptime */
+  FILE *ufp = fopen("/proc/uptime", "r");
+  if (!ufp) return -1;
+  double uptime_secs;
+  if (fscanf(ufp, "%lf", &uptime_secs) != 1) {
+    fclose(ufp);
+    return -1;
+  }
+  fclose(ufp);
+
+  long ticks_per_sec = sysconf(_SC_CLK_TCK);
+  if (ticks_per_sec <= 0) return -1;
+
+  double process_start_secs = (double)starttime / ticks_per_sec;
+  double process_uptime = uptime_secs - process_start_secs;
+  if (process_uptime < 0) return 0; /* safety clamp */
+
+  return (time_t)process_uptime;
+}
+
+int ensure_single_instance_kill(int grace_seconds) {
+  char my_exe[512];
+  ssize_t len;
+  int killed = 0;
+
+  len = readlink("/proc/self/exe", my_exe, sizeof(my_exe) - 1);
+  if (len <= 0) return 0;
+  my_exe[len] = '\0';
+
+  DIR *dir = opendir("/proc");
+  if (!dir) return 0;
+
+  struct dirent *ent;
+  while ((ent = readdir(dir)) != NULL) {
+    if (ent->d_name[0] < '0' || ent->d_name[0] > '9') continue;
+    pid_t pid = (pid_t)atoi(ent->d_name);
+    if (pid == getpid()) continue;
+
+    char path_buf[512], link_buf[512];
+    snprintf(path_buf, sizeof(path_buf), "/proc/%d/exe", pid);
+    len = readlink(path_buf, link_buf, sizeof(link_buf) - 1);
+    if (len <= 0) continue;
+    link_buf[len] = '\0';
+
+    if (strcmp(my_exe, link_buf) != 0) continue;
+
+    /* Check if process runs as root */
+    snprintf(path_buf, sizeof(path_buf), "/proc/%d/status", pid);
+    FILE *fp = fopen(path_buf, "r");
+    if (!fp) continue;
+    char line[256];
+    int is_root = 0;
+    while (fgets(line, sizeof(line), fp)) {
+      if (strncmp(line, "Uid:", 4) == 0) {
+        int real_uid;
+        sscanf(line, "Uid:\t%d", &real_uid);
+        if (real_uid == 0) is_root = 1;
+        break;
+      }
+    }
+    fclose(fp);
+    if (!is_root) continue;
+
+    /* Check uptime and kill if older than grace period */
+    time_t uptime = get_process_uptime(pid);
+    if (uptime < 0) continue; /* skip if can't determine */
+    if (uptime > grace_seconds) {
+      printf("only-daemon: killing old root instance PID %d (uptime %lds)\n",
+             (int)pid, (long)uptime);
+      kill(-pid, SIGKILL);
+      killed++;
+    }
+  }
+  closedir(dir);
+  return killed;
+}
+
 int ensure_server_up(int daemonFlag) {
   int res;
   int notify_fd = -1;
@@ -269,10 +376,15 @@ int ensure_server_up(int daemonFlag) {
   /* Try starting the server */
   if (getuid() == root_UID) {
     if (daemonFlag) {
-      if (ensure_single_instance() != 0) {
-        error("Error: another task-spooler server instance is already running.");
+      if (command_line.only_daemon) {
+        printf("Start task-spooler server in only-daemon mode\n");
+        ensure_single_instance_kill(5);
+      } else {
+        if (ensure_single_instance() != 0) {
+          error("Error: another task-spooler server instance is already running.");
+        }
+        printf("Start task-spooler server as daemon\n");
       }
-      printf("Start task-spooler server as daemon\n");
       server_daemon();
     } else {
       printf("start task-spooler server\n");

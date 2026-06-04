@@ -8,10 +8,17 @@
 #include "vec.h"
 #include "main.h"
 #include "cgroups.h"
-#include "server_user.h"
+#include "list.h"
 
 #ifdef TS_CPU_BIND
 #include <pthread.h>
+#include <time.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <stdarg.h>
+#include <signal.h>
 #endif
 
 /* 拓扑实例 — 由 gen_topology.py 生成 */
@@ -21,7 +28,6 @@ struct Topology sys_topology = TOPOLOGY_INIT;
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ================================================================
  *  内部变量
@@ -34,31 +40,9 @@ static int cpu_to_group[MAX_OS_CPU];  /* cpu→group 索引表 */
 vec_t cpu_allocs;                    /* 活跃 alloc 列表（供 defrag） */
 
 #ifdef TS_CPU_BIND
-static pthread_t      defrag_thread;
-static pthread_mutex_t defrag_mutex = PTHREAD_MUTEX_INITIALIZER;
-static int             defrag_in_progress;  /* set before mutex, cleared after */
-
-/* ---- deferred operations queue — push during defrag, drain after ---- */
-enum deferred_kind {
-    DEFER_PAUSE,       /* s_hold_job */
-    DEFER_CONTINUE,    /* s_cont_job */
-    DEFER_SUSPEND,     /* s_suspend_user */
-    DEFER_RESUME,      /* s_resume_user */
-    DEFER_BIND_FREE,   /* cpu_bind_free */
-    DEFER_BIND_ALLOC,  /* cpu_bind_alloc + cgroups_set_cpuset */
-};
-
-struct deferred_op {
-    enum deferred_kind kind;
-    int socket;
-    int jobid;
-    struct User *user;
-    struct CpuAlloc *alloc;    /* BIND_FREE */
-    int num_allocated;         /* BIND_ALLOC */
-    pid_t pid;                 /* BIND_ALLOC */
-};
-
-static vec_t deferred_ops;     /* struct deferred_op* */
+static pthread_mutex_t cgroup_io_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t  cgroup_io_cond  = PTHREAD_COND_INITIALIZER;
+static int             cgroup_io_busy;
 #endif
 
 /* ================================================================
@@ -402,14 +386,47 @@ static int alloc_defrag_cmp(const void *a, const void *b)
 }
 
 #ifdef TS_CPU_BIND
-/* ---- defrag work struct: pre-computed by main thread, consumed by worker ---- */
+/* ---- sync defrag work (cpu_bind_defrag_run uses main-thread globals) ---- */
 struct defrag_work {
     int n;                    /* first quality>0 alloc index */
     int count;                /* total alloc count (== vec_size(&cpu_allocs)) */
     struct Job **jobs;        /* pre-computed job pointers (size count) */
 };
 
-/* ---- thread-side defrag: freeze → rebuild → realloc → cpuset → thaw ---- */
+/* ---- async I/O work: self-contained copy, no main-thread pointers ---- */
+struct defrag_io_job {
+    int    jobid;
+    pid_t  pid;
+    int    state;          /* RUNNING or PAUSE */
+    int    is_sleep;       /* v1: need SIGCONT before freeze if !sleep */
+    char  *cpus_str;       /* pre-formatted cpuset.cpus */
+    char  *mems_str;       /* pre-formatted cpuset.mems */
+};
+
+struct defrag_io_work {
+    int count;
+    struct defrag_io_job *jobs;   /* self-contained array */
+};
+
+/* ---- cgroup I/O wait: blocks main thread until defrag I/O finishes ---- */
+void cgroup_io_wait_if_busy(void)
+{
+    pthread_mutex_lock(&cgroup_io_mutex);
+    while (cgroup_io_busy) {
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ts.tv_sec += 30;
+        int rc = pthread_cond_timedwait(&cgroup_io_cond, &cgroup_io_mutex, &ts);
+        if (rc == ETIMEDOUT) {
+            fprintf(stderr, "WARNING: defrag I/O thread stalled 30s, clearing lock\n");
+            cgroup_io_busy = 0;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&cgroup_io_mutex);
+}
+
+/* ---- sync defrag: freeze → rebuild → realloc → cpuset → thaw (all inline) ---- */
 static void cpu_bind_defrag_run(struct defrag_work *work)
 {
     int n = work->n;
@@ -418,20 +435,19 @@ static void cpu_bind_defrag_run(struct defrag_work *work)
     struct CpuAlloc **allocs = (struct CpuAlloc **)cpu_allocs.data;
     int *skipped = (int *)calloc((size_t)count, sizeof(int));
 
-    /* no quality>0 entries → early return (shouldn't happen, _start guards this) */
     if (n >= count) {
         free(skipped);
         return;
     }
 
-    /* ---- 第一步：暂停所有 quality>0 的 job ---- */
+    /* step 1: freeze quality>0 jobs */
     for (int i = n; i < count; i++) {
         struct Job *p = jobs[i];
         if (p && p->pid > 0 && (p->state == RUNNING || p->state == PAUSE))
             cgroups_freeze_job(p);
     }
 
-    /* ---- 第二步：重建分配状态 ---- */
+    /* step 2: rebuild allocation state */
     memset(cpu_owner, 0, sizeof(cpu_owner));
     for (int i = 0; i < sys_topology.num_groups; i++)
         sys_topology.groups[i].free_count = sys_topology.groups[i].num_cores;
@@ -439,7 +455,7 @@ static void cpu_bind_defrag_run(struct defrag_work *work)
     for (int i = 0; i < sys_topology.num_nodes; i++)
         sys_topology.nodes[i].free_count = sys_topology.nodes[i].num_cores;
 
-    /* 恢复 quality=0 的 allocs（直接写回 cpu_owner） */
+    /* restore quality=0 allocs */
     for (int i = 0; i < n; i++) {
         struct CpuAlloc *a = allocs[i];
         for (int j = 0; j < a->count; j++) {
@@ -451,7 +467,7 @@ static void cpu_bind_defrag_run(struct defrag_work *work)
         }
     }
 
-    /* ---- 第三步：优先在原节点上重分配 ---- */
+    /* step 3: same-node reallocation */
     for (int i = n; i < count; i++) {
         struct CpuAlloc *a = allocs[i];
         int N = a->count;
@@ -474,7 +490,7 @@ static void cpu_bind_defrag_run(struct defrag_work *work)
         }
     }
 
-    /* ---- 第四步：剩余 job 跨节点合并 ---- */
+    /* step 4: cross-node merge for remaining */
     for (int i = n; i < count; i++) {
         if (skipped[i]) {
             struct CpuAlloc *a = allocs[i];
@@ -497,16 +513,209 @@ static void cpu_bind_defrag_run(struct defrag_work *work)
     free(skipped);
 }
 
-/* ---- thread worker: holds mutex, calls run, cleans up ---- */
-static void *cpu_bind_defrag_thread(void *arg)
+/* ---- helpers for raw cgroup writes used by the I/O thread ---- */
+
+static void io_cg_group_name(int jobid, pid_t pid, char *buf, size_t size)
 {
-    struct defrag_work *work = (struct defrag_work *)arg;
+    snprintf(buf, size, "TASK_SPOOLER_%d_%d", jobid, pid);
+}
 
-    pthread_mutex_lock(&defrag_mutex);
-    cpu_bind_defrag_run(work);
-    pthread_mutex_unlock(&defrag_mutex);
+static int io_cg_write(const char *path, const char *fmt, ...)
+{
+    char buf[256];
+    va_list ap;
+    va_start(ap, fmt);
+    int len = vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    if (len < 0) return -1;
 
-    defrag_in_progress = 0;
+    int fd = open(path, O_WRONLY);
+    if (fd < 0) return -1;
+    ssize_t ret = write(fd, buf, len);
+    close(fd);
+    return (ret == len) ? 0 : -1;
+}
+
+#ifdef CGROUP_V2
+static int io_freeze_v2(int jobid, pid_t pid)
+{
+    char path[512], group[64];
+    io_cg_group_name(jobid, pid, group, sizeof(group));
+    snprintf(path, sizeof(path), "/sys/fs/cgroup/%s/cgroup.freeze", group);
+    if (io_cg_write(path, "1") != 0) return -1;
+
+    /* wait for frozen */
+    char events[512];
+    snprintf(events, sizeof(events), "/sys/fs/cgroup/%s/cgroup.events", group);
+    for (int i = 0; i < 200; i++) {
+        FILE *fp = fopen(events, "r");
+        if (!fp) return -1;
+        char line[256];
+        int found = 0;
+        while (fgets(line, sizeof(line), fp)) {
+            if (strncmp(line, "frozen ", 7) == 0 && atoi(line + 7) == 1) {
+                found = 1; break;
+            }
+        }
+        fclose(fp);
+        if (found) return 0;
+        usleep(50000);
+    }
+    fprintf(stderr, "Timeout waiting for cgroup freeze on job %d, pid %d\n", jobid, pid);
+    return -1;
+}
+
+static int io_thaw_v2(int jobid, pid_t pid)
+{
+    char path[512], group[64];
+    io_cg_group_name(jobid, pid, group, sizeof(group));
+    snprintf(path, sizeof(path), "/sys/fs/cgroup/%s/cgroup.freeze", group);
+    io_cg_write(path, "0");
+
+    /* wait for thawed */
+    char events[512];
+    snprintf(events, sizeof(events), "/sys/fs/cgroup/%s/cgroup.events", group);
+    for (int i = 0; i < 200; i++) {
+        FILE *fp = fopen(events, "r");
+        if (!fp) return 0;
+        char line[256];
+        int thawed = 0;
+        while (fgets(line, sizeof(line), fp)) {
+            if (strncmp(line, "frozen ", 7) == 0 && atoi(line + 7) == 0) {
+                thawed = 1; break;
+            }
+        }
+        fclose(fp);
+        if (thawed) return 0;
+        usleep(50000);
+    }
+    fprintf(stderr, "Timeout waiting for cgroup thaw on job %d, pid %d\n", jobid, pid);
+    return -1;
+}
+#else /* CGROUP_V1 */
+static int io_freeze_v1(int jobid, pid_t pid, int is_sleep)
+{
+    if (!is_sleep) {
+        kill(pid, SIGCONT);
+        usleep(20000);
+    }
+    char path[512], group[64];
+    io_cg_group_name(jobid, pid, group, sizeof(group));
+    snprintf(path, sizeof(path), "/sys/fs/cgroup/freezer/%s/freezer.state", group);
+    return io_cg_write(path, "FROZEN");
+}
+
+static int io_thaw_v1(int jobid, pid_t pid)
+{
+    char path[512], group[64];
+    io_cg_group_name(jobid, pid, group, sizeof(group));
+    snprintf(path, sizeof(path), "/sys/fs/cgroup/freezer/%s/freezer.state", group);
+    int ret = io_cg_write(path, "THAWED");
+    kill(pid, SIGCONT);
+    return ret;
+}
+#endif /* CGROUP_V2 */
+
+static void io_write_cpuset(int jobid, pid_t pid, const char *cpus_str, const char *mems_str)
+{
+    char path[512], group[64];
+    io_cg_group_name(jobid, pid, group, sizeof(group));
+
+#ifdef CGROUP_V2
+    snprintf(path, sizeof(path), "/sys/fs/cgroup/%s", group);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "/sys/fs/cgroup/%s/cpuset.cpus", group);
+    {
+        int fd = open(path, O_WRONLY);
+        if (fd >= 0) { write(fd, cpus_str, strlen(cpus_str)); close(fd); }
+    }
+    if (mems_str && mems_str[0]) {
+        snprintf(path, sizeof(path), "/sys/fs/cgroup/%s/cpuset.mems", group);
+        int fd = open(path, O_WRONLY);
+        if (fd >= 0) { write(fd, mems_str, strlen(mems_str)); close(fd); }
+    }
+#else
+    snprintf(path, sizeof(path), "/sys/fs/cgroup/cpuset/%s", group);
+    mkdir(path, 0755);
+    snprintf(path, sizeof(path), "/sys/fs/cgroup/cpuset/%s/cpuset.cpus", group);
+    {
+        int fd = open(path, O_WRONLY);
+        if (fd >= 0) { write(fd, cpus_str, strlen(cpus_str)); close(fd); }
+    }
+    if (mems_str && mems_str[0]) {
+        snprintf(path, sizeof(path), "/sys/fs/cgroup/cpuset/%s/cpuset.mems", group);
+        int fd = open(path, O_WRONLY);
+        if (fd >= 0) { write(fd, mems_str, strlen(mems_str)); close(fd); }
+    }
+    snprintf(path, sizeof(path), "/sys/fs/cgroup/cpuset/%s/cgroup.procs", group);
+    {
+        char pbuf[32];
+        int len = snprintf(pbuf, sizeof(pbuf), "%d", (int)pid);
+        int fd = open(path, O_WRONLY);
+        if (fd >= 0) { write(fd, pbuf, len); close(fd); }
+    }
+#endif
+}
+
+/* ---- I/O-only thread: self-contained data, no main-thread refs ---- */
+static void *defrag_io_thread(void *arg)
+{
+    struct defrag_io_work *work = (struct defrag_io_work *)arg;
+    struct timespec t0, t1;
+
+    clock_gettime(CLOCK_MONOTONIC, &t0);
+    printf("[defrag I/O] start (jobs=%d)\n", work->count);
+
+    pthread_mutex_lock(&cgroup_io_mutex);
+    /* cgroup_io_busy is already 1 (set by main thread before spawn) */
+
+    /* Phase 1: freeze */
+    for (int i = 0; i < work->count; i++) {
+        struct defrag_io_job *e = &work->jobs[i];
+        if (e->pid > 0 && (e->state == RUNNING || e->state == PAUSE)) {
+#ifdef CGROUP_V2
+            io_freeze_v2(e->jobid, e->pid);
+#else
+            io_freeze_v1(e->jobid, e->pid, e->is_sleep);
+#endif
+        }
+    }
+
+    /* Phase 2: write cpusets */
+    for (int i = 0; i < work->count; i++) {
+        struct defrag_io_job *e = &work->jobs[i];
+        if (e->cpus_str)
+            io_write_cpuset(e->jobid, e->pid, e->cpus_str, e->mems_str);
+    }
+
+    /* Phase 3: thaw */
+    for (int i = 0; i < work->count; i++) {
+        struct defrag_io_job *e = &work->jobs[i];
+        if (e->pid > 0) {
+#ifdef CGROUP_V2
+            io_thaw_v2(e->jobid, e->pid);
+#else
+            io_thaw_v1(e->jobid, e->pid);
+#endif
+        }
+    }
+
+    cgroup_io_busy = 0;
+    pthread_cond_broadcast(&cgroup_io_cond);
+    pthread_mutex_unlock(&cgroup_io_mutex);
+
+    clock_gettime(CLOCK_MONOTONIC, &t1);
+    {
+        double elapsed = (t1.tv_sec - t0.tv_sec)
+                       + (t1.tv_nsec - t0.tv_nsec) / 1e9;
+        printf("[defrag I/O] done in %.3f s\n", elapsed);
+    }
+
+    /* cleanup: thread owns all data, frees everything */
+    for (int i = 0; i < work->count; i++) {
+        free(work->jobs[i].cpus_str);
+        free(work->jobs[i].mems_str);
+    }
     free(work->jobs);
     free(work);
     return NULL;
@@ -548,12 +757,11 @@ int cpu_bind_defrag(void)
 
 #ifdef TS_CPU_BIND
 /* ================================================================
- *  Async defrag thread API
+ *  Async defrag: computation in main thread, I/O in background thread
  * ================================================================ */
 
 int cpu_bind_defrag_start(void)
 {
-    if (defrag_in_progress) return 0;
     if (!cpu_bind_defrag_enabled()) return -1;
 
     int count = (int)vec_size(&cpu_allocs);
@@ -561,14 +769,17 @@ int cpu_bind_defrag_start(void)
 
     struct CpuAlloc **allocs = (struct CpuAlloc **)cpu_allocs.data;
 
+    /* ---- main thread: sort allocs ---- */
     qsort(allocs, (size_t)count, sizeof(struct CpuAlloc *), alloc_defrag_cmp);
 
+    /* ---- main thread: find split point ---- */
     int n = 0;
     while (n < count && allocs[n]->quality == 0)
         n++;
 
-    if (n >= count) return 0;
+    if (n >= count) return 0;  /* all quality=0, nothing to defrag */
 
+    /* ---- main thread: build jobs[] array (safe access to active_jobs) ---- */
     struct Job **jobs = (struct Job **)calloc((size_t)count, sizeof(struct Job *));
     if (!jobs) return -1;
 
@@ -578,171 +789,112 @@ int cpu_bind_defrag_start(void)
             jobs[i] = p;
     }
 
-    struct defrag_work *work = malloc(sizeof(struct defrag_work));
-    if (!work) { free(jobs); return -1; }
-    work->n = n;
-    work->count = count;
-    work->jobs = jobs;
+    /* ---- main thread: rebuild allocation state (computation only) ---- */
+    memset(cpu_owner, 0, sizeof(cpu_owner));
+    for (int i = 0; i < sys_topology.num_groups; i++)
+        sys_topology.groups[i].free_count = sys_topology.groups[i].num_cores;
+    for (int i = 0; i < sys_topology.num_nodes; i++)
+        sys_topology.nodes[i].free_count = sys_topology.nodes[i].num_cores;
 
-    defrag_in_progress = 1;
-    int rc = pthread_create(&defrag_thread, NULL, cpu_bind_defrag_thread, work);
+    /* restore quality=0 allocs */
+    for (int i = 0; i < n; i++) {
+        struct CpuAlloc *a = allocs[i];
+        for (int j = 0; j < a->count; j++) {
+            int cpu = a->os_cpus[j];
+            cpu_owner[cpu] = a->jobid;
+            int gi = cpu_to_group[cpu];
+            sys_topology.groups[gi].free_count--;
+            sys_topology.nodes[sys_topology.groups[gi].node_id].free_count--;
+        }
+    }
+
+    /* same-node reallocation for quality>0 */
+    int *skipped = (int *)calloc((size_t)count, sizeof(int));
+    for (int i = n; i < count; i++) {
+        struct CpuAlloc *a = allocs[i];
+        int N = a->count;
+        int pn = a->primary_node;
+        if (pn >= 0 && pn < sys_topology.num_nodes &&
+            sys_topology.nodes[pn].free_count >= N) {
+            a->count   = 0;
+            a->error   = 0;
+            a->quality = 0;
+            alloc_from_groups(N, sys_topology.nodes[pn].group_ids,
+                              sys_topology.nodes[pn].num_groups, a);
+            cpu_bind_post_alloc(a);
+        } else {
+            skipped[i] = 1;
+        }
+    }
+    /* cross-node merge for remaining */
+    for (int i = n; i < count; i++) {
+        if (skipped[i]) {
+            struct CpuAlloc *a = allocs[i];
+            int N = a->count;
+            int pn = a->primary_node;
+            int mn = a->mem_nodes;
+            a->count   = 0;
+            a->error   = 0;
+            a->quality = 0;
+            cross_node_merge(N, a);
+            a->primary_node = pn;
+            a->mem_nodes = mn;
+            cpu_bind_post_alloc(a);
+        }
+    }
+    free(skipped);
+
+    /* ---- main thread: build self-contained I/O work for thread ---- */
+    int n_io = 0;
+    for (int i = n; i < count; i++) {
+        if (jobs[i]) n_io++;
+    }
+
+    struct defrag_io_work *work = malloc(sizeof(struct defrag_io_work));
+    if (!work) { free(jobs); return -1; }
+    work->count = n_io;
+    work->jobs = NULL;
+
+    if (n_io > 0) {
+        work->jobs = calloc((size_t)n_io, sizeof(struct defrag_io_job));
+        if (!work->jobs) { free(jobs); free(work); return -1; }
+        int idx = 0;
+        for (int i = n; i < count; i++) {
+            if (!jobs[i]) continue;
+            struct defrag_io_job *e = &work->jobs[idx++];
+            e->jobid    = allocs[i]->jobid;
+            e->pid      = jobs[i]->pid;
+            e->state    = jobs[i]->state;
+            e->is_sleep = is_sleep(jobs[i]);
+            e->cpus_str = cpu_bind_format_cpus(allocs[i]);
+            e->mems_str = cpu_bind_format_mems(allocs[i]);
+        }
+    }
+    free(jobs);  /* all needed data copied, no more Job* refs */
+
+    /* wait for in-flight defrag I/O, then mark busy before spawn */
+    cgroup_io_wait_if_busy();
+    pthread_mutex_lock(&cgroup_io_mutex);
+    cgroup_io_busy = 1;
+    pthread_mutex_unlock(&cgroup_io_mutex);
+
+    pthread_t thr;
+    int rc = pthread_create(&thr, NULL, defrag_io_thread, work);
     if (rc != 0) {
-        defrag_in_progress = 0;
-        free(jobs);
+        pthread_mutex_lock(&cgroup_io_mutex);
+        cgroup_io_busy = 0;
+        pthread_cond_broadcast(&cgroup_io_cond);
+        pthread_mutex_unlock(&cgroup_io_mutex);
+        for (int i = 0; i < n_io; i++) {
+            free(work->jobs[i].cpus_str);
+            free(work->jobs[i].mems_str);
+        }
+        free(work->jobs);
         free(work);
         return -1;
     }
-    pthread_detach(defrag_thread);
+    pthread_detach(thr);
     return 0;
-}
-
-/* ---- deferred operations: push ---- */
-
-static void defer_push(struct deferred_op *op)
-{
-    vec_push(&deferred_ops, op);
-}
-
-void cpu_bind_defer_pause(int s, int jobid, struct User *u)
-{
-    struct deferred_op *op = calloc(1, sizeof(*op));
-    op->kind = DEFER_PAUSE;
-    op->socket = s;
-    op->jobid = jobid;
-    op->user = u;
-    defer_push(op);
-}
-
-void cpu_bind_defer_continue(int s, int jobid, struct User *u)
-{
-    struct deferred_op *op = calloc(1, sizeof(*op));
-    op->kind = DEFER_CONTINUE;
-    op->socket = s;
-    op->jobid = jobid;
-    op->user = u;
-    defer_push(op);
-}
-
-void cpu_bind_defer_suspend(int s, struct User *u)
-{
-    struct deferred_op *op = calloc(1, sizeof(*op));
-    op->kind = DEFER_SUSPEND;
-    op->socket = s;
-    op->jobid = 0;
-    op->user = u;
-    defer_push(op);
-}
-
-void cpu_bind_defer_resume(int s, struct User *u)
-{
-    struct deferred_op *op = calloc(1, sizeof(*op));
-    op->kind = DEFER_RESUME;
-    op->socket = s;
-    op->jobid = 0;
-    op->user = u;
-    defer_push(op);
-}
-
-void cpu_bind_defer_bind_free(int jobid, struct CpuAlloc *alloc)
-{
-    struct deferred_op *op = calloc(1, sizeof(*op));
-    op->kind = DEFER_BIND_FREE;
-    op->socket = -1;
-    op->jobid = jobid;
-    op->alloc = alloc;
-    defer_push(op);
-}
-
-void cpu_bind_defer_bind_alloc(int jobid, int num_allocated, int pid)
-{
-    struct deferred_op *op = calloc(1, sizeof(*op));
-    op->kind = DEFER_BIND_ALLOC;
-    op->socket = -1;
-    op->jobid = jobid;
-    op->num_allocated = num_allocated;
-    op->pid = (pid_t)pid;
-    defer_push(op);
-}
-
-/* ---- deferred operations: drain ---- */
-
-static void drain_one(struct deferred_op *op)
-{
-    switch (op->kind) {
-    case DEFER_PAUSE:
-        s_hold_job(op->socket, op->jobid, op->user);
-        break;
-    case DEFER_CONTINUE:
-        s_cont_job(op->socket, op->jobid, op->user);
-        break;
-    case DEFER_SUSPEND:
-        s_suspend_user(op->socket, op->user);
-        s_user_status(op->socket, op->user);
-        break;
-    case DEFER_RESUME:
-        s_resume_user(op->socket, op->user);
-        s_user_status(op->socket, op->user);
-        break;
-    case DEFER_BIND_FREE:
-        if (op->alloc)
-            cpu_bind_free(op->alloc);
-        return;  /* no socket to close */
-    case DEFER_BIND_ALLOC: {
-        struct Job *p = findjob(op->jobid);
-        if (p && p->pid > 0 && p->state == RUNNING && !p->cpu_alloc
-            && cpu_bind_enabled() && !p->no_cpu_binding
-            && op->num_allocated > 0) {
-            p->cpu_alloc = cpu_bind_alloc_init(op->jobid, op->num_allocated);
-            if (p->cpu_alloc) {
-                cpu_bind_alloc((struct CpuAlloc *)p->cpu_alloc,
-                               op->num_allocated);
-                cgroups_set_cpuset(op->jobid, p->pid, p->cpu_alloc);
-            }
-        }
-        return;  /* no socket to close */
-    }
-    }
-
-    /* Category-1 ops: close socket and let server loop detect the
-       disconnect (matches normal client_read path which always calls
-       close(s) + remove_connection(index) after these handlers). */
-    if (op->socket >= 0)
-        close(op->socket);
-}
-
-static void cpu_bind_drain_deferred(void)
-{
-    int need_defrag = 0;
-
-    while (vec_size(&deferred_ops) > 0) {
-        struct deferred_op *op = (struct deferred_op *)vec_get(&deferred_ops, 0);
-        vec_remove(&deferred_ops, 0);
-
-        if (op->kind == DEFER_BIND_FREE || op->kind == DEFER_BIND_ALLOC)
-            need_defrag = 1;
-
-        drain_one(op);
-        free(op);
-    }
-
-    /* If any CPU bind free/alloc was deferred, trigger a fresh defrag
-       to re-optimise the now-updated allocation state. */
-    if (need_defrag && cpu_bind_defrag_enabled())
-        cpu_bind_defrag_start();
-}
-
-int cpu_bind_defrag_poll(void)
-{
-    if (!defrag_in_progress) {
-        cpu_bind_drain_deferred();
-        return 1;
-    }
-    return 0;
-}
-
-int cpu_bind_alloc_is_locked(void)
-{
-    return defrag_in_progress;
 }
 #endif /* TS_CPU_BIND */
 
