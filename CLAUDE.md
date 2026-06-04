@@ -150,10 +150,11 @@ Key overrides: `TS_SOCKET`, `TS_SLOTS`, `TS_USER_PATH`, `TS_LOGFILE_PATH`, `TS_S
 ## Current branch work
 
 The `cpu-only` branch focuses on CPU binding and cgroups refinements:
-- **`cpu_bind_defrag()`** — two-phase NUMA-aware defrag with `--no-bind-defrag` server flag
+- **Async CPU binding defrag** — `cpu_bind_defrag()` moved to a background pthread so the server `select()` loop stays responsive. The main thread sorts allocs and builds the jobs array (safe `findjob()`), then a detached thread does the cgroup I/O (freeze → rebuild → cpuset → thaw). During defrag, CPU bind allocation/free and pause/resume are gated; new jobs dispatch without binding.
+- **`cpu_bind_defrag_start()` / `cpu_bind_defrag_poll()`** — spawn and reap the defrag thread; retrigger flag defers freed allocs until the current defrag finishes.
+- **Synchronization** — `defrag_in_progress` flag (checked by server before touching CPU bind state) + `defrag_mutex` (held by defrag thread only). Server never blocks on the mutex.
 - **`gen_topology.py`** — multi-strategy output with `MAX_GROUPS_PER_NODE`, skips trivial/duplicate topologies
 - **`cpu_owner[]`** tracks real job IDs throughout allocation and defrag
-- **`cpu_bind.h`** — `group_ids[]` uses `MAX_GROUPS_PER_NODE`, cleaned up unused typedefs
 
 ## Known Issues
 

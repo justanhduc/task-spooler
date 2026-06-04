@@ -9,6 +9,7 @@ CFLAGS += -DCGROUP_V2
 endif
 ifdef TS_CPU_BIND
 CFLAGS += -DTS_CPU_BIND
+LDFLAGS += -lpthread
 OBJECTS=main.o \
 	server.o \
 	server_start.o \

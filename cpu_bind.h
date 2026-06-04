@@ -62,6 +62,23 @@ void              cpu_bind_free(struct CpuAlloc *alloc);
 /* 碎片整理：暂停 quality>0 的 job，重建分配，更新 cpuset，恢复 */
 int               cpu_bind_defrag();
 
+#ifdef TS_CPU_BIND
+struct User;
+
+/* Async defrag API (thread-based) */
+int  cpu_bind_defrag_start(void);
+int  cpu_bind_defrag_poll(void);
+int  cpu_bind_alloc_is_locked(void);
+
+/* Deferred operations queue — push during defrag, drain after */
+void cpu_bind_defer_pause(int s, int jobid, struct User *u);
+void cpu_bind_defer_continue(int s, int jobid, struct User *u);
+void cpu_bind_defer_suspend(int s, struct User *u);
+void cpu_bind_defer_resume(int s, struct User *u);
+void cpu_bind_defer_bind_free(int jobid, struct CpuAlloc *alloc);
+void cpu_bind_defer_bind_alloc(int jobid, int num_allocated, int pid);
+#endif
+
 char             *cpu_bind_format_cpus(const struct CpuAlloc *alloc);
 char             *cpu_bind_format_mems(const struct CpuAlloc *alloc);
 

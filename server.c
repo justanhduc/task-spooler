@@ -413,6 +413,9 @@ static void server_loop(int ls) {
 
     next_run_job();
     s_check_holdon();
+#ifdef TS_CPU_BIND
+    cpu_bind_defrag_poll();
+#endif
   } // end of while (keep_loop)
 
   end_server(ls);

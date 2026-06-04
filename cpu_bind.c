@@ -8,6 +8,11 @@
 #include "vec.h"
 #include "main.h"
 #include "cgroups.h"
+#include "server_user.h"
+
+#ifdef TS_CPU_BIND
+#include <pthread.h>
+#endif
 
 /* 拓扑实例 — 由 gen_topology.py 生成 */
 struct Topology sys_topology = TOPOLOGY_INIT;
@@ -16,6 +21,7 @@ struct Topology sys_topology = TOPOLOGY_INIT;
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /* ================================================================
  *  内部变量
@@ -26,6 +32,34 @@ static int cpu_bind_disabled;
 static int cpu_bind_defrag_disabled;
 static int cpu_to_group[MAX_OS_CPU];  /* cpu→group 索引表 */
 vec_t cpu_allocs;                    /* 活跃 alloc 列表（供 defrag） */
+
+#ifdef TS_CPU_BIND
+static pthread_t      defrag_thread;
+static pthread_mutex_t defrag_mutex = PTHREAD_MUTEX_INITIALIZER;
+static int             defrag_in_progress;  /* set before mutex, cleared after */
+
+/* ---- deferred operations queue — push during defrag, drain after ---- */
+enum deferred_kind {
+    DEFER_PAUSE,       /* s_hold_job */
+    DEFER_CONTINUE,    /* s_cont_job */
+    DEFER_SUSPEND,     /* s_suspend_user */
+    DEFER_RESUME,      /* s_resume_user */
+    DEFER_BIND_FREE,   /* cpu_bind_free */
+    DEFER_BIND_ALLOC,  /* cpu_bind_alloc + cgroups_set_cpuset */
+};
+
+struct deferred_op {
+    enum deferred_kind kind;
+    int socket;
+    int jobid;
+    struct User *user;
+    struct CpuAlloc *alloc;    /* BIND_FREE */
+    int num_allocated;         /* BIND_ALLOC */
+    pid_t pid;                 /* BIND_ALLOC */
+};
+
+static vec_t deferred_ops;     /* struct deferred_op* */
+#endif
 
 /* ================================================================
  *  cpu→group 索引表在 cpu_bind_init 中构建，替代遍历查找
@@ -367,48 +401,43 @@ static int alloc_defrag_cmp(const void *a, const void *b)
     return pb->count - pa->count;
 }
 
-int cpu_bind_defrag() {
-    int count = (int)vec_size(&cpu_allocs);
-    if (count <= 0)
-        return 0;
+#ifdef TS_CPU_BIND
+/* ---- defrag work struct: pre-computed by main thread, consumed by worker ---- */
+struct defrag_work {
+    int n;                    /* first quality>0 alloc index */
+    int count;                /* total alloc count (== vec_size(&cpu_allocs)) */
+    struct Job **jobs;        /* pre-computed job pointers (size count) */
+};
 
+/* ---- thread-side defrag: freeze → rebuild → realloc → cpuset → thaw ---- */
+static void cpu_bind_defrag_run(struct defrag_work *work)
+{
+    int n = work->n;
+    int count = work->count;
+    struct Job **jobs = work->jobs;
     struct CpuAlloc **allocs = (struct CpuAlloc **)cpu_allocs.data;
-    struct Job** jobs = (struct Job**)calloc(count, sizeof(struct Job*));
-    int* skipped = (int*)calloc(count, sizeof(int));
+    int *skipped = (int *)calloc((size_t)count, sizeof(int));
 
-    /* 排序：quality 小的在前，N 大的在前 */
-    qsort(allocs, (size_t)count, sizeof(struct CpuAlloc *), alloc_defrag_cmp);
-
-    /* quality=0 的都在前部 */
-    int n = 0;
-    while (n < count && allocs[n]->quality == 0)
-        n++;
-
+    /* no quality>0 entries → early return (shouldn't happen, _start guards this) */
     if (n >= count) {
         free(skipped);
-        free(jobs);
-        return 0;  /* 全部 quality=0，无需 defrag */
+        return;
     }
 
     /* ---- 第一步：暂停所有 quality>0 的 job ---- */
     for (int i = n; i < count; i++) {
-        struct Job* p = findjob(allocs[i]->jobid);
-        if (p && p->pid > 0 && (p->state == RUNNING || p->state == PAUSE)) {
+        struct Job *p = jobs[i];
+        if (p && p->pid > 0 && (p->state == RUNNING || p->state == PAUSE))
             cgroups_freeze_job(p);
-            jobs[i] = p;
-        }
     }
 
     /* ---- 第二步：重建分配状态 ---- */
-    /* 全部清空 */
     memset(cpu_owner, 0, sizeof(cpu_owner));
-    for (int i = 0; i < sys_topology.num_groups; i++) {
+    for (int i = 0; i < sys_topology.num_groups; i++)
         sys_topology.groups[i].free_count = sys_topology.groups[i].num_cores;
-    }
 
-    for (int i = 0; i < sys_topology.num_nodes; i++) {
+    for (int i = 0; i < sys_topology.num_nodes; i++)
         sys_topology.nodes[i].free_count = sys_topology.nodes[i].num_cores;
-    }
 
     /* 恢复 quality=0 的 allocs（直接写回 cpu_owner） */
     for (int i = 0; i < n; i++) {
@@ -466,9 +495,256 @@ int cpu_bind_defrag() {
         }
     }
     free(skipped);
+}
+
+/* ---- thread worker: holds mutex, calls run, cleans up ---- */
+static void *cpu_bind_defrag_thread(void *arg)
+{
+    struct defrag_work *work = (struct defrag_work *)arg;
+
+    pthread_mutex_lock(&defrag_mutex);
+    cpu_bind_defrag_run(work);
+    pthread_mutex_unlock(&defrag_mutex);
+
+    defrag_in_progress = 0;
+    free(work->jobs);
+    free(work);
+    return NULL;
+}
+#endif /* TS_CPU_BIND */
+
+/* ---- sync defrag: kept for API backward compat, unused internally ---- */
+int cpu_bind_defrag(void)
+{
+#ifdef TS_CPU_BIND
+    int count = (int)vec_size(&cpu_allocs);
+    if (count <= 0) return 0;
+
+    struct CpuAlloc **allocs = (struct CpuAlloc **)cpu_allocs.data;
+    struct Job **jobs = (struct Job **)calloc((size_t)count, sizeof(struct Job *));
+    if (!jobs) return -1;
+
+    qsort(allocs, (size_t)count, sizeof(struct CpuAlloc *), alloc_defrag_cmp);
+
+    int n = 0;
+    while (n < count && allocs[n]->quality == 0) n++;
+
+    if (n >= count) { free(jobs); return 0; }
+
+    for (int i = n; i < count; i++) {
+        struct Job *p = findjob(allocs[i]->jobid);
+        if (p && p->pid > 0 && (p->state == RUNNING || p->state == PAUSE))
+            jobs[i] = p;
+    }
+
+    struct defrag_work work = { .n = n, .count = count, .jobs = jobs };
+    cpu_bind_defrag_run(&work);
     free(jobs);
     return 0;
+#else
+    return 0;
+#endif
 }
+
+#ifdef TS_CPU_BIND
+/* ================================================================
+ *  Async defrag thread API
+ * ================================================================ */
+
+int cpu_bind_defrag_start(void)
+{
+    if (defrag_in_progress) return 0;
+    if (!cpu_bind_defrag_enabled()) return -1;
+
+    int count = (int)vec_size(&cpu_allocs);
+    if (count <= 0) return 0;
+
+    struct CpuAlloc **allocs = (struct CpuAlloc **)cpu_allocs.data;
+
+    qsort(allocs, (size_t)count, sizeof(struct CpuAlloc *), alloc_defrag_cmp);
+
+    int n = 0;
+    while (n < count && allocs[n]->quality == 0)
+        n++;
+
+    if (n >= count) return 0;
+
+    struct Job **jobs = (struct Job **)calloc((size_t)count, sizeof(struct Job *));
+    if (!jobs) return -1;
+
+    for (int i = n; i < count; i++) {
+        struct Job *p = findjob(allocs[i]->jobid);
+        if (p && p->pid > 0 && (p->state == RUNNING || p->state == PAUSE))
+            jobs[i] = p;
+    }
+
+    struct defrag_work *work = malloc(sizeof(struct defrag_work));
+    if (!work) { free(jobs); return -1; }
+    work->n = n;
+    work->count = count;
+    work->jobs = jobs;
+
+    defrag_in_progress = 1;
+    int rc = pthread_create(&defrag_thread, NULL, cpu_bind_defrag_thread, work);
+    if (rc != 0) {
+        defrag_in_progress = 0;
+        free(jobs);
+        free(work);
+        return -1;
+    }
+    pthread_detach(defrag_thread);
+    return 0;
+}
+
+/* ---- deferred operations: push ---- */
+
+static void defer_push(struct deferred_op *op)
+{
+    vec_push(&deferred_ops, op);
+}
+
+void cpu_bind_defer_pause(int s, int jobid, struct User *u)
+{
+    struct deferred_op *op = calloc(1, sizeof(*op));
+    op->kind = DEFER_PAUSE;
+    op->socket = s;
+    op->jobid = jobid;
+    op->user = u;
+    defer_push(op);
+}
+
+void cpu_bind_defer_continue(int s, int jobid, struct User *u)
+{
+    struct deferred_op *op = calloc(1, sizeof(*op));
+    op->kind = DEFER_CONTINUE;
+    op->socket = s;
+    op->jobid = jobid;
+    op->user = u;
+    defer_push(op);
+}
+
+void cpu_bind_defer_suspend(int s, struct User *u)
+{
+    struct deferred_op *op = calloc(1, sizeof(*op));
+    op->kind = DEFER_SUSPEND;
+    op->socket = s;
+    op->jobid = 0;
+    op->user = u;
+    defer_push(op);
+}
+
+void cpu_bind_defer_resume(int s, struct User *u)
+{
+    struct deferred_op *op = calloc(1, sizeof(*op));
+    op->kind = DEFER_RESUME;
+    op->socket = s;
+    op->jobid = 0;
+    op->user = u;
+    defer_push(op);
+}
+
+void cpu_bind_defer_bind_free(int jobid, struct CpuAlloc *alloc)
+{
+    struct deferred_op *op = calloc(1, sizeof(*op));
+    op->kind = DEFER_BIND_FREE;
+    op->socket = -1;
+    op->jobid = jobid;
+    op->alloc = alloc;
+    defer_push(op);
+}
+
+void cpu_bind_defer_bind_alloc(int jobid, int num_allocated, int pid)
+{
+    struct deferred_op *op = calloc(1, sizeof(*op));
+    op->kind = DEFER_BIND_ALLOC;
+    op->socket = -1;
+    op->jobid = jobid;
+    op->num_allocated = num_allocated;
+    op->pid = (pid_t)pid;
+    defer_push(op);
+}
+
+/* ---- deferred operations: drain ---- */
+
+static void drain_one(struct deferred_op *op)
+{
+    switch (op->kind) {
+    case DEFER_PAUSE:
+        s_hold_job(op->socket, op->jobid, op->user);
+        break;
+    case DEFER_CONTINUE:
+        s_cont_job(op->socket, op->jobid, op->user);
+        break;
+    case DEFER_SUSPEND:
+        s_suspend_user(op->socket, op->user);
+        s_user_status(op->socket, op->user);
+        break;
+    case DEFER_RESUME:
+        s_resume_user(op->socket, op->user);
+        s_user_status(op->socket, op->user);
+        break;
+    case DEFER_BIND_FREE:
+        if (op->alloc)
+            cpu_bind_free(op->alloc);
+        return;  /* no socket to close */
+    case DEFER_BIND_ALLOC: {
+        struct Job *p = findjob(op->jobid);
+        if (p && p->pid > 0 && p->state == RUNNING && !p->cpu_alloc
+            && cpu_bind_enabled() && !p->no_cpu_binding
+            && op->num_allocated > 0) {
+            p->cpu_alloc = cpu_bind_alloc_init(op->jobid, op->num_allocated);
+            if (p->cpu_alloc) {
+                cpu_bind_alloc((struct CpuAlloc *)p->cpu_alloc,
+                               op->num_allocated);
+                cgroups_set_cpuset(op->jobid, p->pid, p->cpu_alloc);
+            }
+        }
+        return;  /* no socket to close */
+    }
+    }
+
+    /* Category-1 ops: close socket and let server loop detect the
+       disconnect (matches normal client_read path which always calls
+       close(s) + remove_connection(index) after these handlers). */
+    if (op->socket >= 0)
+        close(op->socket);
+}
+
+static void cpu_bind_drain_deferred(void)
+{
+    int need_defrag = 0;
+
+    while (vec_size(&deferred_ops) > 0) {
+        struct deferred_op *op = (struct deferred_op *)vec_get(&deferred_ops, 0);
+        vec_remove(&deferred_ops, 0);
+
+        if (op->kind == DEFER_BIND_FREE || op->kind == DEFER_BIND_ALLOC)
+            need_defrag = 1;
+
+        drain_one(op);
+        free(op);
+    }
+
+    /* If any CPU bind free/alloc was deferred, trigger a fresh defrag
+       to re-optimise the now-updated allocation state. */
+    if (need_defrag && cpu_bind_defrag_enabled())
+        cpu_bind_defrag_start();
+}
+
+int cpu_bind_defrag_poll(void)
+{
+    if (!defrag_in_progress) {
+        cpu_bind_drain_deferred();
+        return 1;
+    }
+    return 0;
+}
+
+int cpu_bind_alloc_is_locked(void)
+{
+    return defrag_in_progress;
+}
+#endif /* TS_CPU_BIND */
 
 /* ================================================================
  *  cpu_bind_parse_cpuset — 解析 "0-3,6,7-8" 格式为 int 数组

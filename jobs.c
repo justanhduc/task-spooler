@@ -954,12 +954,17 @@ static void new_finished_job(struct Job *j) {
         cgroups_clean_job(j);
 #ifdef TS_CPU_BIND
         if (j->cpu_alloc) {
-            // clean finished job   
-            cpu_bind_free((struct CpuAlloc *)j->cpu_alloc);
-            j->cpu_alloc = NULL;
+            if (!cpu_bind_alloc_is_locked()) {
+                cpu_bind_free((struct CpuAlloc *)j->cpu_alloc);
+                j->cpu_alloc = NULL;
+            } else {
+                cpu_bind_defer_bind_free(j->jobid,
+                                         (struct CpuAlloc *)j->cpu_alloc);
+                j->cpu_alloc = NULL;
+            }
         }
-        if (cpu_bind_defrag_enabled())
-            cpu_bind_defrag();
+        if (cpu_bind_defrag_enabled() && !cpu_bind_alloc_is_locked())
+            cpu_bind_defrag_start();
 #endif
     }
 }
@@ -1118,10 +1123,14 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
 #ifdef TS_CPU_BIND
     /* 先分配 CPU 并创建 cpuset cgroup（保证在 freezer 之前就绪） */
     if (cpu_bind_enabled() && !p->no_cpu_binding && p->num_allocated > 0) {
-        p->cpu_alloc = cpu_bind_alloc_init(p->jobid, p->num_allocated);
-        if (p->cpu_alloc) {
-            cpu_bind_alloc((struct CpuAlloc *)p->cpu_alloc, p->num_allocated);
-            cgroups_set_cpuset(p->jobid, p->pid, p->cpu_alloc);
+        if (!cpu_bind_alloc_is_locked()) {
+            p->cpu_alloc = cpu_bind_alloc_init(p->jobid, p->num_allocated);
+            if (p->cpu_alloc) {
+                cpu_bind_alloc((struct CpuAlloc *)p->cpu_alloc, p->num_allocated);
+                cgroups_set_cpuset(p->jobid, p->pid, p->cpu_alloc);
+            }
+        } else {
+            cpu_bind_defer_bind_alloc(p->jobid, p->num_allocated, p->pid);
         }
     }
 #endif
@@ -1280,11 +1289,17 @@ int s_remove_job(int s, int *jobid, struct User *client) {
             cgroups_clean_job(p);
 #ifdef TS_CPU_BIND
             if (p->cpu_alloc) {
-                cpu_bind_free((struct CpuAlloc *)p->cpu_alloc);
-                p->cpu_alloc = NULL;
+                if (!cpu_bind_alloc_is_locked()) {
+                    cpu_bind_free((struct CpuAlloc *)p->cpu_alloc);
+                    p->cpu_alloc = NULL;
+                } else {
+                    cpu_bind_defer_bind_free(p->jobid,
+                                             (struct CpuAlloc *)p->cpu_alloc);
+                    p->cpu_alloc = NULL;
+                }
             }
-            if (cpu_bind_defrag_enabled())
-                cpu_bind_defrag();
+            if (cpu_bind_defrag_enabled() && !cpu_bind_alloc_is_locked())
+                cpu_bind_defrag_start();
 #endif
             new_finished_job(p);
         } else {

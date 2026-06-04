@@ -18,6 +18,7 @@
 #include "jobs.h"
 #include "runtime_limit.h"
 #include "sqlite.h"
+#include "cpu_bind.h"
 #include "utils.h"
 #include "list.h"
 #include "cgroups.h"
@@ -115,6 +116,12 @@ void s_resume_user_all(int s) {
 }
 
 void s_resume_user(int s, struct User *u) {
+#ifdef TS_CPU_BIND
+  if (cpu_bind_alloc_is_locked()) {
+    cpu_bind_defer_resume(s, u);
+    return;
+  }
+#endif
   u->max_slots = abs(u->max_slots);
   u->locked = 0;
 
@@ -138,6 +145,12 @@ void s_suspend_user(int s, struct User *u) {
     struct Job *p = (struct Job *)vec_get(&active_jobs, i);
     if (p->user == u && p->state == RUNNING) {
       if (p->pid != 0) {
+#ifdef TS_CPU_BIND
+        if (cpu_bind_alloc_is_locked()) {
+          cpu_bind_defer_suspend(s, u);
+          return;
+        }
+#endif
         safe_pause_job(p);
         p->state = PAUSE;
       } else {
@@ -274,6 +287,12 @@ void s_hold_job(int s, int jobid, struct User *u) {
   }
 
   if (p->pid != 0 && (p->user == u || u->uid == 0)) {
+#ifdef TS_CPU_BIND
+    if (cpu_bind_alloc_is_locked()) {
+      cpu_bind_defer_pause(s, jobid, u);
+      return;
+    }
+#endif
     if (safe_pause_job(p) == 0) {
       p->state = PAUSE;
       snprintf(buff, 255, "To pause job [%d] successfully!\n", jobid);
@@ -324,6 +343,12 @@ void s_cont_job(int s, int jobid, struct User *u) {
     if (is_sleep(p) == 0) {
       snprintf(buff, 255, "job [%d] is already in RUNNING.\n", jobid);
     } else {
+#ifdef TS_CPU_BIND
+      if (cpu_bind_alloc_is_locked()) {
+        cpu_bind_defer_continue(s, jobid, u);
+        return;
+      }
+#endif
       cgroups_thaw_job(p);
       snprintf(buff, 255, "job [%d] is continued.\n", jobid);
     }

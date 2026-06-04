@@ -2,6 +2,16 @@
 
 All notable changes to task-spooler-PLUS.
 
+## [v2.6.6] — 2026-Q2
+
+### Changed
+- **Async CPU binding defrag** — `cpu_bind_defrag()` moved to a detached pthread so the server `select()` loop stays responsive during cgroup I/O.
+  - Main thread sorts allocs and builds job pointer array (`findjob()`) before spawning the defrag thread — eliminates `active_jobs` race between server and defrag threads.
+  - During defrag, CPU bind allocation/free and job pause/resume are gated; new jobs dispatch without binding, freed allocs are deferred via retrigger flag.
+  - Synchronization: `defrag_in_progress` flag + `defrag_mutex`; server never blocks on the mutex.
+- **Documentation**: `--no-bind` / `--bind-on` / `--bind-off` / `--no-bind-defrag` added to help output and README
+- **Build**: `make TS_CPU_BIND=1` now links `-lpthread`; `make` (without TS_CPU_BIND) builds unchanged with no pthread dependency.
+
 ## [v2.6.5] — 2026-Q2
 
 ### Added

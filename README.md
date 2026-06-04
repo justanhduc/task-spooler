@@ -40,7 +40,7 @@ Task Spooler PLUS began as a fork of [Task Spooler by Lluís Batlle i Rossell](h
 
 - **cgroups v1/v2** — CPU quota limiting, freezer-based pause/resume, cpuset NUMA binding
 - **SQLite3 crash recovery** — jobs, states, and timing data survive reboots
-- **CPU/NUMA binding allocator** — topology-aware, best-fit group selection, auto-defrag with NUMA affinity preservation
+- **CPU/NUMA binding allocator** — topology-aware, best-fit group selection, background-thread auto-defrag with NUMA affinity preservation; main thread stays responsive during cgroup I/O
 - **Dynamic user management** — `struct User` via `vec_t`, config hot-reload, per-user suspend/resume
 - **Wall-time enforcement** — auto-pause timed-out jobs, re-queue with extended deadline
 - **Client auto-reconnect** — running jobs survive server restarts
@@ -58,7 +58,7 @@ Task Spooler PLUS began as a fork of [Task Spooler by Lluís Batlle i Rossell](h
 - **Optional stderr separation** for better log management
 - **PID lookup** (`--find-by-pid`) to identify which job owns a process (including descendants)
 - **Scheduled execution** (`--at`) — delay jobs until a specified time (+5m, 14:00, 2025-06-01T14:00)
-- **CPU binding** (`TS_CPU_BIND`) — NUMA-aware topology-based CPU allocation with cgroups cpuset v1/v2, HT exclusion, and crash-restart recovery
+- **CPU binding** (`TS_CPU_BIND`) — NUMA-aware topology-based CPU allocation with cgroups cpuset v1/v2, HT exclusion, background-thread defrag, and crash-restart recovery
 - **Crash survival** — jobs persist through server restart with automatic client reconnect
 - **Post-job hook** (`--on-finish`) — run a command after a job finishes, with access to job info via placeholders
 
@@ -184,7 +184,7 @@ The server checks `/proc` on `--daemon` startup: if another instance of the same
 See `man ts` or run `ts -h` for the full command reference.
 
 ```
-Task Spooler PLUS 2.6.1 - a multi-user job scheduler like slurm.
+Task Spooler PLUS 2.6.6 - a multi-user job scheduler like slurm.
 Copyright (C) 2007-2026  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell
 
 Environment Variables:
@@ -278,7 +278,17 @@ Options adding jobs:
 - Gnomeye maintains the AUR package.
 - Eric Keller wrote a nodejs web server for the task spooler queue.
 - Duc Nguyen developed GPU support.
-- **Kylin JIANG** transformed Task Spooler into Task Spooler PLUS: multi-user architecture with central server, SQLite3 WAL crash recovery, cgroups v1/v2 (CPU limiting, freezer, cpuset NUMA binding), NUMA-aware CPU binding allocator with auto-defrag, wall-time auto-pause, dynamic user management with hot-reload, client auto-reconnect, scheduled execution (`--at`), per-job hooks (`--on-finish`), PID lookup, and hundreds of stability fixes.
+- **Kylin JIANG** transformed Task Spooler into Task Spooler PLUS: multi-user architecture with central server, SQLite3 WAL crash recovery, cgroups v1/v2 (CPU limiting, freezer, cpuset NUMA binding), NUMA-aware CPU binding allocator with async background-thread auto-defrag, wall-time auto-pause, dynamic user management with hot-reload, client auto-reconnect, scheduled execution (`--at`), per-job hooks (`--on-finish`), PID lookup, and hundreds of stability fixes.
+
+## Changelog
+
+### v2.6.6 — Async CPU Binding Defrag
+
+- **Async defrag via background thread**: `cpu_bind_defrag()` moved to a detached pthread so the server `select()` loop stays responsive during cgroup I/O.
+- **Main-thread preparation**: sort allocs and build job pointer array (`findjob()`) in the main thread before spawning the defrag thread — eliminates the `active_jobs` race between server and defrag threads.
+- **Gated operations**: during defrag, CPU bind allocation/free and job pause/resume are gated; new jobs dispatch without binding, and freed allocs are deferred via a retrigger flag.
+- **Synchronization**: `defrag_in_progress` flag (checked by server before touching CPU bind state) + `defrag_mutex` (held by defrag thread only). Server never blocks on the mutex.
+- **Build**: `make TS_CPU_BIND=1` now links `-lpthread`; `make` (without TS_CPU_BIND) builds unchanged with no pthread dependency.
 
 ## License
 
