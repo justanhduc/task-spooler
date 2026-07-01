@@ -1,206 +1,285 @@
-# Task Spooler
+# Task Spooler PLUS
 
-Originally, [Task Spooler by Lluís Batlle i Rossell](https://vicerveza.homeunix.net/~viric/soft/ts/).
+A **single-binary, multi-user job scheduler** — think of it as a lightweight Slurm for shared workstations. No daemons, no databases to configure, no cluster infrastructure. Just one `ts` binary.
 
-## Introduction 
+Originally a single-user task queue, Task Spooler PLUS has been transformed by **Kylin JIANG** into a multi-user job scheduler with crash recovery, cgroups resource isolation, and NUMA-aware CPU binding — bringing Slurm-like scheduling to small shared machines.
 
-As in freshmeat.net:
+[中文文档](README_CN.md)
 
-> task spooler is a Unix batch system where the tasks spooled run one after the other. The amount of jobs to run at once can be set at any time. Each user in each system has his own job queue. The tasks are run in the correct context (that of enqueue) from any shell/process, and its output/results can be easily watched. It is very useful when you know that your commands depend on a lot of RAM, a lot of disk use, give a lot of output, or for whatever reason it's better not to run them all at the same time, while you want to keep your resources busy for maximum benfit. Its interface allows using it easily in scripts. 
+## Why Task Spooler PLUS?
 
-For your first contact, you can read an article at linux.com, 
-which I like as overview, guide and examples (original url). 
-On more advanced usage, don't neglect the TRICKS file in the package.
+### vs. the original Task Spooler
 
-### Changelog
+| | Original TS | TS PLUS |
+|---|---|---|
+| **Users** | One queue per user | Central server, multi-user with per-user slot limits |
+| **Recovery** | Jobs lost on crash | SQLite3 WAL — all jobs, states, timings survive crashes and reboots |
+| **Resource control** | None | cgroups v1/v2 CPU limiting, freezer pause/resume, NUMA CPU binding |
+| **Scheduling** | FIFO only | Dependency chains, wall-time auto-pause, `--at` scheduled execution |
+| **User management** | None | Dynamic user config, suspend/resume per user, `ts -X` hot-reload |
+| **Client resilience** | Disconnected on server restart | Auto-reconnect, re-attach running jobs seamlessly |
 
-See [CHANGELOG](CHANGELOG.md).
+### vs. Slurm
 
-## Tutorial
+| | Slurm | TS PLUS |
+|---|---|---|
+| **Setup** | `slurmctld`, `slurmd`, `munge`, MySQL, config files | One binary, one config file |
+| **Target** | Clusters (hundreds–thousands of nodes) | Workstations (1 node, several–tens of users) |
+| **Multi-user** | ✓ | ✓ |
+| **Job recovery** | Via database | SQLite3 WAL |
+| **CPU/NUMA binding** | `--cpu-bind` / `--mem-bind` | `TS_CPU_BIND=1`, NUMA-aware allocator |
+| **cgroups** | v1/v2 (via plugin) | v1/v2 (built-in) |
+| **Wall-time limits** | ✓ | ✓ (auto-pause + re-queue) |
+| **Per-job callbacks** | Epilog/Prolog scripts | `--on-finish` hook with placeholders |
 
-A tutorial with colab is available [here](https://librecv.github.io/blog/spooler/task%20manager/deep%20learning/2021/02/09/task-spooler.html).
+If you have a shared workstation with a handful of users running simulation or ML workloads, TS PLUS gives you Slurm-like job management without the operational burden.
+
+## How it Started
+
+Task Spooler PLUS began as a fork of [Task Spooler by Lluís Batlle i Rossell](https://vicerveza.homeunix.net/~viric/soft/ts/). **Kylin JIANG** transformed it from a single-user queue into a multi-user system with:
+
+- **cgroups v1/v2** — CPU quota limiting, freezer-based pause/resume, cpuset NUMA binding
+- **SQLite3 crash recovery** — jobs, states, and timing data survive reboots
+- **CPU/NUMA binding allocator** — topology-aware, best-fit group selection, auto-defrag with NUMA affinity preservation
+- **Dynamic user management** — `struct User` via `vec_t`, config hot-reload, per-user suspend/resume
+- **Wall-time enforcement** — auto-pause timed-out jobs, re-queue with extended deadline
+- **Client auto-reconnect** — running jobs survive server restarts
 
 ## Features
 
-I wrote Task Spooler because I didn't have any comfortable way of running batch jobs in my linux computer. I wanted to:
+- **Cross-platform** task queue for GNU/Linux, Darwin, Cygwin, FreeBSD
+- **Multi-user support** with per-user slot limits
+- **Fatal crash recovery** via SQLite3 (WAL mode) — jobs, states, and timings survive reboots
+- **Cgroups CPU limiting** and **freezer-based pause/resume** (v1 and v2, compile-time selectable)
+- **Wall-time management** — auto-pause and re-queue timed-out tasks
+- **Global user control** — suspend/resume all jobs for a single user
+- **Comprehensive output** in default, JSON, and tab-separated formats
+- **Simple build** — just `make` (no autotools)
+- **Optional stderr separation** for better log management
+- **PID lookup** (`--find-by-pid`) to identify which job owns a process (including descendants)
+- **Scheduled execution** (`--at`) — delay jobs until a specified time (+5m, 14:00, 2025-06-01T14:00)
+- **CPU binding** (`TS_CPU_BIND`) — NUMA-aware topology-based CPU allocation with cgroups cpuset v1/v2, HT exclusion, and crash-restart recovery
+- **Crash survival** — jobs persist through server restart with automatic client reconnect
+- **Post-job hook** (`--on-finish`) — run a command after a job finishes, with access to job info via placeholders
 
-* Queue jobs from different terminals.
-* Use it locally in my machine (not as in network queues).
-* Have a good way of seeing the output of the processes (tail, errorlevels, ...).
-* Easy use: almost no configuration.
-* Easy to use in scripts. 
+## Tools
 
-At the end, after some time using and developing ts, it can do something more:
+- `tools/migrate_uid.py` — Migrate old `ts_UID` column (vec index) to Linux UIDs
+- `tools/clear_finished.py` — Clear or `--drop` + recreate the Finished table
 
-* It works in most systems I use and some others, like GNU/Linux, Darwin, Cygwin, and FreeBSD.
-* No configuration at all for a simple queue.
-* Good integration with renice, kill, etc. (through `ts -p` and process groups).
-* Have any amount of queues identified by name, writting a simple wrapper script for each (I use ts2, tsio, tsprint, etc).
-* Control how many jobs may run at once in any queue (taking profit of multicores).
-* It never removes the result files, so they can be reached even after we've lost the ts task list.
-* Transparent if used as a subprogram with -nf.
-* Optional separation of stdout and stderr. 
+## Quick Start
 
-![ts-sample](assets/sample.png)
-
-## Setup
-
-### Install Task Spooler
-
-Simple run the provided script
-
-```
-./install_cmake
-```
-to use CMake, or 
-```
-./install_make
-```
-to use Makefile. If Task Spooler has already been installed, and you want to reinstall, execute 
-
-```
-./reinstall
+```bash
+make                      # build (cgroups v1, default)
+make CGROUP_V2=1          # build with cgroups v2 support
+make TS_CPU_BIND=1        # build with CPU binding (cgroups cpuset)
+make CGROUP_V2=1 TS_CPU_BIND=1  # build with both cgroups v2 + CPU binding
+sudo ./ts --daemon        # start the server as daemon (root only)
+./ts -l                   # list jobs
+./ts sleep 30             # enqueue a job
+./ts -r <id>              # remove a job
+./ts -k <id>              # kill a running job
+./ts -w <id>              # wait for a job to finish
 ```
 
-#### Local installation
-To install without sudo privilege, one can use the following command
+### Per-job callback example
+
+`--on-finish` lets you run a command after a job finishes, with full job info via placeholders:
+
+```bash
+./ts --on-finish "cat > job-{jobid}.info << 'EOF'
+ pid={pid}  label={label}  exitcode={exitcode}
+ realtime={realtime} usertime={usertime} systime={systime} pausetime={pausetime}
+ start_time={start_time}
+ enque_time={enque_time}
+ end_time={end_time}
+ slots={slots}
+EOF" -L test_job sleep 10
 ```
-make install-local
+
+After the job finishes, `job-<id>.info` will contain all the resolved values — useful for logging, email notifications (`--on-finish "sendmail {exitcode} ..."`), or chaining workflows.
+
+## Build & Install
+
+```bash
+make                      # Build `ts` binary
+make CGROUP_V2=1          # Build with cgroups v2
+make clean                # Remove objects and binary
+./install_make            # Install to /usr/local (needs root)
 ```
 
-Note that, the installation will create a `bin` folder in `$HOME` if it does not exist. 
-To use `ts` anywhere, `$HOME/bin` needs to be added to `$PATH` if it hasn't been done already.
-To use `man`, you may also need to add `$HOME/.local/share/man` to `$MANPATH`.
+**Default paths** (override via environment variables):
 
-#### Common problems
-* Cannot find CUDA: Did you set a `CUDA_HOME` flag?
-* `/usr/bin/ld: cannot find -lnvidia-ml`: This lib lies in `$CUDA_HOME/lib64/stubs`. 
-Please append this path to `LD_LIBRARY_PATH`.
-Sometimes, this problem persists even after adding the lib path.
-Then one can add `-L$(CUDA_HOME)/lib64/stubs` to [this line](./Makefile#L29) in the Makefile.
-* list.c:22:5: error: implicitly declaring library function 'snprintf' with type 'int (char *, unsigned long, const char *, ...)': Please remove `-D_XOPEN_SOURCE=500 -D__STRICT_ANSI__` in the Makefile as reported [here](https://github.com/justanhduc/task-spooler/issues/4).
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `TS_SOCKET` | `$TMPDIR/socket-ts.root` | Unix socket |
+| `TS_USER_PATH` | `/home/kylin/task-spooler/user.txt` | User config |
+| `TS_LOGFILE_PATH` | `/home/kylin/task-spooler/log.txt` | Job log |
+| `TS_SQLITE_PATH` | `/home/kylin/task-spooler/task-spooler.db` | SQLite database |
+| `TS_SLOTS` | `1` | Max concurrent jobs |
+| `TS_MAXFINISHED` | `1000` | Max finished jobs |
+| `TS_MAX_WALL_TIME` | `10080` (minutes) | Max wall-time limit |
+| `TS_FIRST_JOBID` | `1000` | Starting job ID |
 
+Edit `defaults.h` to change the built-in defaults.
 
-### Uinstall Task Spooler
+## User Configuration
+
+The server reads a user config file (path from `TS_USER_PATH`) mapping **usernames** to **max slot counts**. Usernames are resolved to Linux UIDs via `getpwnam()` — no need to manually specify UIDs.
+
+**user.txt** format:
 
 ```
-./uninstall
+# <username> <max_slots>
+TS_SLOTS = 16
+john    4
+mary    2
 ```
-Why would you want to do that anyway?
 
-## Mailing list
+Root (uid=0) is automatically added with full control.
 
-I created a GoogleGroup for the program. You look for the archive and the join methods in the taskspooler google group page.
-
-Alessandro Öhler once maintained a mailing list for discussing newer functionalities and interchanging use experiences. I think this doesn't work anymore, but you can look at the old archive or even try to subscribe.
+The config can be refreshed at runtime via `ts -X` (root only). The refresh only allows **adding** new users — existing users cannot be removed or have their slots changed.
 
 ## How it works
 
-The queue is maintained by a server process. This server process is started if it isn't there already. The communication goes through a unix socket usually in /tmp/.
+A **server process** runs as root, managing jobs in memory and persisting state to SQLite3. **Client processes** connect via a Unix socket. The server never executes user commands — clients fork and run jobs themselves, preserving the user's environment, ulimits, and working directory.
 
-When the user requests a job (using a ts client), the client waits for the server message to know when it can start. When the server allows starting , this client usually forks, and runs the command with the proper environment, because the client runs run the job and not the server, like in 'at' or 'cron'. So, the ulimits, environment, pwd,. apply.
+```
+ts (client)  ──Unix socket──▶  ts (server daemon)
+   │                              │
+   fork() + exec(cmd)             │  manages queue, slots, users
+   │                              │  persists to SQLite3 (WAL)
+   waitpid() → notify server      │
+```
 
-When the job finishes, the client notifies the server. At this time, the server may notify any waiting client, and stores the output and the errorlevel of the finished job.
+On crash, the client auto-reconnects and re-attaches running jobs. On reboot, all job state is restored from SQLite.
 
-Moreover the client can take advantage of many information from the server: when a job finishes, where does the job output go to, etc.
+### Cgroups support
 
-## History 
+Build-time selection:
+- `make` — cgroups v1 (`cpu.cfs_quota_us` + `freezer.state`)
+- `make CGROUP_V2=1` — cgroups v2 (`cpu.max` + `cgroup.freeze`)
 
-Андрей Пантюхин (Andrew Pantyukhin) maintains the BSD port.
+Both provide CPU quota limiting and freezer-based pause/resume.
 
-Alessandro Öhler provided a Gentoo ebuild for 0.4, which with simple changes I updated to the ebuild for 0.6.4. Moreover, the Gentoo Project Sunrise already has also an ebuild (maybe old) for ts.
+To check which cgroup version your system supports:
+```bash
+mount | grep cgroup
+# v1 shows: cgroup on /sys/fs/cgroup/cpu, freezer, cpuset ...
+# v2 shows: cgroup2 on /sys/fs/cgroup type cgroup2
+```
 
-Alexander V. Inyukhin maintains unofficial debian packages for several platforms. Find the official packages in the debian package system.
+### Single-instance guard
 
-Pascal Bleser packed the program for SuSE and openSuSE in RPMs for various platforms.
+The server checks `/proc` on `--daemon` startup: if another instance of the same binary is already running as root, it refuses to start.
 
-Gnomeye maintains the AUR package.
+### Common problems
 
-Eric Keller wrote a nodejs web server showing the status of the task spooler queue (github project).
-
-Duc Nguyen took the project and develops a GPU-support version.
+- **Server stuck**: remove the socket file (`/tmp/socket-ts.root`), then restart
+- **After SIGKILL**: `.db-wal` and `.db-shm` files persist — SQLite auto-recovers on next open
+- **After crash**: running jobs lose exit code and signal information
 
 ## Manual
 
-See below or `man ts` for more details.
+See `man ts` or run `ts -h` for the full command reference.
 
 ```
-usage: ts [action] [-ngfmdE] [-L <lab>] [-D <id>] [cmd...]
-Env vars:
-  TS_SOCKET  the path to the unix socket used by the ts command.
-  TS_MAILTO  where to mail the result (on -m). Local user by default.
-  TS_MAXFINISHED  maximum finished jobs in the queue.
-  TS_MAXCONN  maximum number of ts connections at once.
-  TS_ONFINISH  binary called on job end (passes jobid, error, outfile, command).
-  TS_ENV  command called on enqueue. Its output determines the job information.
-  TS_SAVELIST  filename which will store the list, if the server dies.
-  TS_SLOTS   amount of jobs which can run at once, read on server start.
-  TMPDIR     directory where to place the output files and the default socket.
+Task Spooler PLUS 2.6.7 - a multi-user job scheduler like slurm.
+Copyright (C) 2007-2026  Kylin JIANG - Duc Nguyen - Lluis Batlle i Rossell
+
+Environment Variables:
+  TS_SOCKET        : Unix socket path (default: $TMPDIR/socket-ts.root)
+  TS_SLOTS         : Max concurrent jobs (server start, default: 1)
+  TS_USER_PATH     : User config file path (server start)
+  TS_LOGFILE_PATH  : Job log path (server start)
+  TS_SQLITE_PATH   : SQLite DB path (server start)
+  TS_MAXFINISHED   : Max finished jobs (default: 1000)
+  TS_MAX_WALL_TIME : Max wall-time (default: 10080 min)
+  TS_MAXCONN       : Max connections (default: 1000)
+  TS_SORTJOBS      : Job queue sorting control
+  TS_SAVELIST      : Crash recovery file for job list
+  TS_ENV           : Command to gather job info during enqueue
+  TS_ONFINISH      : Default on-finish command (overridden by --on-finish)
+  TMPDIR           : Temporary output directory
+
 Long option actions:
-  --getenv   <var>                get the value of the specified variable in server environment.
-  --setenv   <var>                set the specified flag to server environment.
-  --unsetenv   <var>              remove the specified flag from server environment.
-  --get_label      || -a [id]     show the job label. Of the last added, if not specified.
-  --full_cmd       || -F [id]     show full command. Of the last added, if not specified.
-  --count_running  || -R          return the number of running jobs
-  --last_queue_id  || -q          show the job ID of the last added.
-  --get_logdir                    get the path containing log files.
-  --set_logdir <path>             set the path containing log files. 
-  --plain                         list jobs in plain tab-separated texts. 
+  --getenv [var]          Get server environment variable
+  --setenv [var]          Set server environment flag
+  --unsetenv [var]        Remove server environment flag
+  --get-label || -a [id]  Show job label
+  --full-cmd || -F [id]   Show full command
+  --find-by-pid [pid]     Find which running job a PID belongs to
+  --check-daemon           Verify daemon status
+  --count-running || -R   Count running jobs
+  --last-queue-id || -q   Show last added job ID
+  --get-logdir             Display log directory path
+  --set-logdir [path]     Configure log directory
+  --serialize || -M [fmt] Export job list (default/json/tab)
+                          Use -M json -J <id> for single job JSON
+  --hold [jobid]          Pause specified job
+  --cont [jobid]          Resume paused job
+  --suspend [USER]        Suspend user
+  --resume [USER]         Resume user
+  --lock                  Lock server
+  --unlock                Release server lock
+  --at <time>             Schedule: +5m, 14:00, 06-01_14:00, 2025-06-01T14:00
+  --on-finish <template>  Run command after job finishes
+                          Placeholders: {jobid} {output} {exitcode} {pid} {label}
+                          {command} {realtime} {usertime} {systime}
+                          {pausetime} {start_time} {enque_time} {end_time} {slots}
+  --wtime [dur]           Wall time limit (e.g. 30s, 3.4m, 1.5H, 2d)
+  --add-wtime [dur]       Increase job wall time (root only)
+  --job [id] || -J [id]  Specify job ID
+  --daemon                Run as daemon (root only)
+  --no-bind-defrag        Disable defrag (server start, root only)
+
 Actions:
-  -K       kill the task spooler server
-  -C       clear the list of finished jobs
-  -l       show the job list (default action)
-  -S [num] get/set the number of max simultaneous jobs of the server.
-  -t [id]  \"tail -n 10 -f\" the output of the job. Last run if not specified.
-  -c [id]  like -t, but shows all the lines. Last run if not specified.
-  -p [id]  show the pid of the job. Last run if not specified.
-  -o [id]  show the output file. Of last job run, if not specified.
-  -i [id]  show job information. Of last job run, if not specified.
-  -s [id]  show the job state. Of the last added, if not specified.
-  -r [id]  remove a job. The last added, if not specified.
-  -w [id]  wait for a job. The last added, if not specified.
-  -k [id]  send SIGTERM to the job process group. The last run, if not specified.
-  -T       send SIGTERM to all running job groups.
-  -u [id]  put that job first. The last added, if not specified.
-  -U <id-id>  swap two jobs in the queue.
-  -B       in case of full queue on the server, quit (2) instead of waiting.
-  -h       show this help
-  -V       show the program version
+  -A           List info for all users
+  -X           Refresh user config (root only)
+  -K           Stop server (root only)
+  -C           Clear finished jobs
+  -l           Show job list (default)
+  -S [num]     Get/set max concurrent jobs (root only)
+  -t [id]      Tail last 10 lines of output
+  -c [id]      Show complete output
+  -p [id]      Display job PID
+  -o [id]      Show output file path
+  -i [id]      Display job info
+  -s [id]      Show job state
+  -r [id]      Remove job
+  -w [id]      Wait for job
+  -k [id]      Send SIGTERM to job
+  -T           SIGTERM all jobs (root only)
+  -u [id]      Prioritize job
+  -U <id-id>   Swap two jobs
+  -h           Show help
+  -V           Display version
+
 Options adding jobs:
-  -n           don't store the output of the command.
-  -E           Keep stderr apart, in a name like the output file, but adding '.e'.
-  -O           Set name of the log file (without any path).
-  -z           gzip the stored output (if not -n).
-  -f           don't fork into background.
-  -m           send the output by e-mail (uses sendmail).
-  -d           the job will be run after the last job ends.
-  -D <id,...>  the job will be run after the job of given IDs ends.
-  -W <id,...>  the job will be run after the job of given IDs ends well (exit code 0).
-  -L <lab>     name this task with a label, to be distinguished on listing.
-  -N <num>     number of slots required by the job (1 default).
+  -B           Exit if server full
+  -n           Disable output storage
+  -E           Separate stderr
+  -O           Set log filename
+  -z           Gzip output
+  -f           Run in foreground
+  -d           Run after last job
+  -D <id,...>  Run after specified IDs
+  -W <id,...>  Run after successful IDs
+  -L [label]   Assign job label
+  -N [num]     Required slots (default: 1)
 ```
 
-## Thanks
+## History
 
-**Author**
-- Duc Nguyen, <adnguyen@yonsei.ac.kr>
-- Lluís Batlle i Rossell, <lluis@vicerveza.homeunix.net>
+- Андрей Пантюхин (Andrew Pantyukhin) maintains the BSD port.
+- Alessandro Öhler provided the original Gentoo ebuild.
+- Alexander V. Inyukhin maintains unofficial Debian packages.
+- Pascal Bleser packed the program for SuSE/openSuSE.
+- Gnomeye maintains the AUR package.
+- Eric Keller wrote a nodejs web server for the task spooler queue.
+- Duc Nguyen developed GPU support.
+- **Kylin JIANG** transformed Task Spooler into Task Spooler PLUS: multi-user architecture with central server, SQLite3 WAL crash recovery, cgroups v1/v2 (CPU limiting, freezer, cpuset NUMA binding), NUMA-aware CPU binding allocator with auto-defrag, wall-time auto-pause, dynamic user management with hot-reload, client auto-reconnect, scheduled execution (`--at`), per-job hooks (`--on-finish`), PID lookup, and hundreds of stability fixes.
 
-**Acknowledgement**
-* To Raúl Salinas, for his inspiring ideas
-* To Alessandro Öhler, the first non-acquaintance user, who proposed and created the mailing list.
-* Андрею Пантюхину, who created the BSD port.
-* To the useful, although sometimes uncomfortable, UNIX interface.
-* To Alexander V. Inyukhin, for the debian packages.
-* To Pascal Bleser, for the SuSE packages.
-* To Sergio Ballestrero, who sent code and motivated the development of a multislot version of ts.
-* To GNU, an ugly but working and helpful ol' UNIX implementation. 
+## License
 
-**Software**
-
-Memory checks with [Valgrind](https://valgrind.org/).
-
-## Related projects
-
-[Messenger](https://github.com/justanhduc/messenger)
+See the provided `COPYING` file.

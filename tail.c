@@ -1,6 +1,6 @@
 /*
-    Task Spooler - a task queue system for the unix user
-    Copyright (C) 2007-2009  Lluís Batlle i Rossell
+    Task Spooler PLUS - a multi-user job scheduler like slurm.
+    Copyright (C) 2007-2026  Kylin JIANG - Lluís Batlle i Rossell
 
     Please find the license in the provided COPYING file.
 */
@@ -17,6 +17,9 @@
 #include <sys/time.h> /* Dep de main.h */
 
 #include "main.h"
+#include "tail.h"
+#include "error.h"
+#include "client.h"
 
 enum {
     BSIZE = 1024
@@ -35,10 +38,7 @@ static int max(int a, int b) {
 }
 
 static void tail_error(const char *str) {
-    fprintf(stderr, "%s", str);
-    fprintf(stderr, ". errno: %i (%s)\n",
-            errno, strerror(errno));
-    exit(-1);
+    error("%s .errno %i (%s)\n", str, errno, strerror(errno));
 }
 
 static void seek_at_last_lines(int fd, int lines) {

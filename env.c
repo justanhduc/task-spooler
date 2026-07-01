@@ -1,6 +1,6 @@
 /*
-    Task Spooler - a task queue system for the unix user
-    Copyright (C) 2007-2009  Lluís Batlle i Rossell
+    Task Spooler PLUS - a multi-user job scheduler like slurm.
+    Copyright (C) 2007-2026  Kylin JIANG - Lluís Batlle i Rossell
 
     Please find the license in the provided COPYING file.
 */
@@ -13,6 +13,9 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include "main.h"
+#include "env.h"
+#include "error.h"
+#include "signals.h"
 
 static int fork_command(const char *command) {
     int pid;

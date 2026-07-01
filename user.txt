@@ -1,0 +1,11 @@
+# task-spooler user configuration
+# Format: <username> <max_slots>
+# Username must exist on the system (UID resolved via getpwnam)
+# Lines starting with # are comments
+TS_SLOTS = 16
+TS_FIRST_JOBID = 2000
+# name      slots
+kylin       10
+test1       10
+test0       100
+user2       10

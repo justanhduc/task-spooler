@@ -1,6 +1,6 @@
 /*
-    Task Spooler - a task queue system for the unix user
-    Copyright (C) 2007-2009  Lluís Batlle i Rossell
+    Task Spooler PLUS - a multi-user job scheduler like slurm.
+    Copyright (C) 2007-2026  Kylin JIANG - Lluís Batlle i Rossell
 
     Please find the license in the provided COPYING file.
 */
@@ -9,6 +9,7 @@
 #include <stdlib.h> /* for NULL */
 #include <sys/time.h> /* for NULL */
 #include "main.h"
+#include "signals.h"
 
 /* Some externs refer to this variable */
 static sigset_t normal_sigmask;
@@ -33,7 +34,7 @@ void sigint_handler(int s) {
         kill(signals_child_pid, SIGINT);
     } else {
         /* ts client killed by SIGINT */
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 

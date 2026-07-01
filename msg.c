@@ -1,6 +1,6 @@
 /*
-    Task Spooler - a task queue system for the unix user
-    Copyright (C) 2007-2009  Lluís Batlle i Rossell
+    Task Spooler PLUS - a multi-user job scheduler like slurm.
+    Copyright (C) 2007-2026  Kylin JIANG - Lluís Batlle i Rossell
 
     Please find the license in the provided COPYING file.
 */
@@ -12,6 +12,9 @@
 #include <unistd.h>
 
 #include "main.h"
+#include "msg.h"
+#include "msgdump.h"
+#include "error.h"
 
 void send_bytes(const int fd, const char *data, int bytes) {
     int res;
@@ -73,7 +76,11 @@ int recv_msg(const int fd, struct Msg *m) {
         warning_msg(m, "Receiving a message from %i, received %i bytes, "
                        "should have received %i.", fd,
                     res, sizeof(*m));
-
+    if (m->type == ERROR_INFO) {
+        char* buf = (char*)malloc(sizeof(*buf)*m->u.size);
+        recv_bytes(fd, buf, m->u.size);
+        error("ERROR: %s", buf);
+    };
     return res;
 }
 

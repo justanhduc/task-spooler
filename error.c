@@ -1,6 +1,6 @@
 /*
-    Task Spooler - a task queue system for the unix user
-    Copyright (C) 2007-2009  Lluís Batlle i Rossell
+    Task Spooler PLUS - a multi-user job scheduler like slurm.
+    Copyright (C) 2007-2026  Kylin JIANG - Lluís Batlle i Rossell
 
     Please find the license in the provided COPYING file.
 */
@@ -17,6 +17,12 @@
 #include <sys/time.h>
 
 #include "main.h"
+#include "error.h"
+#include "server.h"
+#include "server_start.h"
+#include "sqlite.h"
+#include "notify.h"
+#include "msgdump.h"
 
 enum Etype
 {
@@ -149,13 +155,14 @@ void error(const char *str, ...) {
 
     real_errno = errno;
 
-    if (process_type == CLIENT) {
-        vfprintf(stderr, str, ap);
-        fputc('\n', stderr);
-    }
+    // if (process_type == CLIENT) {
+    vfprintf(stderr, str, ap);
+    fputc('\n', stderr);
+    // }
 
     problem(ERROR, str, ap);
-    exit(-1);
+    close_sqlite();
+    exit(EXIT_FAILURE);
 }
 
 void debug(const char *str, ...)
@@ -166,11 +173,11 @@ void debug(const char *str, ...)
 
     real_errno = errno;
 
-    if (process_type == CLIENT)
-    {
-        vfprintf(stderr, str, ap);
-        fputc('\n', stderr);
-    }
+    //if (process_type == CLIENT)
+    // {
+    vfprintf(stderr, str, ap);
+    fputc('\n', stderr);
+    //}
 
     problem(DEBUG, str, ap);
 }
@@ -184,7 +191,7 @@ void error_msg(const struct Msg *m, const char *str, ...)
     real_errno = errno;
 
     problem_msg(ERROR, m, str, ap);
-    exit(-1);
+    exit(EXIT_FAILURE);
 }
 
 void warning(const char *str, ...) {
