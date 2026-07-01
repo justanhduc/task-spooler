@@ -98,6 +98,7 @@ struct CommandLine {
   int no_cpu_binding;
   int no_bind_defrag;
   int only_daemon;
+  int start_service;
   int n_retry;
   time_t start_time;
   int64_t wall_time;

@@ -399,7 +399,8 @@ static void run_child(int fd_send_filename, const char *tmpdir, int jobid) {
   setsid();
 
   pid_t my_pid = getpid();
-  while(cgroups_freeze_ok(jobid, my_pid) != 1) {
+  for (int wait = 0; wait < 10000; wait++) {
+    if (cgroups_freeze_ok(jobid, my_pid) == 1) break;
     usleep(30000);
   }
 

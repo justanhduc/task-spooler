@@ -93,13 +93,14 @@ static inline void cg_group_name(int jobid, pid_t pid, char *buf, size_t size) {
 void cgroups_v2_init(void) {
     FILE *fp = fopen(CGROUP_CONTROLLERS, "r");
     if (!fp) {
-        fprintf(stderr, "Warning: cannot open %s\n", CGROUP_CONTROLLERS);
-        return;
+        error("Cannot open %s — cgroup v2 not available", CGROUP_CONTROLLERS);
     }
 
     char line[256];
     int has_cpu = 0;
+#ifdef TS_CPU_BIND
     int has_cpuset = 0;
+#endif
     if (fgets(line, sizeof(line), fp)) {
         if (strstr(line, "cpu")) {
             has_cpu = 1;
@@ -112,12 +113,57 @@ void cgroups_v2_init(void) {
     }
     fclose(fp);
 
-    if (has_cpu) {
-        cg_write(CGROUP_SUBTREE_CONTROL, "+cpu");
+    /* cpu controller is required */
+    if (!has_cpu) {
+        error("cgroup v2: 'cpu' controller not found in %s. "
+              "The kernel or container does not support it.",
+              CGROUP_CONTROLLERS);
     }
+
+    /* Write +cpu and verify */
+    if (cg_write(CGROUP_SUBTREE_CONTROL, "+cpu") != 0) {
+        error("cgroup v2: failed to enable 'cpu' controller — "
+              "check %s permissions", CGROUP_SUBTREE_CONTROL);
+    }
+    {
+        char verify[256] = "";
+        FILE *vfp = fopen(CGROUP_SUBTREE_CONTROL, "r");
+        if (vfp) {
+            if (fgets(verify, sizeof(verify), vfp))
+                verify[strcspn(verify, "\n")] = '\0';
+            fclose(vfp);
+        }
+        if (!strstr(verify, "cpu")) {
+            error("cgroup v2: 'cpu' controller not propagated to %s "
+                  "(got \"%s\"). Check parent cgroup subtree_control.",
+                  CGROUP_SUBTREE_CONTROL, verify);
+        }
+    }
+
 #ifdef TS_CPU_BIND
-    if (has_cpuset) {
-        cg_write(CGROUP_SUBTREE_CONTROL, "+cpuset");
+    if (!has_cpuset) {
+        error("cgroup v2: 'cpuset' controller not found in %s. "
+              "CPU binding requires it.",
+              CGROUP_CONTROLLERS);
+    }
+
+    if (cg_write(CGROUP_SUBTREE_CONTROL, "+cpuset") != 0) {
+        error("cgroup v2: failed to enable 'cpuset' controller — "
+              "check %s permissions", CGROUP_SUBTREE_CONTROL);
+    }
+    {
+        char verify[256] = "";
+        FILE *vfp = fopen(CGROUP_SUBTREE_CONTROL, "r");
+        if (vfp) {
+            if (fgets(verify, sizeof(verify), vfp))
+                verify[strcspn(verify, "\n")] = '\0';
+            fclose(vfp);
+        }
+        if (!strstr(verify, "cpuset")) {
+            error("cgroup v2: 'cpuset' controller not propagated to %s "
+                  "(got \"%s\"). Check parent cgroup subtree_control.",
+                  CGROUP_SUBTREE_CONTROL, verify);
+        }
     }
 #endif
 }
@@ -125,6 +171,7 @@ void cgroups_v2_init(void) {
 static int cgroups_v2_cpu(int jobid, pid_t pid, int cpus) {
     char path[512];
     char group[64];
+    int err = 0;
 
     cg_group_name(jobid, pid, group, sizeof(group));
     snprintf(path, sizeof(path), CGROUP_DIR "/%s", group);
@@ -139,7 +186,9 @@ static int cgroups_v2_cpu(int jobid, pid_t pid, int cpus) {
 
     snprintf(path, sizeof(path), CGROUP_DIR "/%s/" CGROUP_CPU_MAX, group);
     if (cg_write(path, "%ld %ld", quota, period) != 0) {
-        return -1;
+        fprintf(stderr, "Warning: cannot set cpu.max for job %d — "
+                        "running without CPU limit\n", jobid);
+        err = 1;
     }
 
     snprintf(path, sizeof(path), CGROUP_DIR "/%s/" CGROUP_PROCS, group);
@@ -147,7 +196,7 @@ static int cgroups_v2_cpu(int jobid, pid_t pid, int cpus) {
         return -1;
     }
 
-    return 0;
+    return err ? -1 : 0;
 }
 
 static int cgroups_v2_wait_frozen(int jobid, pid_t pid) {
@@ -366,9 +415,47 @@ static int cgroups_v2_freeze_ok(int jobid, pid_t pid) {
 
 /* ---- v1 internal ---- */
 
+void cgroups_v1_init(void) {
+    struct stat st;
+
+    /* cpu controller: must exist and be writable */
+    if (stat(CGROUP_V1_CPU_DIR, &st) != 0 || !S_ISDIR(st.st_mode)) {
+        error("cgroup v1: '%s' not found — kernel or container "
+              "does not support cpu controller", CGROUP_V1_CPU_DIR);
+    }
+    if (access(CGROUP_V1_CPU_DIR, W_OK) != 0) {
+        error("cgroup v1: '%s' not writable — run as root",
+              CGROUP_V1_CPU_DIR);
+    }
+
+    /* freezer controller: must exist and be writable */
+    if (stat(CGROUP_V1_FREEZE_DIR, &st) != 0 || !S_ISDIR(st.st_mode)) {
+        error("cgroup v1: '%s' not found — kernel or container "
+              "does not support freezer controller", CGROUP_V1_FREEZE_DIR);
+    }
+    if (access(CGROUP_V1_FREEZE_DIR, W_OK) != 0) {
+        error("cgroup v1: '%s' not writable — run as root",
+              CGROUP_V1_FREEZE_DIR);
+    }
+
+#ifdef TS_CPU_BIND
+    /* cpuset controller: required for CPU binding */
+    if (stat("/sys/fs/cgroup/cpuset", &st) != 0 || !S_ISDIR(st.st_mode)) {
+        error("cgroup v1: '/sys/fs/cgroup/cpuset' not found — "
+              "CPU binding requires cpuset controller");
+    }
+    if (access("/sys/fs/cgroup/cpuset", W_OK) != 0) {
+        error("cgroup v1: '/sys/fs/cgroup/cpuset' not writable — "
+              "run as root");
+    }
+#endif
+}
+
 static int cgroups_v1_cpu(int jobid, pid_t pid, int cpus) {
     char buf[256];
     char group[64];
+    int err = 0;
+
     cg_group_name(jobid, pid, group, sizeof(group));
     snprintf(buf, sizeof(buf), CGROUP_V1_CPU_DIR "/%s", group);
     printf("Create cgroups folder at %s\n", buf);
@@ -383,19 +470,23 @@ static int cgroups_v1_cpu(int jobid, pid_t pid, int cpus) {
 
     snprintf(path, sizeof(path), "%s/cpu.cfs_period_us", buf);
     if (cg_write(path, "%ld", period) != 0) {
-        return -1;
+        fprintf(stderr, "Warning: cannot set cpu.cfs_period_us for job %d — "
+                        "running without CPU limit\n", jobid);
+        err = 1;
     }
 
     snprintf(path, sizeof(path), "%s/cpu.cfs_quota_us", buf);
     if (cg_write(path, "%ld", quota) != 0) {
-        return -1;
+        fprintf(stderr, "Warning: cannot set cpu.cfs_quota_us for job %d — "
+                        "running without CPU limit\n", jobid);
+        err = 1;
     }
 
     snprintf(path, sizeof(path), "%s/cgroup.procs", buf);
     if (cg_write(path, "%d", pid) != 0) {
         return -1;
     }
-    return 0;
+    return err ? -1 : 0;
 }
 
 static int cgroups_v1_freeze(int jobid, pid_t pid) {
@@ -721,8 +812,8 @@ void cgroups_clean_job(const struct Job *p) {
     cgroups_v2_cleanup(group);
 #else
     printf("clear cgroups: %s\n", group);
-    cgroups_v1_cleanup_freeze(group);
     cgroups_v1_cleanup_cpu(group);
+    cgroups_v1_cleanup_freeze(group);
 #ifdef TS_CPU_BIND
     cgroups_v1_cleanup_cpuset(group);
 #endif
@@ -757,6 +848,11 @@ void cgroups_set_cpuset(int jobid, pid_t pid, const void *valloc)
     cgroup_io_wait_if_busy();
 
     const struct CpuAlloc *alloc = (const struct CpuAlloc *)valloc;
+
+    /* 防御：分配失败时不写 cpuset（避免写空 cpuset.cpus → cgroup.procs ENOSPC） */
+    if (!alloc || alloc->error || alloc->count <= 0)
+        return;
+
     char *cpus_str = cpu_bind_format_cpus(alloc);
     char *mems_str = cpu_bind_format_mems(alloc);
     char path[512];

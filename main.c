@@ -83,6 +83,7 @@ static void default_command_line() {
   command_line.jobid = 0;
   command_line.list_format = DEFAULT;
   command_line.only_daemon = 0;
+  command_line.start_service = 0;
 }
 
 struct Msg default_msg() {
@@ -200,6 +201,7 @@ static struct option longOptions[] = {
     {"find-by-pid", required_argument, NULL, 0},
     {"at", required_argument, NULL, 0},
     {"on-finish", required_argument, NULL, 0},
+    {"start-service", no_argument, NULL, 0},
     {NULL, 0, NULL, 0}};
 
 void parse_opts(int argc, char **argv) {
@@ -294,6 +296,8 @@ void parse_opts(int argc, char **argv) {
             error("Error: invalid schedule '%s' for --at (e.g. +5m, 14:00, 2025-06-01 14:00)\n", optarg);
       } else if (strcmp(longOptions[optionIdx].name, "on-finish") == 0) {
         command_line.on_finish_cmd = optarg;
+      } else if (strcmp(longOptions[optionIdx].name, "start-service") == 0) {
+        command_line.start_service = 1;
       } else if (strcmp(longOptions[optionIdx].name, "no-bind") == 0) {
         command_line.no_cpu_binding = 1;
       } else if (strcmp(longOptions[optionIdx].name, "no-bind-defrag") == 0) {

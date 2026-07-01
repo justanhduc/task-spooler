@@ -283,6 +283,8 @@ void server_main(int notify_fd, char *_path) {
   cgroups_clean_all_finished();
 #ifdef CGROUP_V2
   cgroups_v2_init();
+#else
+  cgroups_v1_init();
 #endif
 #ifdef TS_CPU_BIND
   cpu_bind_init();
@@ -694,19 +696,53 @@ static enum Break client_read(int index) {
     {
         struct Job *jp = get_job(m.jobid);
         struct Msg resp = default_msg();
-        resp.type = RECONNECT_OK;
         resp.jobid = m.jobid;
 
-        if (jp && (jp->state == QUEUED || jp->state == DELINK
-                   || jp->state == RUNNING || jp->state == FINISHED)
-            && (jp->pid == m.u.reconnect.pid || m.u.reconnect.pid == 0)
+        /* Reject already-finished jobs — client must exit */
+        if (jp == NULL || jp->state == FINISHED || jp->state == SKIPPED) {
+            resp.type = ERROR_INFO;
+            send_msg(s, &resp);
+            break;
+        }
+
+        /* Accept QUEUED, DELINK, RUNNING (and LOCKED/WAIT for completeness) */
+        if ((jp->state == QUEUED || jp->state == DELINK
+             || jp->state == RUNNING || jp->state == LOCKED
+             || jp->state == WAIT)
             && jp->user == user) {
-            /* Only transition to RUNNING if the job was already running */
+
+            /* pid == 0 means "I never started" — match any state;
+               pid > 0 requires exact match to prevent hijacking */
+            if (jp->pid != 0 && jp->pid != m.u.reconnect.pid
+                && m.u.reconnect.pid != 0)
+            {
+                resp.type = ERROR_INFO;
+                send_msg(s, &resp);
+                break;
+            }
+
+            /* ── Clear the old connection so it won't clean up the job ── */
+            for (int c = 0; c < nconnections; c++) {
+                if (c != index && client_cs[c].hasjob
+                    && client_cs[c].jobid == m.jobid) {
+                    client_cs[c].hasjob = 0;
+                }
+            }
+
             if (jp->state == DELINK) jp->state = RUNNING;
             jp->client_socket = s;
             client_cs[index].hasjob = 1;
             client_cs[index].jobid = m.jobid;
+
+            resp.type = RECONNECT_OK;
             send_msg(s, &resp);
+
+            /* If the job was already marked RUNNING but the client never
+               received RUNJOB (pid == 0), re-send RUNJOB so the client
+               can start executing immediately. */
+            if (jp->state == RUNNING && jp->pid == 0) {
+                s_send_runjob(s, jp->jobid);
+            }
         } else {
             resp.type = ERROR_INFO;
             send_msg(s, &resp);

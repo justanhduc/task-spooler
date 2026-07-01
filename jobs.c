@@ -164,6 +164,25 @@ int config_running(struct Job *p) {
     p->user->jobs++;
     p->state = RUNNING;
     rerun_job_config(p);
+#ifdef TS_CPU_BIND
+    /* PAUSE -> RUNNING: re-allocate CPU binding if it was freed on pause.
+       Only for jobs that already have a PID (was RUNNING before PAUSE),
+       not for QUEUED jobs where allocation happens later in s_process_runjob_ok. */
+    if (p->pid != 0 && p->cpu_alloc == NULL && cpu_bind_enabled() && !p->no_cpu_binding
+        && p->num_allocated > 0) {
+        p->cpu_alloc = cpu_bind_alloc_init(p->jobid, p->num_allocated);
+        if (p->cpu_alloc) {
+            cpu_bind_alloc((struct CpuAlloc *)p->cpu_alloc, p->num_allocated);
+            struct CpuAlloc *ca = (struct CpuAlloc *)p->cpu_alloc;
+            if (ca->error == 0 && ca->count > 0) {
+                cgroups_set_cpuset(p->jobid, p->pid, p->cpu_alloc);
+            } else {
+                cpu_bind_free(ca);
+                p->cpu_alloc = NULL;
+            }
+        }
+    }
+#endif
     return 0;
 }
 
@@ -951,16 +970,17 @@ static void new_finished_job(struct Job *j) {
     int err = insert_DB(j, "Finished");
     if (err == 0) {
         delete_DB(j->jobid, "Jobs");
-        cgroups_clean_job(j);
-#ifdef TS_CPU_BIND
-        if (j->cpu_alloc) {
-            cpu_bind_free((struct CpuAlloc *)j->cpu_alloc);
-            j->cpu_alloc = NULL;
-        }
-        if (cpu_bind_defrag_enabled())
-            cpu_bind_defrag_start();
-#endif
     }
+    /* 无论 DB 插入是否成功，都清理 cgroup 和 CPU 绑定，避免资源泄漏 */
+    cgroups_clean_job(j);
+#ifdef TS_CPU_BIND
+    if (j->cpu_alloc) {
+        cpu_bind_free((struct CpuAlloc *)j->cpu_alloc);
+        j->cpu_alloc = NULL;
+    }
+    if (cpu_bind_defrag_enabled())
+        cpu_bind_defrag_start();
+#endif
 }
 
 static int job_is_in_state(int jobid, enum Jobstate state) {
@@ -1120,7 +1140,15 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
         p->cpu_alloc = cpu_bind_alloc_init(p->jobid, p->num_allocated);
         if (p->cpu_alloc) {
             cpu_bind_alloc((struct CpuAlloc *)p->cpu_alloc, p->num_allocated);
-            cgroups_set_cpuset(p->jobid, p->pid, p->cpu_alloc);
+            struct CpuAlloc *ca = (struct CpuAlloc *)p->cpu_alloc;
+            /* 只在分配成功时创建 cpuset cgroup */
+            if (ca->error == 0 && ca->count > 0) {
+                cgroups_set_cpuset(p->jobid, p->pid, p->cpu_alloc);
+            } else {
+                /* 分配失败：释放无用的 alloc，避免 cgroup 操作写空 cpuset.cpus */
+                cpu_bind_free(ca);
+                p->cpu_alloc = NULL;
+            }
         }
     }
 #endif
@@ -1246,7 +1274,7 @@ int s_remove_job(int s, int *jobid, struct User *client) {
         return 0;
     }
 
-    if (p->state == RUNNING) {
+    if (p->state == RUNNING || p->state == PAUSE) {
         if (*jobid == -1)
             snprintf(buff, 255, "Running job of last job is removed.\n");
         else
@@ -1327,6 +1355,12 @@ struct Job *get_job(int jobid) {
 int safe_pause_job(struct Job *p) {
     cgroups_freeze_job(p);
     free_cores(p);
+#ifdef TS_CPU_BIND
+    if (p->cpu_alloc) {
+        cpu_bind_free((struct CpuAlloc *)p->cpu_alloc);
+        p->cpu_alloc = NULL;
+    }
+#endif
     pause_job_config(p);
     return 0;
     /*

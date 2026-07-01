@@ -375,6 +375,9 @@ int ensure_server_up(int daemonFlag) {
 
   /* Try starting the server */
   if (getuid() == root_UID) {
+    if (!command_line.start_service && !daemonFlag) {
+      error("Server not running. Start it with 'ts --start-service'.");
+    }
     if (daemonFlag) {
       if (command_line.only_daemon) {
         printf("Start task-spooler server in only-daemon mode\n");
