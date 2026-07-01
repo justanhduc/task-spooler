@@ -18,6 +18,7 @@ struct Msg;
 enum Jobstate {
   QUEUED,
   RUNNING,
+  ABNORMAL,
   PAUSE,
   FINISHED,
   SKIPPED,
@@ -74,6 +75,8 @@ struct Job {
   int num_allocated;
   int no_cpu_binding;
   int client_socket;
+  /* 0=HEALTH_UNCHECKED, 1=HEALTH_NORMAL, 2=HEALTH_ABNORMAL */
+  int health_state;
 #ifdef TS_CPU_BIND
   void *cpu_alloc;              /* struct CpuAlloc * 由 cpu_bind 管理 */
 #endif
@@ -127,6 +130,7 @@ void s_kill_all_jobs(int s, struct User *user);
 void s_count_running_jobs(int s, struct User *user);
 void s_check_holdon(void);
 
+void s_check_running_health(void);
 int s_check_running_pid(pid_t pid);
 void s_read_sqlite(void);
 int s_find_pid(pid_t target_pid, int deep_search);

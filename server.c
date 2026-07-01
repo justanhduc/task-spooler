@@ -413,6 +413,15 @@ static void server_loop(int ls) {
       }
     } // nconnections
 
+    { /* Periodic health check for RUNNING jobs — every ~10 seconds */
+        static int health_ticks = 0;
+        health_ticks++;
+        if (health_ticks >= 10) {
+            health_ticks = 0;
+            s_check_running_health();
+        }
+    }
+
     next_run_job();
     s_check_holdon();
   } // end of while (keep_loop)

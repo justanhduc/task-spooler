@@ -505,7 +505,7 @@ void s_send_output(int s, int jobid) {
   } else {
     p = get_job(jobid);
     if (p != 0 && p->state != RUNNING && p->state != FINISHED && p->state != SKIPPED
-        && p->state != PAUSE)
+        && p->state != PAUSE && p->state != ABNORMAL)
       p = 0;
     /* Thaw PAUSEd jobs so signals can be delivered */
     if (p != 0 && p->state == PAUSE) {

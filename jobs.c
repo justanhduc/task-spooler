@@ -252,6 +252,79 @@ static int s_check_timeout() {
     return had_timeout;
 }
 
+/* Forward declaration */
+static int count_child_pids(pid_t parent_pid);
+
+/* Health check for RUNNING jobs.
+   Checks jobs that have been RUNNING for ≥300 seconds and are HEALTH_UNCHECKED.
+   Conditions indicating an unhealthy job:
+     1) output log file exists but is empty (stat size == 0)
+     2) no child processes (only the shell waiting)
+   Fulfilling any condition → HEALTH_ABNORMAL, free cores & CPU binding.
+   Otherwise → HEALTH_NORMAL (skip on future checks).
+   Does NOT freeze cgroup — ts -k must keep working as usual. */
+void s_check_running_health(void) {
+    size_t n = vec_size(&active_jobs);
+    for (size_t i = 0; i < n; i++) {
+        struct Job *p = (struct Job *)vec_get(&active_jobs, i);
+
+        /* Only check RUNNING, UNCHECKED jobs with a real PID */
+        if (p->state != RUNNING) continue;
+        if (p->health_state != 0) continue;  /* 0 = HEALTH_UNCHECKED */
+        if (p->pid <= 0) continue;
+
+        /* Must have been running for at least 5 minutes (300 seconds) */
+        time_t elapsed = get_monotonic_sec() - p->info.start_time;
+        if (elapsed < 300) continue;
+
+        int abnormal = 0;
+
+        /* Conditions: output file empty AND no child processes — both required */
+        if (!abnormal) {
+            int output_empty = 0;
+            int no_children = 0;
+
+            if (p->output_filename != NULL && p->output_filename[0] != '\0') {
+                struct stat st;
+                if (stat(p->output_filename, &st) == 0 && S_ISREG(st.st_mode) && st.st_size == 0) {
+                    output_empty = 1;
+                }
+            }
+
+            if (count_child_pids(p->pid) == 0) {
+                no_children = 1;
+            }
+
+            if (output_empty && no_children) {
+                printf("Job[%d] health ABNORMAL: output empty + no child processes (pid=%d)\n",
+                       p->jobid, p->pid);
+                abnormal = 1;
+            }
+        }
+
+        if (abnormal) {
+            p->state = ABNORMAL;
+            /* Free slots so new jobs can dispatch */
+            if (p->num_allocated != 0) {
+                free_cores(p);
+            }
+#ifdef TS_CPU_BIND
+            /* Free CPU binding if allocated */
+            if (p->cpu_alloc) {
+                cpu_bind_free((struct CpuAlloc *)p->cpu_alloc);
+                p->cpu_alloc = NULL;
+            }
+            if (cpu_bind_defrag_enabled())
+                cpu_bind_defrag_start();
+#endif
+            printf("Job[%d] -> ABNORMAL (slots freed)\n", p->jobid);
+        } else {
+            p->health_state = 1;  /* HEALTH_NORMAL */
+            printf("Job[%d] -> HEALTH_NORMAL\n", p->jobid);
+        }
+    }
+}
+
 int s_update_slots_usage() {
     int timeout_flag = s_check_timeout();
 
@@ -316,6 +389,37 @@ static int is_descendant_pid(pid_t parent_pid, pid_t target_pid) {
     }
 
     return 0;
+}
+
+/* Count direct child PIDs of a process by reading /proc/<pid>/children.
+   Returns the number of children, 0 if none or error. */
+static int count_child_pids(pid_t parent_pid) {
+    char path[256];
+    char buf[4096];
+    int fd;
+
+    snprintf(path, sizeof(path), "/proc/%d/task/%d/children", parent_pid, parent_pid);
+    fd = open(path, O_RDONLY);
+    if (fd == -1) {
+        return 0;
+    }
+
+    ssize_t n = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+
+    if (n <= 0) {
+        return 0;
+    }
+    buf[n] = '\0';
+
+    int count = 0;
+    char *saveptr;
+    char *token = strtok_r(buf, " ", &saveptr);
+    while (token != NULL) {
+        count++;
+        token = strtok_r(NULL, " ", &saveptr);
+    }
+    return count;
 }
 
 /* Find which running job a PID belongs to.
@@ -524,6 +628,7 @@ char const *jstate2string(enum Jobstate s) {
     case WAIT:           jobstate = "wait    "; break;
     case DELINK:         jobstate = "delink  "; break;
     case LOCKED:         jobstate = "locked  "; break;
+    case ABNORMAL:       jobstate = "abnormal"; break;
     case PAUSE:          jobstate = "pause   "; break;
     default:             jobstate = "UNKNOWN ";
     }
@@ -1279,6 +1384,16 @@ int s_remove_job(int s, int *jobid, struct User *client) {
             snprintf(buff, 255, "Running job of last job is removed.\n");
         else
             snprintf(buff, 255, "Running job [%i] PID: %d by `%s` is removed.\n",
+                     *jobid, p->pid, p->user->name);
+        s_send_removejob_nok(s, buff);
+        return 0;
+    }
+
+    if (p->state == ABNORMAL) {
+        if (*jobid == -1)
+            snprintf(buff, 255, "Last job is abnormal.\n");
+        else
+            snprintf(buff, 255, "Abnormal job [%i] PID: %d by `%s` (use ts -k to kill).\n",
                      *jobid, p->pid, p->user->name);
         s_send_removejob_nok(s, buff);
         return 0;
