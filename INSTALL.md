@@ -1,5 +1,46 @@
 # Install Task Spooler
 
+## Dependencies
+
+Task Spooler is POSIX-only (it uses Unix domain sockets, `fork`, `setsid`), so
+it needs Linux, macOS or another Unix. It does not build on native Windows;
+use WSL2 there.
+
+**To build:**
+
+| | Debian / Ubuntu | RHEL / Fedora | Needed for |
+|---|---|---|---|
+| C toolchain | `build-essential` | `gcc make` | everything |
+| CMake ≥ 3.5 | `cmake` | `cmake` | the CMake build only |
+| NVML header | `libnvidia-ml-dev` | `cuda-nvml-devel-*` † | the GPU build only |
+| Git | `git` | `git` | optional; only stamps the version |
+
+† Not in the base RHEL/Fedora repositories -- it comes from NVIDIA's own CUDA
+repository. Any CUDA Toolkit install provides `nvml.h` as well.
+
+So, in practice:
+
+```
+# CPU version
+sudo apt install build-essential cmake
+
+# GPU version -- adds only the ~83 KB NVML header package
+sudo apt install build-essential cmake libnvidia-ml-dev
+```
+
+**To run:**
+
+| | Needed for |
+|---|---|
+| NVIDIA driver (provides `libnvidia-ml.so.1`) | the GPU features (`-G`, `-g`, `--gpu_indices`) |
+| `gzip` | `-z`, storing output compressed |
+| an MTA at `/usr/sbin/sendmail` | `-m`, mailing the output |
+
+Nothing above is needed for the CPU version beyond a working system: it has no
+runtime dependencies outside libc.
+
+## Building
+
 First, clone the repository
 
 ```
