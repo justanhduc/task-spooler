@@ -3,7 +3,12 @@ project(Task-Spooler C)
 
 set(CMAKE_C_STANDARD 11)
 
-option(TASK_SPOOLER_COMPILE_CUDA "Compile CUDA support (NVML)" ON)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+# Enables the GPU-scheduling features. These only need NVML (which ships with the
+# NVIDIA driver), not the full CUDA compute toolkit -- see cmake/FindNVML.cmake.
+# The name is kept as-is for backward compatibility with existing build scripts.
+option(TASK_SPOOLER_COMPILE_CUDA "Compile GPU (NVML) support" ON)
 
 # VERSIONING
 execute_process(
@@ -53,31 +58,9 @@ add_executable(
 add_executable(makeman man.c)
 
 if(TASK_SPOOLER_COMPILE_CUDA)
-  if(${CMAKE_VERSION} VERSION_LESS "3.17.0") 
-    find_package(CUDA REQUIRED)
-
-    # Do what the new package does
-    find_library(CUDA_DRIVER_LIBRARY
-                NAMES cuda_driver cuda
-                HINTS ${CUDA_TOOLKIT_ROOT_DIR}
-                      ENV CUDA_PATH
-                PATH_SUFFIXES nvidia/current lib64 lib/x64 lib)
-    if (NOT CUDA_DRIVER_LIBRARY)
-        # Don't try any stub directories until we have exhausted all other search locations.
-        find_library(CUDA_DRIVER_LIBRARY
-                    NAMES cuda_driver cuda
-                    HINTS ${CUDA_TOOLKIT_ROOT_DIR}
-                          ENV CUDA_PATH
-                    PATH_SUFFIXES lib64/stubs lib/x64/stubs lib/stubs stubs)
-    endif ()
-    mark_as_advanced(CUDA_DRIVER_LIBRARY)
-    ##
-
-    target_link_libraries(${target} nvidia-ml)
-  else()
-    find_package(CUDAToolkit REQUIRED)
-    target_link_libraries(${target} CUDA::nvml)
-  endif()
+  # Depend on NVML only (part of the NVIDIA driver), not the full CUDA Toolkit.
+  find_package(NVML REQUIRED)
+  target_link_libraries(${target} NVML::NVML)
 else(TASK_SPOOLER_COMPILE_CUDA)
   message("Installing a CPU version...")
   add_definitions(-DCPU)

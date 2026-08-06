@@ -6,8 +6,20 @@ First, clone the repository
 git clone https://github.com/justanhduc/task-spooler
 ```
 
-To set up Task Spooler with GPU support, one needs to set a `CUDA_HOME` environment variable.
-Then, simple run the provided script
+The GPU features only require **NVML**, not the full CUDA compute toolkit. The
+library itself (`libnvidia-ml.so.1`) ships with the NVIDIA driver, so nothing
+extra is needed to *run* `ts`. To *build* it you also need the `nvml.h` header,
+which no driver ships -- on Debian/Ubuntu it comes from `libnvidia-ml-dev`
+(~83 KB, and the only file it installs is `/usr/include/nvml.h`):
+
+```
+sudo apt install libnvidia-ml-dev
+```
+
+A CUDA Toolkit install works too, since it carries `nvml.h` alongside a link
+stub. If either lives somewhere custom, point the build at it with a `CUDA_HOME`
+(or `CUDA_PATH`) environment variable, which is used only as a search hint.
+Then simply run the provided script
 
 ```
 ./install_cmake
@@ -51,7 +63,20 @@ To use `ts` anywhere, `$HOME/bin` needs to be added to `$PATH` if it hasn't been
 To use `man`, you may also need to add `$HOME/.local/share/man` to `$MANPATH`.
 
 ## Common problems
-* Cannot find CUDA: Did you set a `CUDA_HOME` flag?
+* Could NOT find NVML (missing `nvml.h`): install `libnvidia-ml-dev` (Debian /
+Ubuntu) or a CUDA Toolkit, and set `CUDA_HOME`/`CUDA_PATH` if it lives somewhere
+non-standard. A working `nvidia-smi` does *not* imply the header is present:
+drivers ship runtime libraries only, never development headers. Beware that
+`find / -name nvml.h` may turn up `/usr/include/hwloc/nvml.h`, which belongs to
+hwloc and is a different file altogether.
+* `ld: cannot find -lnvidia-ml` while the driver is clearly installed: some
+hosts ship only the versioned `libnvidia-ml.so.1` without the unversioned
+`libnvidia-ml.so` symlink that `-lnvidia-ml` needs -- WSL2 is one such case, as
+it exposes the Windows driver under `/usr/lib/wsl/lib`. The CMake build handles
+this by linking the versioned file directly; the Makefile build needs the
+symlink, which `libnvidia-ml-dev` or a CUDA Toolkit provides.
+* If you do not need GPU scheduling at all, build the CPU version with
+`-DTASK_SPOOLER_COMPILE_CUDA=OFF`.
 * `list.c:22:5: error: implicitly declaring library function 'snprintf' with type 'int (char *, unsigned long, const char *, ...)'`: 
 Please remove `-D_XOPEN_SOURCE=500` in the Makefile as reported [here](https://github.com/justanhduc/task-spooler/issues/4).
 * `Error calling recv_msg in c_check_version` and/or `Wrong server version`: This is because another version of `ts`
