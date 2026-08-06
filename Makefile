@@ -25,9 +25,17 @@ INSTALL=install -c
 
 GIT_REPO=$(shell git rev-parse --is-inside-work-tree)
 
+# The GPU build needs only NVML (part of the NVIDIA driver), not the CUDA compute
+# runtime -- so we link -lnvidia-ml only (no -lcudart/-lcublas). CUDA_HOME, if set,
+# is used purely as a search hint for nvml.h and libnvidia-ml.
+ifdef CUDA_HOME
+CUDA_INCLUDE=-I$(CUDA_HOME)/include
+CUDA_LIBDIR=-L$(CUDA_HOME)/lib64 -L$(CUDA_HOME)/lib64/stubs
+endif
+
 all: OBJECTS+= gpu.o
-all: LDFLAGS+=-L$(CUDA_HOME)/lib64 -L$(CUDA_HOME)/lib64/stubs -I$(CUDA_HOME)/include
-all: LDLIBS+=-lnvidia-ml -lcudart -lcublas
+all: LDFLAGS+=$(CUDA_LIBDIR) $(CUDA_INCLUDE)
+all: LDLIBS+=-lnvidia-ml
 all: gpu.o
 
 $(TARGET): $(OBJECTS)
@@ -55,7 +63,7 @@ signals.o: signals.c main.h
 list.o: list.c main.h
 tail.o: tail.c main.h
 gpu.o: gpu.c main.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -L$(CUDA_HOME)/lib64 -I$(CUDA_HOME)/include -lpthread -c $< -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(CUDA_INCLUDE) -c $< -o $@
 cjson/cJSON.o: cjson/cJSON.c cjson/cJSON.h
 
 cpu: CFLAGS+=-DCPU

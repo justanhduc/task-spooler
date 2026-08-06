@@ -33,7 +33,18 @@ just forget `CUDA_VISIBLE_DEVICES`.
 
 ## Setup
 
-See the installation steps in [INSTALL.md](INSTALL.md).
+Task Spooler is POSIX-only. On Debian/Ubuntu:
+
+```
+sudo apt install build-essential cmake                     # CPU version
+sudo apt install build-essential cmake libnvidia-ml-dev    # GPU version
+```
+
+The GPU version needs only NVML, which ships with the NVIDIA driver -- the full
+CUDA toolkit is not required. `libnvidia-ml-dev` (~83 KB) supplies the `nvml.h`
+header that no driver ships.
+
+See the full dependency list and installation steps in [INSTALL.md](INSTALL.md).
 
 ## Changelog
 
