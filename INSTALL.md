@@ -1,5 +1,20 @@
 # Install Task Spooler
 
+Feishu notifications require libcurl development headers and POSIX threads.
+On Debian/Ubuntu, install the build dependencies with:
+
+```bash
+sudo apt-get install build-essential cmake libcurl4-openssl-dev
+```
+
+Both the Makefile and CMake builds link libcurl and the platform thread library.
+The CPU-only build can be used to test notifications without CUDA:
+
+```bash
+cmake -S . -B build -DTASK_SPOOLER_COMPILE_CUDA=OFF
+cmake --build build
+```
+
 First, clone the repository
 
 ```

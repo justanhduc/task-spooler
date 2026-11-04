@@ -510,17 +510,24 @@ char *joblist_line_plain(const struct Job *p) {
 }
 
 char *joblistdump_torun(const struct Job *p) {
-    int maxlen;
-    char *line;
-
-    maxlen = 10 + strlen(p->command) + 20; /* 20 is the margin for errors */
-
-    line = (char *) malloc(maxlen);
-    if (line == NULL)
-        error("Malloc for %i failed.\n", maxlen);
-
-    snprintf(line, maxlen, "ts %s\n", p->command);
-
+    char *line, *ids = NULL;
+    size_t maxlen;
+    if (p->num_allowed_gpus)
+        ids = ints_to_chars(p->allowed_gpu_ids, p->num_allowed_gpus, ",");
+    else if (p->num_gpus && !p->wait_free_gpus)
+        ids = ints_to_chars(p->gpu_ids, p->num_gpus, ",");
+    maxlen = strlen(p->command) + (ids ? strlen(ids) : 0) + 100;
+    line = malloc(maxlen);
+    if (!line) error("Cannot allocate queue dump line");
+    if (p->num_allowed_gpus)
+        snprintf(line, maxlen, "ts -G %d --gpu-ids %s %s\n", p->num_gpus, ids, p->command);
+    else if (ids)
+        snprintf(line, maxlen, "ts -g %s %s\n", ids, p->command);
+    else if (p->num_gpus)
+        snprintf(line, maxlen, "ts -G %d %s\n", p->num_gpus, p->command);
+    else
+        snprintf(line, maxlen, "ts %s\n", p->command);
+    free(ids);
     return line;
 }
 

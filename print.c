@@ -51,14 +51,20 @@ int fd_nprintf(int fd, int maxsize, const char *fmt, ...)
 }
 
 char *ints_to_chars(int *array, int n, const char *delim) {
-    char *tmp = malloc(n * sizeof(char) + n * strlen(delim) * sizeof(char) + 1);
-    int j = 0;
-    for (int i = 0; i < n; i++) {
-        j += sprintf(tmp + j, "%d", array[i]);
-        if (i < n - 1) {
-            strcat(tmp, delim);
-            j += strlen(delim);
+    size_t length = 1, delimiter_length = strlen(delim);
+    char *text, *cursor;
+    for (int i = 0; i < n; ++i)
+        length += (size_t)snprintf(NULL, 0, "%d", array[i]) + (i ? delimiter_length : 0);
+    text = malloc(length);
+    if (!text) error("Cannot allocate integer list");
+    cursor = text;
+    *cursor = '\0';
+    for (int i = 0; i < n; ++i) {
+        if (i) {
+            memcpy(cursor, delim, delimiter_length);
+            cursor += delimiter_length;
         }
+        cursor += sprintf(cursor, "%d", array[i]);
     }
-    return tmp;
+    return text;
 }

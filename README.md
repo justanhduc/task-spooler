@@ -35,6 +35,94 @@ just forget `CUDA_VISIBLE_DEVICES`.
 
 See the installation steps in [INSTALL.md](INSTALL.md).
 
+## Feishu notifications
+
+This fork can notify a Feishu custom bot whenever a job is accepted, starts,
+succeeds, or fails. CPU and GPU jobs use the same notification path.
+
+```bash
+# Configure the running queue (replace the placeholder with your bot's URL).
+ts --set_feishu_webhook 'https://open.feishu.cn/open-apis/bot/v2/hook/YOUR_TOKEN'
+ts --get_feishu_webhook
+
+# Submit jobs normally; no per-job notification flag is required.
+ts -G 2 -L evaluation python eval.py
+ts -G 4 bash -lc 'cd /data/project && python eval.py'
+
+# Disable notifications for future events.
+ts --unset_feishu_webhook
+```
+
+The configuration belongs to the **server/queue**, not the submitting terminal.
+All users sharing a queue must use the same `TS_SOCKET` and have access to that
+socket. These options do not merge separate users' default queues or change
+scheduling policy. They reuse the existing server environment protocol; restart
+any older running `ts` server after installing this version.
+
+CLI settings last until the queue server exits. To enable notifications after
+every restart, export `TS_FEISHU_WEBHOOK` in the environment that starts the server
+(for example, in its service configuration). Exporting it in a new shell does
+not update a server that is already running; use `--set_feishu_webhook` instead.
+`--get_feishu_webhook` prints the full configured URL; an empty line means disabled.
+
+Messages are Feishu JSON 2.0 cards with rendered Markdown and Chinese status
+headings. Blue/cyan mark submission/start, green marks success, red marks failure,
+and orange marks skipped jobs. Labels, resource details, results, shell command
+code blocks and log paths are arranged in separate sections. Cards include the
+host, job ID, event time (with timezone), requested GPU count, allocated GPU IDs,
+PID, exit status, termination signal and elapsed seconds as applicable. A job skipped
+because of `-W` dependencies produces `submitted` and `skipped`, without a false
+`running` event. A normal job produces exactly three events:
+`submitted`, `running`, and either `succeeded` or `failed`.
+
+A single background thread sends messages in event order. Sending uses libcurl
+with a 2-second connection timeout and a 5-second total timeout per message;
+network latency and bot errors do not block scheduling or change job exit codes.
+HTTP errors, nonzero Feishu response codes, and malformed responses are logged
+to the queue socket path plus `.error` (for example, `$TS_SOCKET.error`). Webhook
+URLs and response bodies are not included in notification error messages.
+
+Delivery is best effort: there is no retry (to avoid duplicate bot messages),
+the in-memory queue holds at most 256 waiting notifications, and overflow is
+logged. A graceful `ts -K` drains pending messages before the server exits, which
+may take time if the endpoint is unavailable. Abrupt termination can lose pending
+messages. Disabling or replacing the webhook affects future events; messages
+already waiting retain their original destination.
+
+Use an HTTPS webhook. HTTP loopback URLs are also accepted for local tests.
+Bots with keyword restrictions must allow `Task Spooler`. Bot signature-secret
+verification is not implemented; this integration uses the webhook token.
+
+Build dependencies include libcurl development headers and POSIX threads; see
+[INSTALL.md](INSTALL.md). Run the local HTTP integration tests with:
+
+```bash
+cmake -S . -B build -DTASK_SPOOLER_COMPILE_CUDA=OFF
+cmake --build build
+TS_BINARY=./build/ts python3 -m unittest discover -s tests -v
+```
+
+## Queue priority
+
+```bash
+ts -u 12  # Make waiting job 12 the first waiting job.
+ts -u     # Promote the last submitted job that is still in the active queue.
+```
+
+Promotion places the selected waiting job after all running jobs and before
+all other waiting jobs. With no running jobs, it becomes the queue head, even
+if the old head is waiting for GPUs. Other running and waiting jobs retain
+their relative order within each group. Running jobs are never interrupted.
+Promoting the waiting head again (including a queue with just one waiting job)
+is a safe no-op. A running, finished, unknown, or not-yet-admitted job returns
+an error without changing the queue. Omitting the ID selects the most recently
+submitted active job, even after previous queue reordering.
+
+Promotion changes priority only: GPU availability, execution slots and job
+dependencies still determine whether the task can start. Existing servers
+must be restarted after their queues drain to pick up this fix; changing the
+binary does not update a running server's in-memory queue.
+
 ## Changelog
 
 See [CHANGELOG](CHANGELOG.md).
@@ -112,7 +200,7 @@ Actions (can be performed only one at a time):
   -w [id]      wait for a job. The last added, if not specified.
   -k [id]      send SIGTERM to the job process group. The last run, if not specified.
   -T           send SIGTERM to all running job groups.
-  -u [id]      put that job first. The last added, if not specified.
+  -u [id]      promote a waiting job ahead of other waiting jobs, after running jobs. Last added by default.
   -U [id-id]   swap two jobs in the queue.
   -B           in case of full queue on the server, quit (2) instead of waiting.
   -h           show this help
@@ -161,3 +249,30 @@ Many memory bugs are identified thanks to [Valgrind](https://valgrind.org/).
 ## Related projects
 
 [Messenger](https://github.com/justanhduc/messenger)
+
+### Queue on selected GPUs
+
+Use `--gpu-ids` to restrict a job to a comma-separated set of physical NVML GPU indices while retaining GPU memory checks and the queue's GPU reservations. `-G` is the number of GPUs needed from that set; it defaults to one when `--gpu-ids` is given alone.
+
+```bash
+# Wait for GPU 1, even if another GPU is free.
+ts -G 1 --gpu-ids 1 -L '明-model-eval' python eval.py
+# Wait for either GPU 0 or GPU 1; never use another device.
+ts -G 1 --gpu-ids 0,1 -L '明-model-eval' python eval.py
+# Require both GPUs to be available at the same time.
+ts -G 2 --gpu-ids 0,1 -L '明-model-eval' python eval.py
+```
+
+A restricted job stays `allocating` until enough GPUs in its set are visible to the server, free according to the configured memory threshold, and unreserved by other jobs. Other jobs can still use GPUs outside that set. Dependencies and slot limits continue to apply. Invalid list syntax, duplicate IDs, and requesting more GPUs than the list contains are rejected; nonexistent or server-hidden GPU IDs cannot be allocated and may leave the job waiting. `TS_VISIBLE_DEVICES` remains a server-wide limit, and the job's allowed set cannot override it.
+
+`ts -i ID` and `ts -M json` expose the allowed set separately from actual assignments. Task Spooler sets `CUDA_VISIBLE_DEVICES` for the allocated physical devices; applications should use the resulting logical device IDs rather than override that variable. The legacy `-g/--gpu_indices` option still bypasses availability checks and cannot be combined with `--gpu-ids`.
+
+Feishu cards show candidate GPU IDs even while queued, followed by the actual allocation once running. Event times use the server's local timezone and `YYYY-MM-DD HH:MM`. Durations display minutes/seconds below one hour, hours/minutes below one day, and days/hours/minutes for longer jobs.
+
+This feature uses protocol 731. Update the client and server together after draining an existing queue; clients reject a server with the old protocol rather than misreading GPU restrictions. GPU scheduling regression tests use a fake NVML backend and isolated sockets, without reserving real GPUs or sending notifications to Feishu:
+
+```bash
+cmake -S . -B build -DTASK_SPOOLER_COMPILE_CUDA=OFF -DBUILD_TESTING=ON
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```

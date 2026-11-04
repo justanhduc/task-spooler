@@ -14,6 +14,7 @@
 #include <sys/socket.h>
 
 #include "main.h"
+#include "feishu.h"
 #include "cjson/cJSON.h"
 
 /* The list will access them */
@@ -46,6 +47,15 @@ static struct Job *get_job(int jobid);
 
 void notify_errorlevel(struct Job *p);
 
+#ifndef CPU
+static int gpu_is_allowed(const struct Job *job, int id) {
+    if (!job->num_allowed_gpus) return job->wait_free_gpus != GPU_ALLOWED_FREE;
+    for (int i = 0; i < job->num_allowed_gpus; ++i)
+        if (job->allowed_gpu_ids[i] == id) return 1;
+    return 0;
+}
+#endif
+
 static void shuffle(int *array, size_t n) {
     if (n > 1) {
         size_t i;
@@ -67,6 +77,7 @@ static void destroy_job(struct Job* p) {
     free(p->depend_on);
     free(p->label);
     free(p->gpu_ids);
+    free(p->allowed_gpu_ids);
     free(p);
 }
 
@@ -437,6 +448,9 @@ static int add_job_to_json_array(struct Job *p, cJSON *jobs) {
         return 0;
     }
     cJSON_AddItemToObject(job, "GPUs", field);
+    if (p->num_allowed_gpus)
+        cJSON_AddItemToObject(job, "Allowed GPU IDs",
+                             cJSON_CreateIntArray(p->allowed_gpu_ids, p->num_allowed_gpus));
     #endif /*CPU*/
 
     /* Command */
@@ -576,10 +590,13 @@ void s_list_gpu(int s) {
 static void init_job(struct Job *p) {
     p->next = 0;
     p->output_filename = 0;
+    p->pid = 0;
     p->command = 0;
     p->depend_on = 0;
     p->depend_on_size = 0;
     p->gpu_ids = 0;
+    p->allowed_gpu_ids = NULL;
+    p->num_allowed_gpus = 0;
     p->label = 0;
     p->notify_errorlevel_to_size = 0;
     p->notify_errorlevel_to = 0;
@@ -659,6 +676,9 @@ int s_newjob(int s, struct Msg *m) {
         p->gpu_ids = (int *) malloc((p->num_gpus + 1) * sizeof(int));
         memset(p->gpu_ids, -1, (p->num_gpus + 1) * sizeof(int));
     }
+
+    if (p->wait_free_gpus == GPU_ALLOWED_FREE)
+        p->allowed_gpu_ids = recv_ints(s, &p->num_allowed_gpus);
 
     p->num_slots = m->u.newjob.num_slots;
     p->store_output = m->u.newjob.store_output;
@@ -872,7 +892,7 @@ int next_run_job() {
                 int *gpu_ids = (int*) malloc(p->num_gpus * sizeof(int));
                 while (i < p->num_gpus && j < numFree) {
                     /* if the prospective GPUs are in used, select the next one */
-                    if (!isInUse(freeGpuList[j]))
+                    if (!isInUse(freeGpuList[j]) && gpu_is_allowed(p, freeGpuList[j]))
                         gpu_ids[i++] = freeGpuList[j];
                     j++;
                 }
@@ -1030,6 +1050,8 @@ void job_finished(const struct Result *result, int jobid) {
     last_finished_jobid = p->jobid;
     notify_errorlevel(p);
     pinfo_set_end_time(&p->info);
+    feishu_notify(p, result->skipped ? "skipped" :
+                  (result->errorlevel || result->died_by_signal) ? "failed" : "succeeded");
 
     if (p->result.died_by_signal)
         pinfo_addinfo(&p->info, 100, "Exit status: killed by signal %i\n", p->result.signal);
@@ -1097,6 +1119,8 @@ void s_process_runjob_ok(int jobid, char *oname, int pid) {
     p->pid = pid;
     p->output_filename = oname;
     pinfo_set_start_time(&p->info);
+    if (pid > 0)
+        feishu_notify(p, "running");
 }
 
 void s_send_runjob(int s, int jobid) {
@@ -1177,6 +1201,13 @@ void s_job_info(int s, int jobid) {
     fd_nprintf(s, 100, "Slots required: %i\n", p->num_slots);
 #ifndef CPU
     fd_nprintf(s, 100, "GPUs required: %d\n", p->num_gpus);
+    if (p->num_allowed_gpus) {
+        char *allowed = ints_to_chars(p->allowed_gpu_ids, p->num_allowed_gpus, ",");
+        fd_nprintf(s, 100, "Allowed GPU IDs: ");
+        write(s, allowed, strlen(allowed));
+        write(s, "\n", 1);
+        free(allowed);
+    }
     fd_nprintf(s, 100, "GPU IDs: %s\n", ints_to_chars(
             p->gpu_ids, p->num_gpus ? p->num_gpus : 1, ","));
 #endif
@@ -1603,36 +1634,55 @@ void s_get_max_slots(int s) {
 
 void s_move_urgent(int s, int jobid) {
     struct Job *p = 0;
-    struct Job *tmp1;
+    struct Job **link;
+    struct Job *running = NULL, *waiting = NULL, *cursor;
+    struct Job **running_tail = &running, **waiting_tail = &waiting;
 
     if (jobid == -1) {
-        /* Find the last job added */
-        p = firstjob;
-
-        if (p != 0)
-            while (p->next != 0)
-                p = p->next;
+        /* Queue order can change; the highest ID is the last job added. */
+        for (cursor = firstjob; cursor; cursor = cursor->next)
+            if (!p || cursor->jobid > p->jobid)
+                p = cursor;
     } else {
         p = firstjob;
         while (p != 0 && p->jobid != jobid)
             p = p->next;
     }
 
-    if (p == 0 || firstjob->next == 0) {
-        char tmp[50];
+    if (!p || (p->state != QUEUED && p->state != ALLOCATING)) {
+        char tmp[128];
         if (jobid == -1)
-            sprintf(tmp, "The last job cannot be urged.\n");
+            sprintf(tmp, "The last added job is not waiting in the queue.\n");
         else
-            sprintf(tmp, "The job %i cannot be urged.\n", jobid);
+            sprintf(tmp, "Job %i is not waiting in the queue.\n", jobid);
         send_list_line(s, tmp);
         return;
     }
 
-    /* Interchange the pointers */
-    tmp1 = find_previous_job(p);
-    tmp1->next = p->next;
-    p->next = firstjob->next;
-    firstjob->next = p;
+    /* Unlink through the owning pointer, including when p is firstjob. */
+    link = &firstjob;
+    while (*link != p)
+        link = &(*link)->next;
+    *link = p->next;
+
+    /* Backfilling may have left waiting jobs ahead of running jobs. Keep
+     * both groups stable, then put p before every other waiting job. */
+    cursor = firstjob;
+    while (cursor) {
+        struct Job *next = cursor->next;
+        cursor->next = NULL;
+        if (cursor->state == RUNNING) {
+            *running_tail = cursor;
+            running_tail = &cursor->next;
+        } else {
+            *waiting_tail = cursor;
+            waiting_tail = &cursor->next;
+        }
+        cursor = next;
+    }
+    *running_tail = p;
+    p->next = waiting;
+    firstjob = running;
     send_urgent_ok(s);
 }
 
@@ -1819,12 +1869,18 @@ void s_set_env(int s, int size) {
         error("Receiving environment variable name");
 
     /* get the var name */
-    char *name = strtok(var, "=");
-
-    /* get the var value */
-    char *val = strtok(NULL, "=");
-    setenv(name, val, 1);
+    char *val = strchr(var, '=');
+    if (val) {
+        *val++ = '\0';
+        setenv(var, val, 1);
+    }
     free(var);
+}
+
+void s_notify_job_submitted(int jobid) {
+    struct Job *job = findjob(jobid);
+    if (job)
+        feishu_notify(job, "submitted");
 }
 
 void s_unset_env(int s, int size) {

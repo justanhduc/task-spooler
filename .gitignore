@@ -40,4 +40,5 @@ bin/
 obj/
 .objs/
 *.o
+/tests/__pycache__/
 

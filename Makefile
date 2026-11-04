@@ -19,7 +19,10 @@ OBJECTS=main.o \
 	info.o \
 	env.o \
 	tail.o \
+	feishu.o \
+	feishu_card.o \
 	cjson/cJSON.o
+LDLIBS+=-lcurl -lpthread
 TARGET=ts
 INSTALL=install -c
 
@@ -54,6 +57,9 @@ error.o: error.c main.h
 signals.o: signals.c main.h
 list.o: list.c main.h
 tail.o: tail.c main.h
+feishu.o: feishu.c feishu.h main.h cjson/cJSON.h
+feishu_card.o: feishu_card.c feishu.h main.h cjson/cJSON.h
+main.o jobs.o server.o: feishu.h
 gpu.o: gpu.c main.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -L$(CUDA_HOME)/lib64 -I$(CUDA_HOME)/include -lpthread -c $< -o $@
 cjson/cJSON.o: cjson/cJSON.c cjson/cJSON.h

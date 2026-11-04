@@ -14,9 +14,13 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <time.h>
+#include <errno.h>
+#include <limits.h>
+#include <ctype.h>
 
 #include "version.h"
 #include "main.h"
+#include "feishu.h"
 
 extern char *optarg;
 extern int optind, opterr, optopt;
@@ -56,6 +60,7 @@ static void default_command_line() {
     command_line.require_elevel = 0;
     command_line.gpus = 0;
     command_line.gpu_nums = NULL;
+    command_line.num_gpu_ids = 0;
     command_line.wait_free_gpus = 1;
     command_line.logfile = NULL;
     command_line.list_format = DEFAULT;
@@ -111,6 +116,36 @@ int strtok_int(char* str, char* delim, int* ids) {
     return count;
 }
 
+#ifndef CPU
+static int parse_gpu_ids(const char *text, int **ids) {
+    const char *cursor = text;
+    int count = 0;
+    size_t capacity = 1;
+    for (const char *p = text; *p; ++p)
+        if (*p == ',') ++capacity;
+    if (capacity > 1024)
+        error("--gpu-ids accepts at most 1024 GPU IDs");
+    *ids = malloc(capacity * sizeof(**ids));
+    if (!*ids) error("Cannot allocate GPU ID list");
+    do {
+        char *end;
+        long value;
+        if (!isdigit((unsigned char)*cursor))
+            error("--gpu-ids requires comma-separated nonnegative integers");
+        errno = 0;
+        value = strtol(cursor, &end, 10);
+        if (errno || value > INT_MAX || (*end && *end != ','))
+            error("Invalid GPU ID in --gpu-ids");
+        for (int i = 0; i < count; ++i)
+            if ((*ids)[i] == value) error("Duplicate GPU ID in --gpu-ids");
+        (*ids)[count++] = (int)value;
+        if (!*end) break;
+        cursor = end + 1;
+    } while (1);
+    return count;
+}
+#endif
+
 static struct option longOptions[] = {
         {"get_label",          required_argument, NULL, 'a'},
         {"count_running",      no_argument,       NULL, 'R'},
@@ -122,9 +157,13 @@ static struct option longOptions[] = {
         {"unsetenv",           required_argument, NULL, 0},
         {"get_logdir",         no_argument,       NULL, 0},
         {"set_logdir",         required_argument, NULL, 0},
+        {"set_feishu_webhook", required_argument, NULL, 0},
+        {"get_feishu_webhook", no_argument,       NULL, 0},
+        {"unset_feishu_webhook", no_argument,     NULL, 0},
 #ifndef CPU
         {"gpus",              required_argument, NULL, 'G'},
         {"gpu_indices",       required_argument, NULL, 'g'},
+        {"gpu-ids",           required_argument, NULL, 256},
         {"set_gpu_free_perc", required_argument, NULL, 0},
         {"get_gpu_free_perc", no_argument,       NULL, 0},
 #endif
@@ -136,6 +175,9 @@ void parse_opts(int argc, char **argv) {
     int c;
     int res;
     int optionIdx = 0;
+#ifndef CPU
+    int gpu_count_set = 0;
+#endif
 
     /* Parse options */
     while (1) {
@@ -152,7 +194,25 @@ void parse_opts(int argc, char **argv) {
 
         switch (c) {
             case 0:
-                if (strcmp(longOptions[optionIdx].name, "getenv") == 0) {
+                if (strcmp(longOptions[optionIdx].name, "set_feishu_webhook") == 0) {
+                    size_t size;
+                    if (!feishu_valid_webhook(optarg)) {
+                        fprintf(stderr, "Invalid Feishu webhook: use an HTTPS URL.\n");
+                        exit(EXIT_FAILURE);
+                    }
+                    size = strlen(optarg) + sizeof("TS_FEISHU_WEBHOOK=");
+                    command_line.label = malloc(size);
+                    if (!command_line.label)
+                        error("Cannot allocate webhook configuration");
+                    sprintf(command_line.label, "TS_FEISHU_WEBHOOK=%s", optarg);
+                    command_line.request = c_SET_ENV;
+                } else if (strcmp(longOptions[optionIdx].name, "get_feishu_webhook") == 0) {
+                    command_line.request = c_GET_ENV;
+                    command_line.label = "TS_FEISHU_WEBHOOK";
+                } else if (strcmp(longOptions[optionIdx].name, "unset_feishu_webhook") == 0) {
+                    command_line.request = c_UNSET_ENV;
+                    command_line.label = "TS_FEISHU_WEBHOOK";
+                } else if (strcmp(longOptions[optionIdx].name, "getenv") == 0) {
                     command_line.request = c_GET_ENV;
                     command_line.label = optarg;  /* reuse this var */
                 } else if (strcmp(longOptions[optionIdx].name, "setenv") == 0) {
@@ -232,15 +292,31 @@ void parse_opts(int argc, char **argv) {
                 break;
 #ifndef CPU
             case 'G':
-                if (optarg)
-                    command_line.gpus = atoi(optarg);
-                else
+                gpu_count_set = 1;
+                if (optarg) {
+                    char *end;
+                    long count;
+                    errno = 0;
+                    count = strtol(optarg, &end, 10);
+                    if (!isdigit((unsigned char)*optarg) || *end || errno || count > INT_MAX)
+                        error("-G requires a nonnegative integer GPU count");
+                    command_line.gpus = (int)count;
+                } else
                     command_line.gpus = 1;
                 break;
             case 'g':
+                if (command_line.wait_free_gpus == GPU_ALLOWED_FREE)
+                    error("--gpu-ids cannot be combined with -g/--gpu_indices");
+                free(command_line.gpu_nums);
                 command_line.gpu_nums = (int*) malloc(strlen(optarg) * sizeof(int));
                 command_line.gpus = strtok_int(optarg, ",", command_line.gpu_nums);
-                command_line.wait_free_gpus = 0;
+                command_line.wait_free_gpus = GPU_FORCED;
+                break;
+            case 256:
+                if (command_line.gpu_nums)
+                    error("--gpu-ids cannot be repeated or combined with -g/--gpu_indices");
+                command_line.num_gpu_ids = parse_gpu_ids(optarg, &command_line.gpu_nums);
+                command_line.wait_free_gpus = GPU_ALLOWED_FREE;
                 break;
 #endif
             case 't':
@@ -429,6 +505,16 @@ void parse_opts(int argc, char **argv) {
         get_command(optind, argc, argv);
     }
 
+#ifndef CPU
+    if (command_line.wait_free_gpus == GPU_ALLOWED_FREE) {
+        if (command_line.request != c_QUEUE)
+            error("--gpu-ids requires a command to enqueue");
+        if (!gpu_count_set) command_line.gpus = 1;
+        if (command_line.gpus < 1 || command_line.gpus > command_line.num_gpu_ids)
+            error("-G must request between 1 and the number of allowed GPU IDs");
+    }
+#endif
+
     if (command_line.request != c_SHOW_HELP &&
         command_line.request != c_SHOW_VERSION)
         command_line.need_server = 1;
@@ -494,8 +580,12 @@ static void print_help(const char *cmd) {
     printf("  TS_ENV              command called on enqueue. Its output determines the job information.\n");
     printf("  TS_SAVELIST         filename which will store the list, if the server dies.\n");
     printf("  TS_SLOTS            amount of jobs which can run at once, read on server start.\n");
+    printf("  TS_FEISHU_WEBHOOK    Feishu bot webhook; notify on job submission, start and completion.\n");
     printf("  TMPDIR              directory where to place the output files and the default socket.\n");
     printf("Long option actions:\n");
+    printf("  --set_feishu_webhook [url]             enable Feishu notifications for this queue.\n");
+    printf("  --get_feishu_webhook                   show this queue's webhook (empty if disabled).\n");
+    printf("  --unset_feishu_webhook                 disable future Feishu notifications.\n");
     printf("  --getenv [var]                         get the value of the specified variable in server environment.\n");
     printf("  --setenv [var]                         set the specified flag to server environment.\n");
     printf("  --unsetenv [var]                       remove the specified flag from server environment.\n");
@@ -512,6 +602,7 @@ static void print_help(const char *cmd) {
     printf("Long option adding jobs:\n");
     printf("  --gpus                       || -G [num]      number of GPUs required by the job (1 default).\n");
     printf("  --gpu_indices                || -g [id,...]   the job will be on these GPU indices without checking whether they are free.\n");
+    printf("  --gpu-ids [id,...]            wait for -G GPUs from this allowed set (default: one); never bypass availability checks.\n");
 #endif
     printf("Actions (can be performed only one at a time):\n");
     printf("  -K           kill the task spooler server\n");
@@ -531,7 +622,7 @@ static void print_help(const char *cmd) {
     printf("  -w [id]      wait for a job. The last added, if not specified.\n");
     printf("  -k [id]      send SIGTERM to the job process group. The last run, if not specified.\n");
     printf("  -T           send SIGTERM to all running job groups.\n");
-    printf("  -u [id]      put that job first. The last added, if not specified.\n");
+    printf("  -u [id]      promote a waiting job ahead of other waiting jobs, after running jobs. Last added by default.\n");
     printf("  -U [id-id]   swap two jobs in the queue.\n");
     printf("  -h           show this help\n");
     printf("  -V           show the program version\n");

@@ -28,6 +28,7 @@
 #include <stdio.h>
 
 #include "main.h"
+#include "feishu.h"
 
 enum Break {
     BREAK,
@@ -208,6 +209,7 @@ void server_main(int notify_fd, char *_path) {
     initGPU();
 #endif
 
+    feishu_init();
     server_loop(ls);
 }
 
@@ -303,6 +305,7 @@ static void server_loop(int ls) {
 }
 
 static void end_server(int ls) {
+    feishu_shutdown();
     close(ls);
     unlink(path);
     /* This comes from the parent, in the fork after server_main.
@@ -387,6 +390,8 @@ client_read(int index) {
         case NEWJOB:
             client_cs[index].jobid = s_newjob(s, &m);
             client_cs[index].hasjob = 1;
+            if (!job_is_holding_client(client_cs[index].jobid) || m.u.newjob.wait_enqueuing)
+                s_notify_job_submitted(client_cs[index].jobid);
             if (!job_is_holding_client(client_cs[index].jobid))
                 s_newjob_ok(index);
             else if (!m.u.newjob.wait_enqueuing) {
