@@ -4,6 +4,8 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <math.h>
+#include <limits.h>
 
 #include "main.h"
 #include "feishu.h"
@@ -82,6 +84,41 @@ static void code_markdown(cJSON *elements, const char *heading,
     free(text);
 }
 
+static void duration_text(char *buffer, size_t size, double seconds) {
+    long long total = (isfinite(seconds) && seconds > 0 && seconds < (double)LLONG_MAX)
+                      ? (long long)seconds : 0;
+    if (total >= 86400)
+        snprintf(buffer, size, "%lld天%lld小时%lld分", total / 86400,
+                 total / 3600 % 24, total / 60 % 60);
+    else if (total >= 3600)
+        snprintf(buffer, size, "%lld小时%lld分", total / 3600, total / 60 % 60);
+    else
+        snprintf(buffer, size, "%lld分%lld秒", total / 60, total % 60);
+}
+
+static void gpu_constraint(cJSON *elements, const struct Job *job) {
+    const int *ids = job->allowed_gpu_ids;
+    int count = job->num_allowed_gpus;
+    const char *heading = "候选 GPU";
+    char text[1024];
+    size_t used;
+    if (!count && job->num_gpus && !job->wait_free_gpus) {
+        ids = job->gpu_ids;
+        count = job->num_gpus;
+        heading = "指定 GPU（不等待空闲）";
+    }
+    if (!count) return;
+    used = (size_t)snprintf(text, sizeof(text), "**%s**　", heading);
+    for (int i = 0; i < count; ++i) {
+        if (used > sizeof(text) - 48) {
+            snprintf(text + used, sizeof(text) - used, "…（共%d张）", count);
+            break;
+        }
+        used += (size_t)snprintf(text + used, sizeof(text) - used, "%s%d", i ? ", " : "", ids[i]);
+    }
+    markdown(elements, text);
+}
+
 char *feishu_card_payload(const struct Job *job, const char *event) {
     cJSON *root = cJSON_CreateObject(), *card, *header, *title, *body, *elements;
     const char *status = "📥 任务已提交", *color = "blue";
@@ -125,11 +162,13 @@ char *feishu_card_payload(const struct Job *job, const char *event) {
     if (job->label && *job->label)
         label_markdown(elements, job->label);
     localtime_r(&now, &local);
-    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S %z", &local);
+    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M", &local);
     snprintf(text, sizeof(text), "**任务编号**　`#%d`\n**申请资源**　%s%d%s\n**事件时间**　%s",
              job->jobid, job->num_gpus ? "" : "CPU 任务（", job->num_gpus,
              job->num_gpus ? " 张 GPU" : " 张 GPU）", timestamp);
     markdown(elements, text);
+
+    gpu_constraint(elements, job);
 
     if (job->pid > 0 && strcmp(event, "submitted") != 0) {
         char ids[512] = "";
@@ -143,14 +182,16 @@ char *feishu_card_payload(const struct Job *job, const char *event) {
     }
 
     if (job->state == FINISHED || job->state == SKIPPED) {
+        char duration[128];
+        duration_text(duration, sizeof(duration), job->result.real_ms);
         if (job->result.skipped)
             snprintf(text, sizeof(text), "**执行结果**\n依赖任务未成功，当前任务已跳过。\n**退出码**　`%d`", job->result.errorlevel);
         else if (job->result.died_by_signal)
-            snprintf(text, sizeof(text), "**执行结果**\n进程被信号 `%d` 终止。\n**退出码**　`%d`　　**运行耗时**　%.2f 秒",
-                     job->result.signal, job->result.errorlevel, job->result.real_ms);
+            snprintf(text, sizeof(text), "**执行结果**\n进程被信号 `%d` 终止。\n**退出码**　`%d`　　**运行耗时**　%s",
+                     job->result.signal, job->result.errorlevel, duration);
         else
-            snprintf(text, sizeof(text), "**执行结果**\n**退出码**　`%d`　　**运行耗时**　%.2f 秒",
-                     job->result.errorlevel, job->result.real_ms);
+            snprintf(text, sizeof(text), "**执行结果**\n**退出码**　`%d`　　**运行耗时**　%s",
+                     job->result.errorlevel, duration);
         markdown(elements, text);
     }
 

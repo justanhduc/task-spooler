@@ -90,6 +90,9 @@ void c_new_job() {
     if (!command_line.wait_free_gpus)
         send_ints(server_socket, command_line.gpu_nums, command_line.gpus);
 
+    if (command_line.wait_free_gpus == GPU_ALLOWED_FREE)
+        send_ints(server_socket, command_line.gpu_nums, command_line.num_gpu_ids);
+
     /* send dependencies */
     if (command_line.depend_on_size)
         send_ints(server_socket, command_line.depend_on, command_line.depend_on_size);
@@ -106,6 +109,7 @@ void c_new_job() {
     free(new_command);
     free(myenv);
     free(command_line.depend_on);
+    free(command_line.gpu_nums);
 }
 
 int c_wait_newjob_ok() {

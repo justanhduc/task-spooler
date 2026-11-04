@@ -9,8 +9,11 @@
 
 enum {
     CMD_LEN = 500,
-    PROTOCOL_VERSION = 730
+    PROTOCOL_VERSION = 731
 };
+
+/* Keep the wire message size stable; mode 2 sends a candidate-ID vector. */
+enum GpuMode { GPU_FORCED = 0, GPU_ANY_FREE = 1, GPU_ALLOWED_FREE = 2 };
 
 enum MsgTypes {
     KILL_SERVER,
@@ -124,6 +127,7 @@ struct CommandLine {
     int require_elevel;  /* whether requires error level of dependencies or not */
     int gpus;
     int *gpu_nums;
+    int num_gpu_ids;
     int wait_free_gpus;
     char *logfile;
     enum ListFormat list_format;
@@ -227,6 +231,8 @@ struct Job {
     int num_slots;
     int num_gpus;
     int *gpu_ids;
+    int *allowed_gpu_ids;
+    int num_allowed_gpus;
     int wait_free_gpus;
 };
 

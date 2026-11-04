@@ -47,6 +47,15 @@ static struct Job *get_job(int jobid);
 
 void notify_errorlevel(struct Job *p);
 
+#ifndef CPU
+static int gpu_is_allowed(const struct Job *job, int id) {
+    if (!job->num_allowed_gpus) return job->wait_free_gpus != GPU_ALLOWED_FREE;
+    for (int i = 0; i < job->num_allowed_gpus; ++i)
+        if (job->allowed_gpu_ids[i] == id) return 1;
+    return 0;
+}
+#endif
+
 static void shuffle(int *array, size_t n) {
     if (n > 1) {
         size_t i;
@@ -68,6 +77,7 @@ static void destroy_job(struct Job* p) {
     free(p->depend_on);
     free(p->label);
     free(p->gpu_ids);
+    free(p->allowed_gpu_ids);
     free(p);
 }
 
@@ -438,6 +448,9 @@ static int add_job_to_json_array(struct Job *p, cJSON *jobs) {
         return 0;
     }
     cJSON_AddItemToObject(job, "GPUs", field);
+    if (p->num_allowed_gpus)
+        cJSON_AddItemToObject(job, "Allowed GPU IDs",
+                             cJSON_CreateIntArray(p->allowed_gpu_ids, p->num_allowed_gpus));
     #endif /*CPU*/
 
     /* Command */
@@ -582,6 +595,8 @@ static void init_job(struct Job *p) {
     p->depend_on = 0;
     p->depend_on_size = 0;
     p->gpu_ids = 0;
+    p->allowed_gpu_ids = NULL;
+    p->num_allowed_gpus = 0;
     p->label = 0;
     p->notify_errorlevel_to_size = 0;
     p->notify_errorlevel_to = 0;
@@ -661,6 +676,9 @@ int s_newjob(int s, struct Msg *m) {
         p->gpu_ids = (int *) malloc((p->num_gpus + 1) * sizeof(int));
         memset(p->gpu_ids, -1, (p->num_gpus + 1) * sizeof(int));
     }
+
+    if (p->wait_free_gpus == GPU_ALLOWED_FREE)
+        p->allowed_gpu_ids = recv_ints(s, &p->num_allowed_gpus);
 
     p->num_slots = m->u.newjob.num_slots;
     p->store_output = m->u.newjob.store_output;
@@ -874,7 +892,7 @@ int next_run_job() {
                 int *gpu_ids = (int*) malloc(p->num_gpus * sizeof(int));
                 while (i < p->num_gpus && j < numFree) {
                     /* if the prospective GPUs are in used, select the next one */
-                    if (!isInUse(freeGpuList[j]))
+                    if (!isInUse(freeGpuList[j]) && gpu_is_allowed(p, freeGpuList[j]))
                         gpu_ids[i++] = freeGpuList[j];
                     j++;
                 }
@@ -1183,6 +1201,13 @@ void s_job_info(int s, int jobid) {
     fd_nprintf(s, 100, "Slots required: %i\n", p->num_slots);
 #ifndef CPU
     fd_nprintf(s, 100, "GPUs required: %d\n", p->num_gpus);
+    if (p->num_allowed_gpus) {
+        char *allowed = ints_to_chars(p->allowed_gpu_ids, p->num_allowed_gpus, ",");
+        fd_nprintf(s, 100, "Allowed GPU IDs: ");
+        write(s, allowed, strlen(allowed));
+        write(s, "\n", 1);
+        free(allowed);
+    }
     fd_nprintf(s, 100, "GPU IDs: %s\n", ints_to_chars(
             p->gpu_ids, p->num_gpus ? p->num_gpus : 1, ","));
 #endif

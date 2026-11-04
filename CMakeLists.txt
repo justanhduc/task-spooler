@@ -86,7 +86,8 @@ if(TASK_SPOOLER_COMPILE_CUDA)
   endif()
 else(TASK_SPOOLER_COMPILE_CUDA)
   message("Installing a CPU version...")
-  add_definitions(-DCPU)
+  target_compile_definitions(${target} PRIVATE CPU)
+  target_compile_definitions(makeman PRIVATE CPU)
 endif(TASK_SPOOLER_COMPILE_CUDA)
 
 # Man pages
@@ -103,3 +104,23 @@ install(TARGETS ${target}
         RUNTIME)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/man1
         TYPE MAN)
+
+option(BUILD_TESTING "Build isolated regression tests" OFF)
+include(CTest)
+if(BUILD_TESTING)
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
+  set(TEST_SOURCES ${TASK_SPOOLER_SOURCES})
+  list(REMOVE_ITEM TEST_SOURCES gpu.c)
+  add_executable(ts_gpu_test main.c ${TEST_SOURCES} gpu.c tests/fake_nvml/fake_nvml.c)
+  target_include_directories(ts_gpu_test PRIVATE tests/fake_nvml)
+  target_link_libraries(ts_gpu_test CURL::libcurl Threads::Threads)
+  add_executable(test_card tests/card_fixture.c feishu_card.c cjson/cJSON.c)
+  target_include_directories(test_card PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+  add_test(NAME regression
+    COMMAND ${CMAKE_COMMAND} -E env
+      TS_BINARY=$<TARGET_FILE:ts>
+      TS_GPU_TEST_BINARY=$<TARGET_FILE:ts_gpu_test>
+      TS_CARD_TEST_BINARY=$<TARGET_FILE:test_card>
+      ${Python3_EXECUTABLE} -m unittest discover -s tests -v)
+  set_tests_properties(regression PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} TIMEOUT 120)
+endif()

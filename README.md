@@ -249,3 +249,30 @@ Many memory bugs are identified thanks to [Valgrind](https://valgrind.org/).
 ## Related projects
 
 [Messenger](https://github.com/justanhduc/messenger)
+
+### Queue on selected GPUs
+
+Use `--gpu-ids` to restrict a job to a comma-separated set of physical NVML GPU indices while retaining GPU memory checks and the queue's GPU reservations. `-G` is the number of GPUs needed from that set; it defaults to one when `--gpu-ids` is given alone.
+
+```bash
+# Wait for GPU 1, even if another GPU is free.
+ts -G 1 --gpu-ids 1 -L '明-model-eval' python eval.py
+# Wait for either GPU 0 or GPU 1; never use another device.
+ts -G 1 --gpu-ids 0,1 -L '明-model-eval' python eval.py
+# Require both GPUs to be available at the same time.
+ts -G 2 --gpu-ids 0,1 -L '明-model-eval' python eval.py
+```
+
+A restricted job stays `allocating` until enough GPUs in its set are visible to the server, free according to the configured memory threshold, and unreserved by other jobs. Other jobs can still use GPUs outside that set. Dependencies and slot limits continue to apply. Invalid list syntax, duplicate IDs, and requesting more GPUs than the list contains are rejected; nonexistent or server-hidden GPU IDs cannot be allocated and may leave the job waiting. `TS_VISIBLE_DEVICES` remains a server-wide limit, and the job's allowed set cannot override it.
+
+`ts -i ID` and `ts -M json` expose the allowed set separately from actual assignments. Task Spooler sets `CUDA_VISIBLE_DEVICES` for the allocated physical devices; applications should use the resulting logical device IDs rather than override that variable. The legacy `-g/--gpu_indices` option still bypasses availability checks and cannot be combined with `--gpu-ids`.
+
+Feishu cards show candidate GPU IDs even while queued, followed by the actual allocation once running. Event times use the server's local timezone and `YYYY-MM-DD HH:MM`. Durations display minutes/seconds below one hour, hours/minutes below one day, and days/hours/minutes for longer jobs.
+
+This feature uses protocol 731. Update the client and server together after draining an existing queue; clients reject a server with the old protocol rather than misreading GPU restrictions. GPU scheduling regression tests use a fake NVML backend and isolated sockets, without reserving real GPUs or sending notifications to Feishu:
+
+```bash
+cmake -S . -B build -DTASK_SPOOLER_COMPILE_CUDA=OFF -DBUILD_TESTING=ON
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+```
